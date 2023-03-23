@@ -235,7 +235,7 @@
                <enabled>false</enabled>
             </snapshots>
         </repository>
-
+        
         <!-- Only used by core, but moved to root for parallel build dependency resolution -->
         <repository>
             <id>sigar</id>
@@ -249,6 +249,17 @@
           <url>https://packages.confluent.io/maven/</url>
         </repository>
     </repositories>
+    
+    <pluginRepositories>
+        <pluginRepository>
+            <id>${repoOrgId}</id>
+            <name>${repoOrgName}</name>
+            <url>${repoOrgUrl}</url>
+            <snapshots>
+               <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
 
     <dependencyManagement>
         <dependencies>
