@@ -17,15 +17,14 @@
  * under the License.
  */
 
-package org.apache.druid.data.input.opentelemetry.protobuf;
+package org.apache.druid.data.input.opentelemetry.protobuf.metrics;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.druid.data.input.InputEntity;
 import org.apache.druid.data.input.InputEntityReader;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRowSchema;
-import org.apache.druid.data.input.impl.ByteEntity;
-import org.apache.druid.indexing.seekablestream.SettableByteEntity;
+import org.apache.druid.data.input.opentelemetry.protobuf.Utils;
 import org.apache.druid.java.util.common.StringUtils;
 
 import java.io.File;
@@ -64,23 +63,13 @@ public class OpenTelemetryMetricsProtobufInputFormat implements InputFormat
   @Override
   public InputEntityReader createReader(InputRowSchema inputRowSchema, InputEntity source, File temporaryDirectory)
   {
-    // Sampler passes a KafkaRecordEntity directly, while the normal code path wraps the same entity in a
-    // SettableByteEntity
-    SettableByteEntity<? extends ByteEntity> settableEntity;
-    if (source instanceof SettableByteEntity) {
-      settableEntity = (SettableByteEntity<? extends ByteEntity>) source;
-    } else {
-      SettableByteEntity<ByteEntity> wrapper = new SettableByteEntity<>();
-      wrapper.setEntity((ByteEntity) source);
-      settableEntity = wrapper;
-    }
     return new OpenTelemetryMetricsProtobufReader(
-            inputRowSchema.getDimensionsSpec(),
-            settableEntity,
-            metricDimension,
-            valueDimension,
-            metricAttributePrefix,
-            resourceAttributePrefix
+        inputRowSchema.getDimensionsSpec(),
+        Utils.getSettableEntity(source),
+        metricDimension,
+        valueDimension,
+        metricAttributePrefix,
+        resourceAttributePrefix
     );
   }
 

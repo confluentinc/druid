@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.druid.data.input.opentelemetry.protobuf;
+package org.apache.druid.data.input.opentelemetry.protobuf.metrics;
 
 import com.google.common.collect.ImmutableList;
 import io.opentelemetry.proto.common.v1.AnyValue;
@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit;
 
 @Fork(1)
 @State(Scope.Benchmark)
-public class OpenTelemetryBenchmark
+public class OpenTelemetryMetricsBenchmark
 {
 
   private static ByteBuffer BUFFER;

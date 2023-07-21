@@ -19,8 +19,6 @@
 
 package org.apache.druid.data.input.opencensus.protobuf;
 
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -30,34 +28,27 @@ import io.opencensus.proto.metrics.v1.LabelKey;
 import io.opencensus.proto.metrics.v1.Metric;
 import io.opencensus.proto.metrics.v1.Point;
 import io.opencensus.proto.metrics.v1.TimeSeries;
-import org.apache.druid.data.input.InputEntityReader;
 import org.apache.druid.data.input.InputRow;
-import org.apache.druid.data.input.InputRowListPlusRawValues;
 import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.data.input.impl.DimensionsSpec;
+import org.apache.druid.data.input.opentelemetry.protobuf.AbstractProtobufReader;
 import org.apache.druid.indexing.seekablestream.SettableByteEntity;
-import org.apache.druid.java.util.common.CloseableIterators;
-import org.apache.druid.java.util.common.parsers.CloseableIterator;
-import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.utils.CollectionUtils;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class OpenCensusProtobufReader implements InputEntityReader
+public class OpenCensusProtobufReader extends AbstractProtobufReader
 {
   private static final String SEPARATOR = "-";
   private static final String VALUE_COLUMN = "value";
 
-  private final DimensionsSpec dimensionsSpec;
-  private final SettableByteEntity<? extends ByteEntity> source;
   private final String metricDimension;
   private final String metricLabelPrefix;
   private final String resourceLabelPrefix;
@@ -70,8 +61,7 @@ public class OpenCensusProtobufReader implements InputEntityReader
       String resourceLabelPrefix
   )
   {
-    this.dimensionsSpec = dimensionsSpec;
-    this.source = source;
+    super(dimensionsSpec, source);
     this.metricDimension = metricDimension;
     this.metricLabelPrefix = metricLabelPrefix;
     this.resourceLabelPrefix = resourceLabelPrefix;
@@ -83,36 +73,9 @@ public class OpenCensusProtobufReader implements InputEntityReader
   }
 
   @Override
-  public CloseableIterator<InputRow> read()
+  public List<InputRow> parseData(ByteBuffer byteBuffer) throws InvalidProtocolBufferException
   {
-    Supplier<Iterator<InputRow>> supplier = Suppliers.memoize(() -> readAsList().iterator());
-    return CloseableIterators.withEmptyBaggage(new Iterator<InputRow>() {
-      @Override
-      public boolean hasNext()
-      {
-        return supplier.get().hasNext();
-      }
-      @Override
-      public InputRow next()
-      {
-        return supplier.get().next();
-      }
-    });
-  }
-
-  List<InputRow> readAsList()
-  {
-    try {
-      ByteBuffer buffer = source.getEntity().getBuffer();
-      List<InputRow> rows = parseMetric(Metric.parseFrom(buffer));
-      // Explicitly move the position assuming that all the remaining bytes have been consumed because the protobuf
-      // parser does not update the position itself
-      buffer.position(buffer.limit());
-      return rows;
-    }
-    catch (InvalidProtocolBufferException e) {
-      throw new ParseException(null, e, "Protobuf message could not be parsed");
-    }
+    return parseMetric(Metric.parseFrom(byteBuffer));
   }
 
   private List<InputRow> parseMetric(final Metric metric)
@@ -221,11 +184,5 @@ public class OpenCensusProtobufReader implements InputEntityReader
         break;
       default:
     }
-  }
-
-  @Override
-  public CloseableIterator<InputRowListPlusRawValues> sample()
-  {
-    return read().map(row -> InputRowListPlusRawValues.of(row, ((MapBasedInputRow) row).getEvent()));
   }
 }
