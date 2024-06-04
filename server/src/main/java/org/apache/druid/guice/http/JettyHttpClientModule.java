@@ -23,16 +23,26 @@ import com.google.common.base.Preconditions;
 import com.google.inject.Binder;
 import com.google.inject.Binding;
 import com.google.inject.Module;
+import com.google.inject.Provides;
+import com.google.inject.Singleton;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.annotations.Global;
 import org.apache.druid.java.util.common.lifecycle.Lifecycle;
+import org.apache.druid.java.util.emitter.service.ServiceEmitter;
+import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
+import org.apache.druid.java.util.metrics.AbstractMonitor;
+import org.apache.druid.java.util.metrics.MonitorUtils;
+import org.apache.druid.server.metrics.DataSourceTaskIdHolder;
+import org.apache.druid.server.metrics.MetricsModule;
+import org.apache.druid.server.metrics.MonitorsConfig;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 
 import javax.net.ssl.SSLContext;
 import java.lang.annotation.Annotation;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -41,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 public class JettyHttpClientModule implements Module
 {
   private static final long CLIENT_CONNECT_TIMEOUT_MILLIS = TimeUnit.MILLISECONDS.toMillis(500);
+  private static QueuedThreadPool httpClientThreadPool = null;
 
   public static JettyHttpClientModule global()
   {
@@ -64,6 +75,8 @@ public class JettyHttpClientModule implements Module
           .annotatedWith(annotationClazz)
           .toProvider(new HttpClientProvider(annotationClazz))
           .in(LazySingleton.class);
+
+    MetricsModule.register(binder, JettyHttpClientModule.JettyMonitor.class);
   }
 
   public static class HttpClientProvider extends AbstractHttpClientProvider<HttpClient>
@@ -96,6 +109,7 @@ public class JettyHttpClientModule implements Module
       final QueuedThreadPool pool = new QueuedThreadPool(config.getNumMaxThreads());
       pool.setName(JettyHttpClientModule.class.getSimpleName() + "-threadPool-" + pool.hashCode());
       httpClient.setExecutor(pool);
+      httpClientThreadPool = pool;
 
       final Lifecycle lifecycle = getLifecycleProvider().get();
 
@@ -126,6 +140,34 @@ public class JettyHttpClientModule implements Module
       }
 
       return httpClient;
+    }
+  }
+
+  @Provides
+  @Singleton
+  public JettyHttpClientModule.JettyMonitor getJettyMonitor(DataSourceTaskIdHolder dataSourceTaskIdHolder)
+  {
+    return new JettyHttpClientModule.JettyMonitor(dataSourceTaskIdHolder.getDataSource(), dataSourceTaskIdHolder.getTaskId());
+  }
+
+  public static class JettyMonitor extends AbstractMonitor
+  {
+    private final Map<String, String[]> dimensions;
+
+    public JettyMonitor(String dataSource, String taskId)
+    {
+      this.dimensions = MonitorsConfig.mapOfDatasourceAndTaskID(dataSource, taskId);
+    }
+
+    @Override
+    public boolean doMonitor(ServiceEmitter emitter)
+    {
+      final ServiceMetricEvent.Builder builder = new ServiceMetricEvent.Builder();
+      MonitorUtils.addDimensionsToBuilder(builder, dimensions);
+      if (httpClientThreadPool != null) {
+        emitter.emit(builder.build("jetty/httpClient/threadpool/queueSize", httpClientThreadPool.getQueueSize()));
+      }
+      return true;
     }
   }
 }
