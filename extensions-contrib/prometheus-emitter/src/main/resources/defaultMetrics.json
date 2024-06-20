@@ -58,11 +58,11 @@
   "ingest/kafka/avgLag" : { "dimensions" : ["dataSource", "stream"], "type" : "gauge", "help": "Average lag between the offsets consumed by the Kafka indexing tasks and latest offsets in Kafka brokers across all partitions. Minimum emission period for this metric is a minute."},
   "ingest/kafka/partitionLag" : { "dimensions" : ["dataSource", "stream", "partition"], "type" : "gauge", "help": "Partition-wise lag between the offsets consumed by the Kafka indexing tasks and latest offsets in Kafka brokers. Minimum emission period for this metric is a minute."},
 
-  "task/success/count" : { "dimensions" : ["dataSource"], "type" : "count", "help": "Number of successful tasks per emission period. This metric is only available if the TaskCountStatsMonitor module is included."},
-  "task/failed/count" : { "dimensions" : ["dataSource"], "type" : "count", "help": "Number of failed tasks per emission period. This metric is only available if the TaskCountStatsMonitor module is included."},
-  "task/running/count" : { "dimensions" : ["dataSource"], "type" : "count", "help": "Number of current running tasks. This metric is only available if the TaskCountStatsMonitor module is included."},
-  "task/pending/count" : { "dimensions" : ["dataSource"], "type" : "count", "help": "Number of current pending tasks. This metric is only available if the TaskCountStatsMonitor module is included."},
-  "task/waiting/count" : { "dimensions" : ["dataSource"], "type" : "count", "help":  "Number of current waiting tasks. This metric is only available if the TaskCountStatsMonitor module is included."},
+  "task/success/count" : { "dimensions" : ["dataSource", "taskType"], "type" : "count", "help": "Number of successful tasks per emission period. This metric is only available if the TaskCountStatsMonitor module is included."},
+  "task/failed/count" : { "dimensions" : ["dataSource", "taskType"], "type" : "count", "help": "Number of failed tasks per emission period. This metric is only available if the TaskCountStatsMonitor module is included."},
+  "task/running/count" : { "dimensions" : ["dataSource", "taskType"], "type" : "count", "help": "Number of current running tasks. This metric is only available if the TaskCountStatsMonitor module is included."},
+  "task/pending/count" : { "dimensions" : ["dataSource", "taskType"], "type" : "count", "help": "Number of current pending tasks. This metric is only available if the TaskCountStatsMonitor module is included."},
+  "task/waiting/count" : { "dimensions" : ["dataSource", "taskType"], "type" : "count", "help":  "Number of current waiting tasks. This metric is only available if the TaskCountStatsMonitor module is included."},
   "task/run/time" : { "dimensions" : ["dataSource", "taskType"], "type" : "timer", "conversionFactor": 1000.0, "help": "Milliseconds taken to run a task."},
 
   "segment/added/bytes" : { "dimensions" : ["dataSource", "taskType"], "type" : "count", "help": "Size in bytes of new segments created." },
