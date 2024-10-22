@@ -106,14 +106,16 @@ RUN mkdir /opt/druid/var /opt/shared \
 
 # Install iproute2 to get the ip command needed to set config of druid.host IP address
 # Command needed in druid.sh Line 140;
-RUN if [ ! -x "$(command -v ip)" ]; then \
-      if [ -x "$(command -v apt)" ]; then \
-        apt update \
-        && apt install -y iproute2; \
+RUN if ! command -v ip >/dev/null 2>&1; then \
+      if command -v apt >/dev/null 2>&1; then \
+        apt update && apt install -y iproute2; \
+      elif command -v apk >/dev/null 2>&1; then \
+        apk update && apk add --no-cache iproute2; \
       else \
-        apk add iproute2; \
+        echo "Unsupported package manager. Please install iproute2 manually."; \
+        exit 1; \
       fi; \
-    fi;
+    fi
 
 RUN if [ -x "$(command -v apt)" ]; then \
     apt update \
