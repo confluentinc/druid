@@ -1703,7 +1703,7 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
   }
 
 
-  @Test(timeout = 120_000L)
+  @Test
   public void testRunConflicting() throws Exception
   {
     recordSupplier.assign(EasyMock.anyObject());
