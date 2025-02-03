@@ -193,7 +193,7 @@ public class GroupingEngine
         );
       } else {
         return new GroupByQueryResources(
-            mergeBufferHolders.subList(0, requiredMergeBufferNumForToolchestMerge), 
+            mergeBufferHolders.subList(0, requiredMergeBufferNumForToolchestMerge),
             mergeBufferHolders.subList(requiredMergeBufferNumForToolchestMerge, requiredMergeBufferNum)
         );
       }
@@ -425,7 +425,11 @@ public class GroupingEngine
   /**
    * Merges a variety of single-segment query runners into a combined runner. Used by
    * {@link GroupByQueryRunnerFactory#mergeRunners(QueryProcessingPool, Iterable)}. In
+<<<<<<< HEAD
    * that sense, it is intended to go along with {@link #process} (the runners created
+=======
+   * that sense, it is intended to go along with {@link #process(GroupByQuery, StorageAdapter, GroupByQueryMetrics, ResponseContext)} (the runners created
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
    * by that method will be fed into this method).
    *
    * This is primarily called on the data servers, to merge the results from processing on the segments. This method can
@@ -476,10 +480,16 @@ public class GroupingEngine
    */
   public Sequence<ResultRow> process(
       GroupByQuery query,
+<<<<<<< HEAD
       CursorFactory cursorFactory,
       @Nullable TimeBoundaryInspector timeBoundaryInspector,
       NonBlockingPool<ByteBuffer> bufferPool,
       @Nullable GroupByQueryMetrics groupByQueryMetrics
+=======
+      StorageAdapter storageAdapter,
+      @Nullable GroupByQueryMetrics groupByQueryMetrics,
+      ResponseContext responseContext
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   )
   {
     final GroupByQueryConfig querySpecificConfig = configSupplier.get().withOverrides(query);
@@ -528,7 +538,13 @@ public class GroupingEngine
             fudgeTimestamp,
             buildSpec.getInterval(),
             querySpecificConfig,
+<<<<<<< HEAD
             processingConfig
+=======
+            processingConfig,
+            groupByQueryMetrics,
+            responseContext
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
         );
       } else {
         result = GroupByQueryEngine.process(
@@ -539,7 +555,15 @@ public class GroupingEngine
             bufferHolder.get(),
             fudgeTimestamp,
             querySpecificConfig,
+<<<<<<< HEAD
             processingConfig
+=======
+            processingConfig,
+            filter,
+            interval,
+            groupByQueryMetrics,
+            responseContext
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
         );
       }
 
@@ -589,7 +613,11 @@ public class GroupingEngine
       GroupByQueryResources resource,
       Sequence<ResultRow> subqueryResult,
       boolean wasQueryPushedDown,
+<<<<<<< HEAD
       GroupByStatsProvider.PerQueryStats perQueryStats
+=======
+      ResponseContext context
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   )
   {
     // Keep a reference to resultSupplier outside the "try" so we can close it if something goes wrong

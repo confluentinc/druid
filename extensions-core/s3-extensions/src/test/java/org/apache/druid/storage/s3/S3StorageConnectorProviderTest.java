@@ -149,6 +149,7 @@ public class S3StorageConnectorProviderTest
             .addValue(
                 ServerSideEncryptingAmazonS3.class,
                 new ServerSideEncryptingAmazonS3(null, new NoopServerSideEncryption(), new S3TransferConfig())
+<<<<<<< HEAD
             )
             .addValue(
                 S3UploadManager.class,
@@ -159,6 +160,9 @@ public class S3StorageConnectorProviderTest
                     new StubServiceEmitter())
             )
     );
+=======
+            ));
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
 
     StorageConnectorProvider storageConnectorProvider = injector.getInstance(Key.get(

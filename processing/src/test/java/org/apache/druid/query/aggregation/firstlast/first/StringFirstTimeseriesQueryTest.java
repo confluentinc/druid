@@ -31,6 +31,7 @@ import org.apache.druid.query.Result;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.SerializablePairLongString;
 import org.apache.druid.query.aggregation.SerializablePairLongStringComplexMetricSerde;
+import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.timeseries.DefaultTimeseriesQueryMetrics;
 import org.apache.druid.query.timeseries.TimeseriesQuery;
 import org.apache.druid.query.timeseries.TimeseriesQueryEngine;
@@ -48,6 +49,7 @@ import org.apache.druid.segment.incremental.OnheapIncrementalIndex;
 import org.apache.druid.segment.serde.ComplexMetrics;
 import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.joda.time.DateTime;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -142,8 +144,10 @@ public class StringFirstTimeseriesQueryTest extends InitializedNullHandlingTest
         )
     );
 
+    ResponseContext responseContext = ResponseContext.createEmpty();
     final DefaultTimeseriesQueryMetrics defaultTimeseriesQueryMetrics = new DefaultTimeseriesQueryMetrics();
     final Iterable<Result<TimeseriesResultValue>> iiResults =
+<<<<<<< HEAD
         engine.process(
             query,
             new IncrementalIndexCursorFactory(incrementalIndex),
@@ -158,6 +162,12 @@ public class StringFirstTimeseriesQueryTest extends InitializedNullHandlingTest
             QueryableIndexTimeBoundaryInspector.create(queryableIndex),
             defaultTimeseriesQueryMetrics
         ).toList();
+=======
+        engine.process(query, new IncrementalIndexStorageAdapter(incrementalIndex), defaultTimeseriesQueryMetrics, responseContext).toList();
+    Assert.assertEquals(3L, (long) responseContext.getRowScanCount());
+    final Iterable<Result<TimeseriesResultValue>> qiResults =
+        engine.process(query, new QueryableIndexStorageAdapter(queryableIndex), defaultTimeseriesQueryMetrics, responseContext).toList();
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
     TestHelper.assertExpectedResults(expectedResults, iiResults, "incremental index");
     TestHelper.assertExpectedResults(expectedResults, qiResults, "queryable index");

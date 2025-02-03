@@ -85,6 +85,7 @@ import org.apache.druid.timeline.TimelineObjectHolder;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
 import org.apache.druid.timeline.VersionedIntervalTimeline.PartitionChunkEntry;
 import org.apache.druid.timeline.partition.PartitionChunk;
+import org.apache.druid.utils.JvmUtils;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
@@ -331,6 +332,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
         final boolean specificSegments
     )
     {
+      long startCpuTime = JvmUtils.getCurrentThreadCpuTime();
       final Optional<? extends TimelineLookup<String, ServerSelector>> maybeTimeline = serverView.getTimeline(
           ev.getBaseTableDataSource()
       );
@@ -366,12 +368,18 @@ public class CachingClusteredClient implements QuerySegmentWalker
       query = scheduler.prioritizeAndLaneQuery(queryPlus, segmentServers);
       queryPlus = queryPlus.withQuery(query);
       queryPlus = queryPlus.withQueryMetrics(toolChest);
+      this.responseContext.put(ResponseContext.Keys.QUERY_SEGMENT_COUNT, Long.valueOf(segmentServers.size()));
       queryPlus.getQueryMetrics().reportQueriedSegmentCount(segmentServers.size()).emit(emitter);
 
+<<<<<<< HEAD
       final SortedMap<DruidServer, List<SegmentDescriptor>> segmentsByServer = groupSegmentsByServer(
           segmentServers,
           cloneQueryMode
       );
+=======
+      final SortedMap<DruidServer, List<SegmentDescriptor>> segmentsByServer = groupSegmentsByServer(segmentServers);
+      queryPlus.getQueryMetrics().reportQueryPlanningTime(JvmUtils.getCurrentThreadCpuTime() - startCpuTime).emit(emitter);
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
       LazySequence<T> mergedResultSequence = new LazySequence<>(() -> {
         List<Sequence<T>> sequencesByInterval = new ArrayList<>(alreadyCachedResults.size() + segmentsByServer.size());
         addSequencesFromCache(sequencesByInterval, alreadyCachedResults);
@@ -414,6 +422,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
                             .emit(emitter);
                 queryMetrics.reportParallelMergeFastestPartitionTime(reportMetrics.getFastestPartitionInitializedTime())
                             .emit(emitter);
+                queryMetrics.emit(emitter);
               }
             }
         );

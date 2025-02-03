@@ -655,7 +655,11 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
           stillReading = !assignment.isEmpty();
 
           SequenceMetadata<PartitionIdType, SequenceOffsetType> sequenceToCheckpoint = null;
+<<<<<<< HEAD
           AppenderatorDriverAddResult pushTriggeringAddResult = null;
+=======
+          boolean flagForLogLine = true;
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
           for (OrderedPartitionableRecord<PartitionIdType, SequenceOffsetType, RecordType> record : records) {
             final boolean shouldProcess = verifyRecordInRange(record.getPartitionId(), record.getSequenceNumber());
 
@@ -706,7 +710,14 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
                                   .getMaxTotalRowsOr(DynamicPartitionsSpec.DEFAULT_MAX_TOTAL_ROWS)
                   );
                   if (isPushRequired && !sequenceToUse.isCheckpointed()) {
+<<<<<<< HEAD
                     pushTriggeringAddResult = addResult;
+=======
+                    if (flagForLogLine) {
+                      log.info("Hit the row limit updating sequenceToCheckpoint, SequenceToUse: [%s], rowInSegment: [%s], maxTotalRows: [%s]", sequenceToUse, addResult.getNumRowsInSegment(), addResult.getTotalNumRowsInAppenderator());
+                      flagForLogLine = false;
+                    }
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
                     sequenceToCheckpoint = sequenceToUse;
                   }
                   isPersistRequired |= addResult.isPersistRequired();
@@ -769,6 +780,7 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
 
           if (System.currentTimeMillis() > nextCheckpointTime) {
             sequenceToCheckpoint = getLastSequenceMetadata();
+<<<<<<< HEAD
             log.info(
                 "Next checkpoint time, updating sequenceToCheckpoint, SequenceToCheckpoint: [%s]",
                 sequenceToCheckpoint
@@ -781,6 +793,9 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
                 pushTriggeringAddResult.getNumRowsInSegment(),
                 pushTriggeringAddResult.getTotalNumRowsInAppenderator()
             );
+=======
+            log.info("Next checkpoint time, updating sequenceToCheckpoint, SequenceToCheckpoint: [%s]", sequenceToCheckpoint);
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
           }
 
           if (sequenceToCheckpoint != null && stillReading) {

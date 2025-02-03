@@ -125,6 +125,10 @@ public class S3TaskLogsTest extends EasyMockSupport
   public void test_pushTaskStatus() throws IOException, InterruptedException
   {
     s3Client.upload(EasyMock.anyObject(PutObjectRequest.class));
+<<<<<<< HEAD
+=======
+    EasyMock.expectLastCall().once();
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
     EasyMock.replay(s3Client);
 

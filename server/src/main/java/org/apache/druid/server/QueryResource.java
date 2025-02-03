@@ -81,8 +81,16 @@ public class QueryResource implements QueryCountStatsProvider
   public static final String HEADER_RESPONSE_CONTEXT = "X-Druid-Response-Context";
   public static final String HEADER_IF_NONE_MATCH = "If-None-Match";
   public static final String QUERY_ID_RESPONSE_HEADER = "X-Druid-Query-Id";
+<<<<<<< HEAD
   public static final String ERROR_MESSAGE_TRAILER_HEADER = "X-Error-Message";
   public static final String RESPONSE_COMPLETE_TRAILER_HEADER = "X-Druid-Response-Complete";
+=======
+  public static final String QUERY_SEGMENT_COUNT_HEADER = "X-Druid-Query-Segment-Count";
+  public static final String BROKER_QUERY_TIME_RESPONSE_HEADER = "X-Broker-Query-Time";
+  public static final String QUERY_CPU_TIME = "X-Druid-Query-Cpu-Time";
+  public static final String NUM_SCANNED_ROWS = "X-Num-Scanned-Rows";
+  public static final String QUERY_START_TIME_ATTRIBUTE = "queryStartTime";
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   public static final String HEADER_ETAG = "ETag";
 
   protected final QueryLifecycleFactory queryLifecycleFactory;
@@ -158,9 +166,11 @@ public class QueryResource implements QueryCountStatsProvider
     final ResourceIOReaderWriterFactory.ResourceIOReaderWriter io = resourceIOReaderWriterFactory.factorize(req, pretty != null);
 
     final String currThreadName = Thread.currentThread().getName();
+    final long queryStartTime = System.nanoTime();
     try {
       final Query<?> query;
       try {
+        req.setAttribute(QUERY_START_TIME_ATTRIBUTE, queryStartTime);
         query = readQuery(req, in, io);
       }
       catch (QueryException e) {
@@ -361,7 +371,94 @@ public class QueryResource implements QueryCountStatsProvider
     @Override
     public void writeResponseStart() throws IOException
     {
+<<<<<<< HEAD
       jsonGenerator.writeStartArray();
+=======
+      return new ResultsWriter()
+      {
+        private QueryResponse<Object> queryResponse;
+
+        @Override
+        public Response.ResponseBuilder start()
+        {
+          queryResponse = queryLifecycle.execute();
+          final ResponseContext responseContext = queryResponse.getResponseContext();
+          final String prevEtag = getPreviousEtag(req);
+
+          if (prevEtag != null && prevEtag.equals(responseContext.getEntityTag())) {
+            queryLifecycle.emitLogsAndMetrics(null, req.getRemoteAddr(), -1, -1, -1);
+            counter.incrementSuccess();
+            return Response.status(Status.NOT_MODIFIED);
+          }
+
+          return null;
+        }
+
+        @Override
+        public QueryResponse<Object> getQueryResponse()
+        {
+          return queryResponse;
+        }
+
+        @Override
+        public Writer makeWriter(OutputStream out) throws IOException
+        {
+          final ObjectWriter objectWriter = queryLifecycle.newOutputWriter(io);
+          final SequenceWriter sequenceWriter = objectWriter.writeValuesAsArray(out);
+          return new Writer()
+          {
+
+            @Override
+            public void writeResponseStart()
+            {
+              // Do nothing
+            }
+
+            @Override
+            public void writeRow(Object obj) throws IOException
+            {
+              sequenceWriter.write(obj);
+            }
+
+            @Override
+            public void writeResponseEnd()
+            {
+              // Do nothing
+            }
+
+            @Override
+            public void close() throws IOException
+            {
+              sequenceWriter.close();
+            }
+          };
+        }
+
+        @Override
+        public void recordSuccess(long numBytes)
+        {
+
+        }
+
+        @Override
+        public void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis)
+        {
+          queryLifecycle.emitLogsAndMetrics(null, req.getRemoteAddr(), numBytes, numRowsScanned, cpuTimeInMillis);
+        }
+
+        @Override
+        public void recordFailure(Exception e)
+        {
+          queryLifecycle.emitLogsAndMetrics(e, req.getRemoteAddr(), -1, -1, -1);
+        }
+
+        @Override
+        public void close()
+        {
+
+        }
+      };
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     }
 
     @Override

@@ -295,6 +295,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<ResultRow, GroupB
         return groupingEngine.processSubtotalsSpec(
             query,
             resource,
+<<<<<<< HEAD
             groupingEngine.processSubqueryResult(
                 subquery,
                 query, resource,
@@ -303,6 +304,9 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<ResultRow, GroupB
                 perQueryStats
             ),
             perQueryStats
+=======
+            groupingEngine.processSubqueryResult(subquery, query, resource, finalizingResults, false, context)
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
         );
       } else {
         return groupingEngine.applyPostProcessing(
@@ -312,7 +316,11 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<ResultRow, GroupB
                 resource,
                 finalizingResults,
                 false,
+<<<<<<< HEAD
                 perQueryStats
+=======
+                context
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
             ),
             query
         );
@@ -350,7 +358,11 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<ResultRow, GroupB
             resource,
             finalizedResults,
             true,
+<<<<<<< HEAD
             perQueryStats
+=======
+            context
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
         ),
         query
     );

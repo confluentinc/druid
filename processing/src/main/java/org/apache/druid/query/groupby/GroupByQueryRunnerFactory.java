@@ -117,6 +117,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<ResultRow, 
         throw new ISE("Got a [%s] which isn't a %s", query.getClass(), GroupByQuery.class);
       }
 
+<<<<<<< HEAD
       return groupingEngine.process(
           (GroupByQuery) query,
           cursorFactory,
@@ -124,6 +125,9 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<ResultRow, 
           processingBufferPool,
           (GroupByQueryMetrics) queryPlus.getQueryMetrics()
       );
+=======
+      return groupingEngine.process((GroupByQuery) query, adapter, (GroupByQueryMetrics) queryPlus.getQueryMetrics(), responseContext);
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     }
   }
 
