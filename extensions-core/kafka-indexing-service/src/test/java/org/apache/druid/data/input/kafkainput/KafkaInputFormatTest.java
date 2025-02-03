@@ -247,6 +247,7 @@ public class KafkaInputFormatTest
         Assert.assertEquals("4", Iterables.getOnlyElement(row.getDimension("root_baz")));
         Assert.assertEquals("1", Iterables.getOnlyElement(row.getDimension("path_omg")));
         Assert.assertEquals("1", Iterables.getOnlyElement(row.getDimension("jq_omg")));
+        Assert.assertEquals(ImmutableMap.of("mg", 1L), row.getRaw("o"));
 
         // Header verification
         Assert.assertEquals("application/json", Iterables.getOnlyElement(row.getDimension("kafka.newheader.encoding")));
@@ -416,6 +417,7 @@ public class KafkaInputFormatTest
         Assert.assertEquals("4", Iterables.getOnlyElement(row.getDimension("root_baz")));
         Assert.assertEquals("1", Iterables.getOnlyElement(row.getDimension("path_omg")));
         Assert.assertEquals("1", Iterables.getOnlyElement(row.getDimension("jq_omg")));
+        Assert.assertEquals(ImmutableMap.of("mg", 1L), row.getRaw("o"));
 
         // Header verification
         Assert.assertEquals("application/json", Iterables.getOnlyElement(row.getDimension("kafka.newheader.encoding")));
@@ -524,6 +526,7 @@ public class KafkaInputFormatTest
         Assert.assertEquals("4", Iterables.getOnlyElement(row.getDimension("root_baz")));
         Assert.assertEquals("1", Iterables.getOnlyElement(row.getDimension("path_omg")));
         Assert.assertEquals("1", Iterables.getOnlyElement(row.getDimension("jq_omg")));
+        Assert.assertEquals(ImmutableMap.of("mg", 1L), row.getRaw("o"));
         numActualIterations++;
       }
 
@@ -608,6 +611,7 @@ public class KafkaInputFormatTest
           Assert.assertEquals("4", Iterables.getOnlyElement(row.getDimension("root_baz")));
           Assert.assertEquals("1", Iterables.getOnlyElement(row.getDimension("path_omg")));
           Assert.assertEquals("1", Iterables.getOnlyElement(row.getDimension("jq_omg")));
+          Assert.assertEquals(ImmutableMap.of("mg", 1L), row.getRaw("o"));
           Assert.assertEquals(String.valueOf(i), Iterables.getOnlyElement(row.getDimension("index")));
 
 

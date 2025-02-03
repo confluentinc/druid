@@ -41,7 +41,7 @@ RUN --mount=type=cache,target=/root/.m2 if [ "$BUILD_FROM_SOURCE" = "true" ]; th
       install \
       -Pdist,bundle-contrib-exts \
       -Pskip-static-checks,skip-tests \
-      -Dmaven.javadoc.skip=true \
+      -Dmaven.javadoc.skip=true -T1C \
       ; fi
 
 RUN --mount=type=cache,target=/root/.m2 VERSION=$(mvn -B -q org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate \
