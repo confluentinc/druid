@@ -126,4 +126,9 @@ USER druid
 VOLUME /opt/druid/var
 WORKDIR /opt/druid
 
+# org.apache.derby:derby is impacted by https://github.com/advisories/GHSA-rcjc-c4pj-xxrp.
+# Fixing it requires upgrading to Java 21 and Derby to 10.17.1.0.
+# However, since Derby is not used in production, we can safely exclude it from the Druid image.
+RUN rm /opt/druid/lib/derby-10.14.2.0.jar /opt/druid/lib/derbyclient-10.14.2.0.jar /opt/druid/lib/derbynet-10.14.2.0.jar
+
 ENTRYPOINT ["/druid.sh"]
