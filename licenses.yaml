@@ -1249,7 +1249,7 @@ name: Netty
 license_category: binary
 module: java-core
 license_name: Apache License version 2.0
-version: 4.1.115.Final
+version: 4.1.118.Final
 libraries:
   - io.netty: netty-buffer
   - io.netty: netty-codec
@@ -4181,7 +4181,7 @@ name: Netty
 license_category: binary
 module: extensions/druid-azure-extensions
 license_name: Apache License version 2.0
-version: 2.0.65.Final
+version: 2.0.70.Final
 libraries:
   - io.netty: netty-tcnative-boringssl-static
   - io.netty: netty-tcnative-classes
