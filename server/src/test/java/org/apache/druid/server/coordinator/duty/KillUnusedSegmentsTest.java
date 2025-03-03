@@ -64,6 +64,7 @@ public class KillUnusedSegmentsTest
   private static final String DS1 = "DS1";
   private static final String VERSION = "v1";
   private static final DateTime NOW = DateTimes.nowUtc();
+  private static final Interval DAY_OLD = new Interval(Period.days(1), NOW.minusDays(1));
 
 
   @Mock
@@ -81,6 +82,7 @@ public class KillUnusedSegmentsTest
   private DataSegment yearOldSegment;
   private DataSegment monthOldSegment;
   private DataSegment dayOldSegment;
+  private DataSegment fifteenDayOldSegment;
   private DataSegment hourOldSegment;
   private DataSegment nextDaySegment;
   private DataSegment nextMonthSegment;
@@ -105,6 +107,7 @@ public class KillUnusedSegmentsTest
 
     yearOldSegment = createSegmentWithEnd(now.minusDays(365));
     monthOldSegment = createSegmentWithEnd(now.minusDays(30));
+    fifteenDayOldSegment = createSegmentWithEnd(now.minusDays(15));
     dayOldSegment = createSegmentWithEnd(now.minusDays(1));
     hourOldSegment = createSegmentWithEnd(now.minusHours(1));
     nextDaySegment = createSegmentWithEnd(now.plusDays(1));
@@ -113,6 +116,7 @@ public class KillUnusedSegmentsTest
     final List<DataSegment> unusedSegments = ImmutableList.of(
         yearOldSegment,
         monthOldSegment,
+        fifteenDayOldSegment,
         dayOldSegment,
         hourOldSegment,
         nextDaySegment,
@@ -249,49 +253,24 @@ public class KillUnusedSegmentsTest
   }
 
   @Test
-  public void testMaxIntervalToKill()
+  public void testRestrictKillQueryToMaxInterval()
   {
-    Mockito.doReturn(Duration.standardDays(10)).when(config).getCoordinatorKillDurationToRetain();
-    Mockito.doReturn(Period.days(5)).when(config).getCoordinatorKillMaxInterval();
+    Mockito.doReturn(Duration.standardHours(6)).when(config).getCoordinatorKillDurationToRetain();
+    Mockito.doReturn(Period.days(20)).when(config).getCoordinatorKillMaxInterval();
+    Mockito.doReturn(2).when(config).getCoordinatorKillMaxSegments();
+
+    target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
+    target.run(params);
+
+    runAndVerifyKillInterval(new Interval(yearOldSegment.getInterval().getStart(), monthOldSegment.getInterval().getEnd()));
+
     target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
 
-    DateTime now = DateTimes.nowUtc();
-    DataSegment firstSegment = createSegmentWithEnd(now.minusDays(20));
-
-    createAndAddUnusedSegment(DS1, firstSegment.getInterval(), VERSION, firstSegment.getInterval().getEnd());
-
-
+    target.datasourceToLastKillIntervalEnd.put(DS1, NOW.minusDays(29));
     target.run(params);
-    Mockito.verify(indexingServiceClient, Mockito.times(1)).killUnusedSegments(
-            anyString(),
-            ArgumentMatchers.eq(DS1),
-            ArgumentMatchers.eq(firstSegment.getInterval())
-    );
 
-    DataSegment secondSegment = createSegmentWithEnd(now.minusDays(16));
+    runAndVerifyKillInterval(fifteenDayOldSegment.getInterval());
 
-
-    createAndAddUnusedSegment(DS1, secondSegment.getInterval(), VERSION, secondSegment.getInterval().getEnd());
-
-    DateTime minStartTimeTest = firstSegment.getInterval().getEnd();
-
-    target.run(params);
-    Interval expectedKillInterval = new Interval(minStartTimeTest, secondSegment.getInterval().getEnd());
-    Mockito.verify(indexingServiceClient, Mockito.times(1)).killUnusedSegments(
-            anyString(),
-            ArgumentMatchers.eq(DS1),
-            ArgumentMatchers.eq(expectedKillInterval)
-    );
-
-    DataSegment thirdSegment = createSegmentWithEnd(now.minusDays(12));
-    createAndAddUnusedSegment(DS1, thirdSegment.getInterval(), VERSION, thirdSegment.getInterval().getEnd());
-    expectedKillInterval = new Interval(minStartTimeTest, thirdSegment.getInterval().getEnd());
-    target.run(params);
-    Mockito.verify(indexingServiceClient, Mockito.times(1)).killUnusedSegments(
-            anyString(),
-            ArgumentMatchers.eq(DS1),
-            ArgumentMatchers.eq(expectedKillInterval)
-    );
   }
 
   private void runAndVerifyKillInterval(Interval expectedKillInterval)
