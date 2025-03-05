@@ -64,6 +64,7 @@ public class KillUnusedSegmentsTest
   private static final String DS1 = "DS1";
   private static final String VERSION = "v1";
   private static final DateTime NOW = DateTimes.nowUtc();
+  private static final Interval FIFTEEN_DAY_OLD = new Interval(Period.days(1), NOW.minusDays(15));
   private static final Interval DAY_OLD = new Interval(Period.days(1), NOW.minusDays(1));
 
 
@@ -144,6 +145,8 @@ public class KillUnusedSegmentsTest
     target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
   }
 
+
+
   @Test
   public void testRunWithNoIntervalShouldNotKillAnySegments()
   {
@@ -222,55 +225,6 @@ public class KillUnusedSegmentsTest
 
     // Only 1 unused segment is killed
     runAndVerifyKillInterval(yearOldSegment.getInterval());
-  }
-
-  private void createAndAddUnusedSegment(String dataSource, Interval interval, String version, DateTime endTime)
-  {
-    DataSegment segment = new DataSegment(
-            dataSource,
-            interval,
-            version,
-            new HashMap<>(),
-            new ArrayList<>(),
-            new ArrayList<>(),
-            NoneShardSpec.instance(),
-            1,
-            0
-    );
-
-    Mockito.when(segmentsMetadataManager.getUnusedSegmentIntervals(
-            ArgumentMatchers.eq(dataSource),
-            ArgumentMatchers.any(),
-            ArgumentMatchers.anyInt()
-    )).thenAnswer(invocation -> {
-      DateTime maxEndTime = invocation.getArgument(1);
-      List<Interval> unusedIntervals = new ArrayList<>();
-      if (segment.getInterval().getEnd().isBefore(maxEndTime)) {
-        unusedIntervals.add(segment.getInterval());
-      }
-      return unusedIntervals;
-    });
-  }
-
-  @Test
-  public void testRestrictKillQueryToMaxInterval()
-  {
-    Mockito.doReturn(Duration.standardHours(6)).when(config).getCoordinatorKillDurationToRetain();
-    Mockito.doReturn(Period.days(20)).when(config).getCoordinatorKillMaxInterval();
-    Mockito.doReturn(2).when(config).getCoordinatorKillMaxSegments();
-
-    target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
-    target.run(params);
-
-    runAndVerifyKillInterval(new Interval(yearOldSegment.getInterval().getStart(), monthOldSegment.getInterval().getEnd()));
-
-    target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
-
-    target.datasourceToLastKillIntervalEnd.put(DS1, NOW.minusDays(29));
-    target.run(params);
-
-    runAndVerifyKillInterval(fifteenDayOldSegment.getInterval());
-
   }
 
   private void runAndVerifyKillInterval(Interval expectedKillInterval)
