@@ -121,7 +121,7 @@ public class killSegmentsMaxIntervalTest
   }
 
   @Test
-  public void testRestrictKillQueryToMaxInterval()
+  public void testMaxKillIntervalOverridesDurationToRetain()
   {
     Mockito.doReturn(Duration.standardHours(6)).when(config).getCoordinatorKillDurationToRetain();
     Mockito.doReturn(Period.days(20)).when(config).getCoordinatorKillMaxInterval();

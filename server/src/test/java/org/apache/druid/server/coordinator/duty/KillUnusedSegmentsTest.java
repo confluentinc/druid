@@ -61,12 +61,6 @@ public class KillUnusedSegmentsTest
   private static final Duration COORDINATOR_KILL_PERIOD = Duration.standardMinutes(2);
   private static final Duration DURATION_TO_RETAIN = Duration.standardDays(1);
   private static final Duration INDEXING_PERIOD = Duration.standardMinutes(1);
-  private static final String DS1 = "DS1";
-  private static final String VERSION = "v1";
-  private static final DateTime NOW = DateTimes.nowUtc();
-  private static final Interval FIFTEEN_DAY_OLD = new Interval(Period.days(1), NOW.minusDays(15));
-  private static final Interval DAY_OLD = new Interval(Period.days(1), NOW.minusDays(1));
-
 
   @Mock
   private SegmentsMetadataManager segmentsMetadataManager;
@@ -97,8 +91,6 @@ public class KillUnusedSegmentsTest
     Mockito.doReturn(DURATION_TO_RETAIN).when(config).getCoordinatorKillDurationToRetain();
     Mockito.doReturn(INDEXING_PERIOD).when(config).getCoordinatorIndexingPeriod();
     Mockito.doReturn(MAX_SEGMENTS_TO_KILL).when(config).getCoordinatorKillMaxSegments();
-    Mockito.doReturn(MAX_KILL_INTERVAL).when(config).getCoordinatorKillMaxInterval();
-
 
     Mockito.doReturn(Collections.singleton("DS1"))
            .when(coordinatorDynamicConfig).getSpecificDataSourcesToKillUnusedSegmentsIn();
@@ -141,8 +133,6 @@ public class KillUnusedSegmentsTest
 
     target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
   }
-
-
 
   @Test
   public void testRunWithNoIntervalShouldNotKillAnySegments()
