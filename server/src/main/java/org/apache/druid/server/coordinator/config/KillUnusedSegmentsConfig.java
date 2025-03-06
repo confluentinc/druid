@@ -23,6 +23,8 @@ import org.apache.druid.common.config.Configs;
 import org.joda.time.Duration;
 import org.joda.time.Period;
 
+import java.util.Objects;
+
 public class KillUnusedSegmentsConfig extends MetadataCleanupConfig
 {
   private final int maxSegments;
@@ -69,6 +71,28 @@ public class KillUnusedSegmentsConfig extends MetadataCleanupConfig
   public Period getMaxInterval()
   {
     return maxInterval;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    KillUnusedSegmentsConfig that = (KillUnusedSegmentsConfig) o;
+    return maxSegments == that.maxSegments
+            && ignoreDurationToRetain == that.ignoreDurationToRetain
+            && Objects.equals(maxInterval, that.maxInterval)
+            && Objects.equals(bufferPeriod, that.bufferPeriod);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(super.hashCode(), maxSegments, maxInterval, ignoreDurationToRetain, bufferPeriod);
   }
 
   public static Builder builder()

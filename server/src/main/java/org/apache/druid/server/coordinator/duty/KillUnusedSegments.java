@@ -113,11 +113,12 @@ public class KillUnusedSegments implements CoordinatorDuty
     datasourceToLastKillIntervalEnd = new ConcurrentHashMap<>();
 
     log.info(
-        "Kill task scheduling enabled with period[%s], durationToRetain[%s], bufferPeriod[%s], maxSegmentsToKill[%s]",
+        "Kill task scheduling enabled with period[%s], durationToRetain[%s], bufferPeriod[%s], maxSegmentsToKill[%s] ,maxIntervalToKill[%s]",
         this.period,
         this.ignoreDurationToRetain ? "IGNORING" : this.durationToRetain,
         this.bufferPeriod,
-        this.maxSegmentsToKill
+        this.maxSegmentsToKill,
+        this.maxIntervalToKill
     );
 
     this.segmentsMetadataManager = segmentsMetadataManager;
