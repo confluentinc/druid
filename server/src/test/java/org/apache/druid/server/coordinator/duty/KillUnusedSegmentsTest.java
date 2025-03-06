@@ -83,7 +83,6 @@ public class KillUnusedSegmentsTest
   private DataSegment yearOldSegment;
   private DataSegment monthOldSegment;
   private DataSegment dayOldSegment;
-  private DataSegment fifteenDayOldSegment;
   private DataSegment hourOldSegment;
   private DataSegment nextDaySegment;
   private DataSegment nextMonthSegment;
@@ -108,7 +107,6 @@ public class KillUnusedSegmentsTest
 
     yearOldSegment = createSegmentWithEnd(now.minusDays(365));
     monthOldSegment = createSegmentWithEnd(now.minusDays(30));
-    fifteenDayOldSegment = createSegmentWithEnd(now.minusDays(15));
     dayOldSegment = createSegmentWithEnd(now.minusDays(1));
     hourOldSegment = createSegmentWithEnd(now.minusHours(1));
     nextDaySegment = createSegmentWithEnd(now.plusDays(1));
@@ -117,7 +115,6 @@ public class KillUnusedSegmentsTest
     final List<DataSegment> unusedSegments = ImmutableList.of(
         yearOldSegment,
         monthOldSegment,
-        fifteenDayOldSegment,
         dayOldSegment,
         hourOldSegment,
         nextDaySegment,

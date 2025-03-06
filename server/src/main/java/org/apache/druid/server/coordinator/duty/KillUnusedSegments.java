@@ -57,7 +57,7 @@ public class KillUnusedSegments implements CoordinatorDuty
   private final int maxSegmentsToKill;
   private long lastKillTime = 0;
 
-  final Map<String, DateTime> datasourceToLastKillIntervalEnd;
+  public final Map<String, DateTime> datasourceToLastKillIntervalEnd;
   private final SegmentsMetadataManager segmentsMetadataManager;
   private final IndexingServiceClient indexingServiceClient;
   private final Period maxIntervalToKill;
