@@ -47,26 +47,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-
-/**
- *
- */
 @RunWith(MockitoJUnitRunner.class)
-public class KillUnusedSegmentsTest
+public class killSegmentsMaxIntervalTest
 {
+
   private static final int MAX_SEGMENTS_TO_KILL = 10;
   private static final Period MAX_KILL_INTERVAL = Period.days(30);
   private static final Duration COORDINATOR_KILL_PERIOD = Duration.standardMinutes(2);
   private static final Duration DURATION_TO_RETAIN = Duration.standardDays(1);
   private static final Duration INDEXING_PERIOD = Duration.standardMinutes(1);
-  private static final String DS1 = "DS1";
-  private static final String VERSION = "v1";
-  private static final DateTime NOW = DateTimes.nowUtc();
-  private static final Interval FIFTEEN_DAY_OLD = new Interval(Period.days(1), NOW.minusDays(15));
-  private static final Interval DAY_OLD = new Interval(Period.days(1), NOW.minusDays(1));
-
 
   @Mock
   private SegmentsMetadataManager segmentsMetadataManager;
@@ -80,12 +69,9 @@ public class KillUnusedSegmentsTest
   @Mock
   private CoordinatorDynamicConfig coordinatorDynamicConfig;
 
-  private DataSegment yearOldSegment;
   private DataSegment monthOldSegment;
-  private DataSegment dayOldSegment;
-  private DataSegment hourOldSegment;
-  private DataSegment nextDaySegment;
-  private DataSegment nextMonthSegment;
+  private DataSegment fivedayOldSegment;
+  private DataSegment fifteenDayOldSegment;
 
   private KillUnusedSegments target;
 
@@ -101,40 +87,32 @@ public class KillUnusedSegmentsTest
 
 
     Mockito.doReturn(Collections.singleton("DS1"))
-           .when(coordinatorDynamicConfig).getSpecificDataSourcesToKillUnusedSegmentsIn();
+            .when(coordinatorDynamicConfig).getSpecificDataSourcesToKillUnusedSegmentsIn();
 
     final DateTime now = DateTimes.nowUtc();
 
-    yearOldSegment = createSegmentWithEnd(now.minusDays(365));
     monthOldSegment = createSegmentWithEnd(now.minusDays(30));
-    dayOldSegment = createSegmentWithEnd(now.minusDays(1));
-    hourOldSegment = createSegmentWithEnd(now.minusHours(1));
-    nextDaySegment = createSegmentWithEnd(now.plusDays(1));
-    nextMonthSegment = createSegmentWithEnd(now.plusDays(30));
+    fifteenDayOldSegment = createSegmentWithEnd(now.minusDays(15));
+    fivedayOldSegment = createSegmentWithEnd(now.minusDays(5));
 
     final List<DataSegment> unusedSegments = ImmutableList.of(
-        yearOldSegment,
-        monthOldSegment,
-        dayOldSegment,
-        hourOldSegment,
-        nextDaySegment,
-        nextMonthSegment
+            fifteenDayOldSegment,
+            fivedayOldSegment
     );
 
     Mockito.when(
         segmentsMetadataManager.getUnusedSegmentIntervals(
-            ArgumentMatchers.anyString(),
-            ArgumentMatchers.any(),
-            ArgumentMatchers.anyInt()
+                ArgumentMatchers.anyString(),
+                ArgumentMatchers.any(),
+                ArgumentMatchers.anyInt()
         )
     ).thenAnswer(invocation -> {
       DateTime maxEndTime = invocation.getArgument(1);
       List<Interval> unusedIntervals =
-          unusedSegments.stream()
-                        .map(DataSegment::getInterval)
-                        .filter(i -> i.getEnd().isBefore(maxEndTime))
-                        .collect(Collectors.toList());
-
+               unusedSegments.stream()
+                .map(DataSegment::getInterval)
+                .filter(i -> i.getEnd().isBefore(maxEndTime))
+                .collect(Collectors.toList());
       int limit = invocation.getArgument(2);
       return unusedIntervals.size() <= limit ? unusedIntervals : unusedIntervals.subList(0, limit);
     });
@@ -142,110 +120,57 @@ public class KillUnusedSegmentsTest
     target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
   }
 
-
-
   @Test
-  public void testRunWithNoIntervalShouldNotKillAnySegments()
+  public void testRestrictKillQueryToMaxInterval()
   {
-    Mockito.doReturn(null).when(segmentsMetadataManager).getUnusedSegmentIntervals(
-        ArgumentMatchers.anyString(),
-        ArgumentMatchers.any(),
-        ArgumentMatchers.anyInt()
-    );
+    Mockito.doReturn(Duration.standardHours(6)).when(config).getCoordinatorKillDurationToRetain();
+    Mockito.doReturn(Period.days(20)).when(config).getCoordinatorKillMaxInterval();
+    Mockito.doReturn(2).when(config).getCoordinatorKillMaxSegments();
+
+    target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
+    target.datasourceToLastKillIntervalEnd.put("DS1", monthOldSegment.getInterval().getEnd());
 
     target.run(params);
-    Mockito.verify(indexingServiceClient, Mockito.never())
-           .killUnusedSegments(anyString(), anyString(), any(Interval.class));
+
+    runAndVerifyKillInterval(fifteenDayOldSegment.getInterval());
   }
 
   @Test
-  public void testRunWithSpecificDatasourceAndNoIntervalShouldNotKillAnySegments()
+  public void testDurationToRetainOverridesMaxKillInterval()
   {
-    Mockito.doReturn(Duration.standardDays(400))
-           .when(config).getCoordinatorKillDurationToRetain();
-    target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
+    Mockito.doReturn(Period.days(3).toStandardDuration()).when(config).getCoordinatorKillDurationToRetain();
+    Mockito.doReturn(Period.days(28)).when(config).getCoordinatorKillMaxInterval();
 
-    // No unused segment is older than the retention period
+    target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
+    target.datasourceToLastKillIntervalEnd.put("DS1", monthOldSegment.getInterval().getEnd());
+
     target.run(params);
-    Mockito.verify(indexingServiceClient, Mockito.never())
-           .killUnusedSegments(anyString(), anyString(), any(Interval.class));
-  }
 
-  @Test
-  public void testDurationToRetain()
-  {
-    // Only segments more than a day old are killed
-    Interval expectedKillInterval = new Interval(
-        yearOldSegment.getInterval().getStart(),
-        dayOldSegment.getInterval().getEnd()
-    );
-    runAndVerifyKillInterval(expectedKillInterval);
-  }
-
-  @Test
-  public void testNegativeDurationToRetain()
-  {
-    // Duration to retain = -1 day, reinit target for config to take effect
-    Mockito.doReturn(DURATION_TO_RETAIN.negated())
-           .when(config).getCoordinatorKillDurationToRetain();
-    target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
-
-    // Segments upto 1 day in the future are killed
-    Interval expectedKillInterval = new Interval(
-        yearOldSegment.getInterval().getStart(),
-        nextDaySegment.getInterval().getEnd()
-    );
-    runAndVerifyKillInterval(expectedKillInterval);
-  }
-
-  @Test
-  public void testIgnoreDurationToRetain()
-  {
-    Mockito.doReturn(true)
-           .when(config).getCoordinatorKillIgnoreDurationToRetain();
-    target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
-
-    // All future and past unused segments are killed
-    Interval expectedKillInterval = new Interval(
-        yearOldSegment.getInterval().getStart(),
-        nextMonthSegment.getInterval().getEnd()
-    );
-    runAndVerifyKillInterval(expectedKillInterval);
-  }
-
-  @Test
-  public void testMaxSegmentsToKill()
-  {
-    Mockito.doReturn(1)
-           .when(config).getCoordinatorKillMaxSegments();
-    target = new KillUnusedSegments(segmentsMetadataManager, indexingServiceClient, config);
-
-    // Only 1 unused segment is killed
-    runAndVerifyKillInterval(yearOldSegment.getInterval());
+    runAndVerifyKillInterval(new Interval(fifteenDayOldSegment.getInterval().getStart(), fivedayOldSegment.getInterval().getEnd()));
   }
 
   private void runAndVerifyKillInterval(Interval expectedKillInterval)
   {
     target.run(params);
     Mockito.verify(indexingServiceClient, Mockito.times(1)).killUnusedSegments(
-        ArgumentMatchers.anyString(),
-        ArgumentMatchers.eq("DS1"),
-        ArgumentMatchers.eq(expectedKillInterval)
+            ArgumentMatchers.anyString(),
+            ArgumentMatchers.eq("DS1"),
+            ArgumentMatchers.eq(expectedKillInterval)
     );
   }
 
   private DataSegment createSegmentWithEnd(DateTime endTime)
   {
     return new DataSegment(
-        "DS1",
-        new Interval(Period.days(1), endTime),
-        DateTimes.nowUtc().toString(),
-        new HashMap<>(),
-        new ArrayList<>(),
-        new ArrayList<>(),
-        NoneShardSpec.instance(),
-        1,
-        0
+            "DS1",
+            new Interval(Period.days(1), endTime),
+            DateTimes.nowUtc().toString(),
+            new HashMap<>(),
+            new ArrayList<>(),
+            new ArrayList<>(),
+            NoneShardSpec.instance(),
+            1,
+            0
     );
   }
 }
