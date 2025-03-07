@@ -57,7 +57,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 public class KillUnusedSegmentsTest
 {
   private static final int MAX_SEGMENTS_TO_KILL = 10;
-  private static final Period MAX_KILL_INTERVAL = Period.days(30);
   private static final Duration COORDINATOR_KILL_PERIOD = Duration.standardMinutes(2);
   private static final Duration DURATION_TO_RETAIN = Duration.standardDays(1);
   private static final Duration INDEXING_PERIOD = Duration.standardMinutes(1);
