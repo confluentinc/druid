@@ -76,8 +76,11 @@ public class ServerConfigTest
     Assert.assertTrue(modifiedConfig2.isEnableForwardedRequestCustomizer());
     Assert.assertEquals(1, modifiedConfig2.getAllowedHttpMethods().size());
     Assert.assertTrue(modifiedConfig2.getAllowedHttpMethods().contains(HttpMethod.OPTIONS));
+
     Assert.assertEquals("my-cool-policy", modifiedConfig.getContentSecurityPolicy());
+
     Assert.assertEquals("my-cool-policy", modifiedConfig2.getContentSecurityPolicy());
+
     Assert.assertTrue(modifiedConfig2.isEnableHSTS());
   }
 
