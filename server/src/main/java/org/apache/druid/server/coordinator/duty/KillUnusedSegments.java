@@ -171,6 +171,11 @@ public class KillUnusedSegments implements CoordinatorDuty
             )
     );
 
+    log.info("Iterating over unused segments to schedule kill task from [%s] to [%s]",
+            minStartTime,
+            maxEndTime
+    );
+
     List<Interval> unusedSegmentIntervals = segmentsMetadataManager
         .getUnusedSegmentIntervals(dataSource, maxEndTime, maxSegmentsToKill);
 
