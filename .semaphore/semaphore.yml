@@ -142,8 +142,15 @@ blocks:
               value: web-console
           commands: *run_tests
 
+        - name: "Services"
+          env_vars:
+            - name: MAVEN_PROJECTS
+              value: services
+          commands:
+            - mvn clean install -pl ${MAVEN_PROJECTS}
+
         - name: "Other Tests"
           env_vars:
             - name: MAVEN_PROJECTS
-              value: '!server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!integration-tests-ex/cases,!web-console'
+              value: '!server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!integration-tests-ex/cases,!web-console,!services'
           commands: *run_tests
