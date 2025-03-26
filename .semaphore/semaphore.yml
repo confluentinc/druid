@@ -146,8 +146,9 @@ blocks:
           env_vars:
             - name: MAVEN_PROJECTS
               value: services
-          commands:
-            - mvn test -pl ${MAVEN_PROJECTS} -DforkCount=1 -DreuseForks=false
+            - name: MAVEN_OPTS
+              value: "${MAVEN_OPTS} -DforkCount=1 -DreuseForks=false"
+          commands: *run_tests
 
         - name: "Other Tests"
           env_vars:
