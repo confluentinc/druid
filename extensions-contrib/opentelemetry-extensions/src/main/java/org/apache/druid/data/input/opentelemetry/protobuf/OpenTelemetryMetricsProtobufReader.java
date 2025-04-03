@@ -35,6 +35,7 @@ import org.apache.druid.data.input.InputRowListPlusRawValues;
 import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.data.input.impl.DimensionsSpec;
+import org.apache.druid.data.input.kafka.KafkaRecordEntity;
 import org.apache.druid.indexing.seekablestream.SettableByteEntity;
 import org.apache.druid.java.util.common.CloseableIterators;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -190,7 +191,7 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
 
     int capacity = resourceAttributes.size()
           + dataPoint.getAttributesCount()
-          + 2; // metric name + value columns
+          + 3; // metric name + value columns + create_time
     Map<String, Object> event = Maps.newHashMapWithExpectedSize(capacity);
     event.put(metricDimension, metricName);
 
@@ -208,6 +209,12 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
       }
     });
 
+//    Typecast the SettableByteEntity<? extends ByteEntity> source, into KafkaRecordEntity, in order to fetch the
+//    record. create_time has the units of epoch time.
+    KafkaRecordEntity kafkaRecordEntity = (KafkaRecordEntity) source.getEntity();
+    long recordTimestamp = kafkaRecordEntity.getRecord().timestamp();
+    event.put("create_time", recordTimestamp);
+//    log.info(event.toString());
     return createRow(TimeUnit.NANOSECONDS.toMillis(dataPoint.getTimeUnixNano()), event);
   }
 
