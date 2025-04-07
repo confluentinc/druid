@@ -211,7 +211,8 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
 
 /* Typecast the SettableByteEntity<? extends ByteEntity> source into KafkaRecordEntity
    to fetch the record. create_time has the units of epoch time. */
-    KafkaRecordEntity kafkaRecordEntity = (KafkaRecordEntity) source.getEntity();
+    KafkaRecordEntity kafkaRecordEntity = ((SettableByteEntity<KafkaRecordEntity>) source).getEntity();
+    log.info(String.valueOf(kafkaRecordEntity.getRecord().timestamp()));
     long recordTimestamp = kafkaRecordEntity.getRecord().timestamp();
     event.put("create_time", recordTimestamp);
     return createRow(TimeUnit.NANOSECONDS.toMillis(dataPoint.getTimeUnixNano()), event);
