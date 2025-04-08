@@ -43,6 +43,7 @@ import org.apache.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.druid.java.util.common.parsers.ParseException;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -211,10 +212,23 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
 
 /* Typecast the SettableByteEntity<? extends ByteEntity> source into KafkaRecordEntity
    to fetch the record. create_time has the units of epoch time. */
-    KafkaRecordEntity kafkaRecordEntity = ((SettableByteEntity<KafkaRecordEntity>) source).getEntity();
-    log.info(String.valueOf(kafkaRecordEntity.getRecord().timestamp()));
-    long recordTimestamp = kafkaRecordEntity.getRecord().timestamp();
-    event.put("create_time", recordTimestamp);
+    Object entity = source.getEntity();
+    Object record;
+    long timestamp;
+
+    try {
+      /* Get the getRecord method reflectively */
+      Method getRecordMethod = entity.getClass().getMethod("getRecord");
+      record = getRecordMethod.invoke(entity);
+
+      /* Assuming record is a KafkaConsumerRecord (from Apache Kafka) */
+      Method getTimestampMethod = record.getClass().getMethod("timestamp");
+      timestamp = (long) getTimestampMethod.invoke(record);
+
+      event.put("create_time", timestamp);
+    } catch (Exception e) {
+      log.warn(e, "Could not extract create_time from KafkaRecordEntity");
+    }
     return createRow(TimeUnit.NANOSECONDS.toMillis(dataPoint.getTimeUnixNano()), event);
   }
 
