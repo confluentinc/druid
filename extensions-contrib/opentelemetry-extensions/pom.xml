@@ -98,5 +98,11 @@
             <version>1.27</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.druid.extensions</groupId>
+            <artifactId>druid-kafka-indexing-service</artifactId>
+            <version>30.0.1</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 </project>
