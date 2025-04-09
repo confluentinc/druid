@@ -35,7 +35,6 @@ import org.apache.druid.data.input.InputRowListPlusRawValues;
 import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.data.input.impl.DimensionsSpec;
-import org.apache.druid.data.input.kafka.KafkaRecordEntity;
 import org.apache.druid.indexing.seekablestream.SettableByteEntity;
 import org.apache.druid.java.util.common.CloseableIterators;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -217,16 +216,17 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
     long timestamp;
 
     try {
-      /* Get the getRecord method reflectively */
+      // Get the getRecord method reflectively
       Method getRecordMethod = entity.getClass().getMethod("getRecord");
       record = getRecordMethod.invoke(entity);
 
-      /* Assuming record is a KafkaConsumerRecord (from Apache Kafka) */
+      // Assuming record is a KafkaConsumerRecord (from Apache Kafka)
       Method getTimestampMethod = record.getClass().getMethod("timestamp");
       timestamp = (long) getTimestampMethod.invoke(record);
 
       event.put("create_time", timestamp);
-    } catch (Exception e) {
+    }
+    catch (Exception e) {
       log.warn(e, "Could not extract create_time from KafkaRecordEntity");
     }
     return createRow(TimeUnit.NANOSECONDS.toMillis(dataPoint.getTimeUnixNano()), event);
