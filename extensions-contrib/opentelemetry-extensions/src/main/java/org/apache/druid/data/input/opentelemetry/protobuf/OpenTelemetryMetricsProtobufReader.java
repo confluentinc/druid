@@ -64,6 +64,10 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
   private final String resourceAttributePrefix;
   private final DimensionsSpec dimensionsSpec;
 
+  private static final long NANOS_TO_MILLIS = 1_000_000L;
+  private static final long MILLIS_PER_MINUTE = 60_000L;
+  final double ROUNDING_FACTOR = 1_000.0;
+
   public OpenTelemetryMetricsProtobufReader(
       DimensionsSpec dimensionsSpec,
       SettableByteEntity<? extends ByteEntity> source,
@@ -224,7 +228,8 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
       Method getTimestampMethod = record.getClass().getMethod("timestamp");
       timestamp = (long) getTimestampMethod.invoke(record);
 
-      long delayMinutes = (timestamp - (timeUnixNano / 1000000L)) / 60000L;
+      double delayMinutes = (double) (timestamp - (timeUnixNano / NANOS_TO_MILLIS)) / MILLIS_PER_MINUTE;
+      delayMinutes = Math.round(delayMinutes * ROUNDING_FACTOR) / ROUNDING_FACTOR;
 
       event.put("delayed_minutes", delayMinutes);
     }
