@@ -214,7 +214,7 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
     Object entity = source.getEntity();
     Object record;
     long timestamp;
-
+    long timeUnixNano = dataPoint.getTimeUnixNano();
     try {
       // Get the getRecord method reflectively
       Method getRecordMethod = entity.getClass().getMethod("getRecord");
@@ -224,7 +224,9 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
       Method getTimestampMethod = record.getClass().getMethod("timestamp");
       timestamp = (long) getTimestampMethod.invoke(record);
 
-      event.put("create_time", timestamp);
+      long delayMinutes = (timestamp - (timeUnixNano / 1000000L)) / 60000L;
+
+      event.put("delayed_minutes", delayMinutes);
     }
     catch (Exception e) {
       log.warn(e, "Could not extract create_time from KafkaRecordEntity");
