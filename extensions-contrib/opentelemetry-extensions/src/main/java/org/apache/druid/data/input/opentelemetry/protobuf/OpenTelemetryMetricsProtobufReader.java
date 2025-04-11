@@ -35,6 +35,7 @@ import org.apache.druid.data.input.InputRowListPlusRawValues;
 import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.data.input.impl.DimensionsSpec;
+import org.apache.druid.data.input.kafka.KafkaRecordEntity;
 import org.apache.druid.indexing.seekablestream.SettableByteEntity;
 import org.apache.druid.java.util.common.CloseableIterators;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -42,7 +43,6 @@ import org.apache.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.druid.java.util.common.parsers.ParseException;
 
 import javax.annotation.Nullable;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -65,8 +65,7 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
   private final DimensionsSpec dimensionsSpec;
 
   private static final long NANOS_TO_MILLIS = 1_000_000L;
-  private static final long MILLIS_PER_MINUTE = 60_000L;
-  final double ROUNDING_FACTOR = 1_000.0;
+  private static final long MILLIS_PER_SECOND = 1_000L;
 
   public OpenTelemetryMetricsProtobufReader(
       DimensionsSpec dimensionsSpec,
@@ -195,7 +194,7 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
 
     int capacity = resourceAttributes.size()
           + dataPoint.getAttributesCount()
-          + 3; // metric name + value columns + create_time
+          + 4; // metric name + value columns + deviated_seconds + deviated_minutes
     Map<String, Object> event = Maps.newHashMapWithExpectedSize(capacity);
     event.put(metricDimension, metricName);
 
@@ -213,28 +212,26 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
       }
     });
 
-/* Typecast the SettableByteEntity<? extends ByteEntity> source into KafkaRecordEntity
-   to fetch the record. create_time has the units of epoch time. */
-    Object entity = source.getEntity();
-    Object record;
-    long timestamp;
-    long timeUnixNano = dataPoint.getTimeUnixNano();
     try {
-      // Get the getRecord method reflectively
-      Method getRecordMethod = entity.getClass().getMethod("getRecord");
-      record = getRecordMethod.invoke(entity);
-
-      // Assuming record is a KafkaConsumerRecord (from Apache Kafka)
-      Method getTimestampMethod = record.getClass().getMethod("timestamp");
-      timestamp = (long) getTimestampMethod.invoke(record);
-
-      double delayMinutes = (double) (timestamp - (timeUnixNano / NANOS_TO_MILLIS)) / MILLIS_PER_MINUTE;
-      delayMinutes = Math.round(delayMinutes * ROUNDING_FACTOR) / ROUNDING_FACTOR;
-
-      event.put("delayed_minutes", delayMinutes);
+      if (source.getEntity() instanceof KafkaRecordEntity) {
+        long timeUnixNano = dataPoint.getTimeUnixNano();
+        long createdTime = ((KafkaRecordEntity) source.getEntity()).getRecord().timestamp();
+        long deviated_seconds = (createdTime - (timeUnixNano / NANOS_TO_MILLIS)) / MILLIS_PER_SECOND;
+        long deviated_minutes = deviated_seconds / 60;
+        event.put("deviated_seconds", deviated_seconds);
+        event.put("deviated_minutes", deviated_minutes);
+      } else {
+        log.warn("Source entity is not a KafkaRecordEntity.");
+      }
+    }
+    catch (ClassCastException e) {
+      log.error(e, "Failed to cast source entity to KafkaRecordEntity.");
+    }
+    catch (NullPointerException e) {
+      log.error(e, "Null value encountered while processing KafkaRecordEntity.");
     }
     catch (Exception e) {
-      log.warn(e, "Could not extract create_time from KafkaRecordEntity");
+      log.error(e, "Could not extract create_time from KafkaRecordEntity");
     }
     return createRow(TimeUnit.NANOSECONDS.toMillis(dataPoint.getTimeUnixNano()), event);
   }
