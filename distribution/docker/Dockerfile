@@ -118,4 +118,13 @@ USER druid
 VOLUME /opt/druid/var
 WORKDIR /opt/druid
 
+# Create directory for PostgreSQL certificates
+RUN mkdir -p /opt/druid/.postgresql
+
+# Download RDS root CA certificates for both commercial and us-gov regions
+RUN curl -s https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /opt/druid/.postgresql/root.crt && \
+    curl -s https://truststore.pki.rds.amazonaws.com/global/global-bundle-fedramp.pem -o /opt/druid/.postgresql/root-fedramp.crt && \
+    chmod 644 /opt/druid/.postgresql/root.crt /opt/druid/.postgresql/root-fedramp.crt && \
+    chown -R druid:druid /opt/druid/.postgresql
+
 ENTRYPOINT ["/druid.sh"]
