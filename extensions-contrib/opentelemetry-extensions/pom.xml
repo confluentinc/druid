@@ -83,6 +83,7 @@
             <groupId>org.apache.druid.extensions</groupId>
             <artifactId>druid-kafka-indexing-service</artifactId>
             <version>${project.parent.version}</version>
+            <scope>runtime</scope>
         </dependency>
         <!-- test -->
         <dependency>
