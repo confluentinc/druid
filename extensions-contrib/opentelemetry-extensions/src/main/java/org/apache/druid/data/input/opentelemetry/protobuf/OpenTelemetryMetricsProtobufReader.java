@@ -33,9 +33,9 @@ import org.apache.druid.data.input.InputEntityReader;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputRowListPlusRawValues;
 import org.apache.druid.data.input.MapBasedInputRow;
+import org.apache.druid.data.input.TimestampedEntity;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.data.input.impl.DimensionsSpec;
-import org.apache.druid.data.input.kafka.KafkaRecordEntity;
 import org.apache.druid.indexing.seekablestream.SettableByteEntity;
 import org.apache.druid.java.util.common.CloseableIterators;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -213,25 +213,25 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
     });
 
     try {
-      if (source.getEntity() instanceof KafkaRecordEntity) {
+      if (source.getEntity() instanceof TimestampedEntity) {
         long timeUnixNano = dataPoint.getTimeUnixNano();
-        long createdTime = ((KafkaRecordEntity) source.getEntity()).getRecord().timestamp();
+        long createdTime = ((TimestampedEntity) source.getEntity()).getRecordTimestampMillis();
         long deviated_seconds = (createdTime - (timeUnixNano / NANOS_TO_MILLIS)) / MILLIS_PER_SECOND;
         long deviated_minutes = deviated_seconds / 60;
         event.put("deviated_seconds", deviated_seconds);
         event.put("deviated_minutes", deviated_minutes);
       } else {
-        log.warn("Source entity is not a KafkaRecordEntity.");
+        log.warn("Source entity does not implement TimestampedEntity.");
       }
     }
     catch (ClassCastException e) {
-      log.error(e, "Failed to cast source entity to KafkaRecordEntity.");
+      log.error(e, "Failed to cast source entity to TimestampedEntity.");
     }
     catch (NullPointerException e) {
-      log.error(e, "Null value encountered while processing KafkaRecordEntity.");
+      log.error(e, "Null value encountered while processing record timestamp.");
     }
     catch (Exception e) {
-      log.error(e, "Could not extract create_time from KafkaRecordEntity");
+      log.error(e, "Could not extract timestamp from record entity");
     }
     return createRow(TimeUnit.NANOSECONDS.toMillis(dataPoint.getTimeUnixNano()), event);
   }
