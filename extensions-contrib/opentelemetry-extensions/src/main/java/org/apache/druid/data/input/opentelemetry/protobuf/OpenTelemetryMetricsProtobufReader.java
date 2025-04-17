@@ -213,16 +213,12 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
     });
 
     try {
-      if (source.getEntity() instanceof TimestampedEntity) {
-        long timeUnixNano = dataPoint.getTimeUnixNano();
-        long createdTime = ((TimestampedEntity) source.getEntity()).getRecordTimestampMillis();
-        long deviated_seconds = (createdTime - (timeUnixNano / NANOS_TO_MILLIS)) / MILLIS_PER_SECOND;
-        long deviated_minutes = deviated_seconds / 60;
-        event.put("deviated_seconds", deviated_seconds);
-        event.put("deviated_minutes", deviated_minutes);
-      } else {
-        log.warn("Source entity does not implement TimestampedEntity.");
-      }
+      long timeUnixNano = dataPoint.getTimeUnixNano();
+      long createdTime = ((TimestampedEntity) source.getEntity()).getRecordTimestampMillis();
+      long deviated_seconds = (createdTime - (timeUnixNano / NANOS_TO_MILLIS)) / MILLIS_PER_SECOND;
+      long deviated_minutes = deviated_seconds / 60;
+      event.put("deviated_seconds", deviated_seconds);
+      event.put("deviated_minutes", deviated_minutes);
     }
     catch (ClassCastException e) {
       log.error(e, "Failed to cast source entity to TimestampedEntity.");
