@@ -32,4 +32,4 @@ public interface TimestampedEntity
    * @return the timestamp in milliseconds
    */
   long getRecordTimestampMillis();
-} 
+}
