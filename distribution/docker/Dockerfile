@@ -131,8 +131,8 @@ RUN mkdir -p /opt/druid/.postgresql
 
 # Download RDS root CA certificates for both commercial and us-gov regions
 RUN curl -s https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /opt/druid/.postgresql/root.crt && \
-    curl -s https://truststore.pki.rds.amazonaws.com/global/global-bundle-fedramp.pem -o /opt/druid/.postgresql/root-fedramp.crt && \
-    chmod 644 /opt/druid/.postgresql/root.crt /opt/druid/.postgresql/root-fedramp.crt && \
+    curl -s https://truststore.pki.us-gov-west-1.rds.amazonaws.com/us-gov-west-1/us-gov-west-1-bundle.pem -o /opt/druid/.postgresql/root-fedramp-usgovw1.crt && \
+    chmod 644 /opt/druid/.postgresql/root.crt /opt/druid/.postgresql/root-fedramp-usgovw1.crt && \
     chown -R druid:druid /opt/druid/.postgresql
 
 ENTRYPOINT ["/druid.sh"]
