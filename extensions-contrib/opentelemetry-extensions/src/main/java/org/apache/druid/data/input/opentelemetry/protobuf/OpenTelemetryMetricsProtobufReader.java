@@ -33,6 +33,7 @@ import org.apache.druid.data.input.InputEntityReader;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputRowListPlusRawValues;
 import org.apache.druid.data.input.MapBasedInputRow;
+import org.apache.druid.data.input.TimestampedEntity;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.indexing.seekablestream.SettableByteEntity;
@@ -62,6 +63,9 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
   private final String metricAttributePrefix;
   private final String resourceAttributePrefix;
   private final DimensionsSpec dimensionsSpec;
+
+  private static final long NANOS_TO_MILLIS = 1_000_000L;
+  private static final long MILLIS_PER_SECOND = 1_000L;
 
   public OpenTelemetryMetricsProtobufReader(
       DimensionsSpec dimensionsSpec,
@@ -190,7 +194,7 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
 
     int capacity = resourceAttributes.size()
           + dataPoint.getAttributesCount()
-          + 2; // metric name + value columns
+          + 4; // metric name + value columns + deviated_seconds + deviated_minutes
     Map<String, Object> event = Maps.newHashMapWithExpectedSize(capacity);
     event.put(metricDimension, metricName);
 
@@ -208,6 +212,23 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
       }
     });
 
+    try {
+      long timeUnixNano = dataPoint.getTimeUnixNano();
+      long createdTime = ((TimestampedEntity) source.getEntity()).getRecordTimestampMillis();
+      long deviated_seconds = (createdTime - (timeUnixNano / NANOS_TO_MILLIS)) / MILLIS_PER_SECOND;
+      long deviated_minutes = deviated_seconds / 60;
+      event.put("deviated_seconds", deviated_seconds);
+      event.put("deviated_minutes", deviated_minutes);
+    }
+    catch (ClassCastException e) {
+      log.error(e, "Failed to cast source entity to TimestampedEntity.");
+    }
+    catch (NullPointerException e) {
+      log.error(e, "Null value encountered while processing record timestamp.");
+    }
+    catch (Exception e) {
+      log.error(e, "Could not extract timestamp from record entity");
+    }
     return createRow(TimeUnit.NANOSECONDS.toMillis(dataPoint.getTimeUnixNano()), event);
   }
 

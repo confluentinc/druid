@@ -332,8 +332,7 @@ public class OpenCensusProtobufReaderTest
     try (CloseableIterator<InputRow> rows = reader.read()) {
       Assert.assertTrue(rows.hasNext());
       InputRow row = rows.next();
-
-      Assert.assertEquals(4, row.getDimensions().size());
+      Assert.assertEquals(6, row.getDimensions().size());
       assertDimensionEquals(row, "metric.name", "example_gauge");
       assertDimensionEquals(row, "value", "6");
       assertDimensionEquals(row, "custom.env", "devel");
