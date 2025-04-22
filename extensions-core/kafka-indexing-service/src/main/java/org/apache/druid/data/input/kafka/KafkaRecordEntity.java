@@ -20,7 +20,7 @@
 package org.apache.druid.data.input.kafka;
 
 import org.apache.druid.data.input.InputFormat;
-import org.apache.druid.data.input.TimestampedEntity;
+import org.apache.druid.data.input.KafkaEntity;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.indexing.kafka.KafkaRecordSupplier;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -37,7 +37,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
  * <p>
  * This functionality is not yet exposed through any built-in InputFormats, but is available for use in extensions.
  */
-public class KafkaRecordEntity extends ByteEntity implements TimestampedEntity
+public class KafkaRecordEntity extends ByteEntity implements KafkaEntity
 {
   private final ConsumerRecord<byte[], byte[]> record;
 

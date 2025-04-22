@@ -33,7 +33,7 @@ import org.apache.druid.data.input.InputEntityReader;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputRowListPlusRawValues;
 import org.apache.druid.data.input.MapBasedInputRow;
-import org.apache.druid.data.input.TimestampedEntity;
+import org.apache.druid.data.input.KafkaEntity;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.indexing.seekablestream.SettableByteEntity;
@@ -213,18 +213,18 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
     });
 
     try {
-      long timeUnixNano = dataPoint.getTimeUnixNano();
-      long createdTime = ((TimestampedEntity) source.getEntity()).getRecordTimestampMillis();
-      long deviated_seconds = (createdTime - (timeUnixNano / NANOS_TO_MILLIS)) / MILLIS_PER_SECOND;
-      long deviated_minutes = deviated_seconds / 60;
-      event.put("deviated_seconds", deviated_seconds);
-      event.put("deviated_minutes", deviated_minutes);
-    }
-    catch (ClassCastException e) {
-      log.error(e, "Failed to cast source entity to TimestampedEntity.");
-    }
-    catch (NullPointerException e) {
-      log.error(e, "Null value encountered while processing record timestamp.");
+      Object entity = source.getEntity();
+      if (entity instanceof KafkaEntity) {
+        long timeUnixNano = dataPoint.getTimeUnixNano();
+        KafkaEntity kafkaEntity = (KafkaEntity) entity;
+        long createdTime = kafkaEntity.getRecordTimestampMillis();
+        long deviated_seconds = (createdTime - (timeUnixNano / NANOS_TO_MILLIS)) / MILLIS_PER_SECOND;
+        long deviated_minutes = deviated_seconds / 60;
+        event.put("deviated_seconds", deviated_seconds);
+        event.put("deviated_minutes", deviated_minutes);
+      } else {
+        log.error("Source entity is not an instance of KafkaEntity.");
+      }
     }
     catch (Exception e) {
       log.error(e, "Could not extract timestamp from record entity");

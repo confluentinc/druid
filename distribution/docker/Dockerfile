@@ -96,6 +96,7 @@ RUN if [ ! -x "$(command -v useradd)" ]; then \
 COPY --chown=druid:druid --from=builder /opt /opt
 COPY distribution/docker/druid.sh /druid.sh
 COPY distribution/docker/peon.sh /peon.sh
+COPY --chown=druid:druid distribution/docker/extra_jars/ /opt/druid/lib/
 
 # create necessary directories which could be mounted as volume
 #   /opt/druid/var is used to keep individual files(e.g. log) of each Druid service

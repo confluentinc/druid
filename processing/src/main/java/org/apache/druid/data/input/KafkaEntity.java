@@ -21,10 +21,8 @@ package org.apache.druid.data.input;
 
 /**
  * Interface for record entities that contain timestamp information.
- * This provides a way for extensions to safely access record timestamp information
- * across ClassLoader boundaries without causing ClassCastExceptions.
  */
-public interface TimestampedEntity
+public interface KafkaEntity
 {
   /**
    * Returns the timestamp of the record in milliseconds.
