@@ -546,7 +546,7 @@ name: Apache Commons IO
 license_category: binary
 module: java-core
 license_name: Apache License version 2.0
-version: 2.11.0
+version: 2.14.0
 libraries:
   - commons-io: commons-io
 notices:
@@ -829,7 +829,7 @@ name: com.nimbusds oauth2-oidc-sdk
 license_category: binary
 module: extensions/druid-pac4j
 license_name: Apache License version 2.0
-version: 8.22
+version: 9.37
 libraries:
   - com.nimbusds: oauth2-oidc-sdk
 
@@ -1999,7 +1999,7 @@ name: Jetty
 license_category: binary
 module: java-core
 license_name: Apache License version 2.0
-version: 9.4.54.v20240208
+version: 9.4.56.v20240826
 libraries:
   - org.eclipse.jetty: jetty-client
   - org.eclipse.jetty: jetty-continuation
@@ -4401,7 +4401,7 @@ name: Netty
 license_category: binary
 module: extensions/druid-azure-extensions
 license_name: Apache License version 2.0
-version: 2.0.65.Final
+version: 2.0.70.Final
 libraries:
   - io.netty: netty-tcnative-boringssl-static
   - io.netty: netty-tcnative-classes
