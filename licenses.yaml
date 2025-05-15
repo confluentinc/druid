@@ -546,7 +546,7 @@ name: Apache Commons IO
 license_category: binary
 module: java-core
 license_name: Apache License version 2.0
-version: 2.11.0
+version: 2.14.0
 libraries:
   - commons-io: commons-io
 notices:
@@ -1999,7 +1999,7 @@ name: Jetty
 license_category: binary
 module: java-core
 license_name: Apache License version 2.0
-version: 9.4.54.v20240208
+version: 9.4.56.v20240826
 libraries:
   - org.eclipse.jetty: jetty-client
   - org.eclipse.jetty: jetty-continuation
@@ -2418,7 +2418,7 @@ name: Apache Hadoop
 license_category: binary
 module: hadoop-client
 license_name: Apache License version 2.0
-version: 3.4.0
+version: 3.4.1
 libraries:
   - org.apache.hadoop: hadoop-auth
   - org.apache.hadoop: hadoop-common
@@ -3120,7 +3120,7 @@ name: Hadoop Client API
 license_category: binary
 module: extensions/druid-hdfs-storage
 license_name: Apache License version 2.0
-version: 3.4.0
+version: 3.4.1
 libraries:
   - org.apache.hadoop: hadoop-client-api
 
