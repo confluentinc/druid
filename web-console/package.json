@@ -97,7 +97,7 @@
     "@types/lodash.escape": "^4.0.6",
     "@types/memoize-one": "^4.1.1",
     "@types/node": "^12.7.2",
-    "@types/numeral": "^0.0.26",
+    "@types/numeral": "^2.0.0",
     "@types/react": "^16.9.2",
     "@types/react-dom": "^16.9.0",
     "@types/react-router-dom": "^4.3.4",
