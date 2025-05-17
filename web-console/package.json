@@ -105,7 +105,7 @@
     "@types/react-table": "6.8.5",
     "autoprefixer": "^9.6.1",
     "awesome-code-style": "^1.4.3",
-    "babel-loader": "^8.0.6",
+    "babel-loader": "^10.0.0",
     "codecov": "^3.5.0",
     "css-loader": "^3.2.0",
     "enzyme": "^3.10.0",
