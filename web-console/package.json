@@ -107,7 +107,7 @@
     "awesome-code-style": "^1.4.3",
     "babel-loader": "^8.0.6",
     "codecov": "^3.5.0",
-    "css-loader": "^3.2.0",
+    "css-loader": "^7.0.0",
     "enzyme": "^3.10.0",
     "enzyme-adapter-react-16": "^1.14.0",
     "enzyme-to-json": "^3.4.0",
