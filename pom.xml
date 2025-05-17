@@ -1284,7 +1284,7 @@
             <plugin>
                 <groupId>de.thetaphi</groupId>
                 <artifactId>forbiddenapis</artifactId>
-                <version>2.6</version>
+                <version>3.9</version>
                 <configuration>
                     <failOnUnresolvableSignatures>false</failOnUnresolvableSignatures>
                     <bundledSignatures>
