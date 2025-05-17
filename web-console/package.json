@@ -135,7 +135,7 @@
     "typescript": "^3.5.3",
     "webpack": "^4.39.2",
     "webpack-bundle-analyzer": "^3.4.1",
-    "webpack-cli": "^3.3.7",
+    "webpack-cli": "^6.0.0",
     "webpack-dev-server": "^3.8.0"
   }
 }
