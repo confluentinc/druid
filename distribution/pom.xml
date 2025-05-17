@@ -52,7 +52,7 @@
             <plugin>
                 <groupId>net.nicoulaj.maven.plugins</groupId>
                 <artifactId>checksum-maven-plugin</artifactId>
-                <version>1.7</version>
+                <version>1.11</version>
                 <executions>
                     <execution>
                         <id>dist-checksum</id>
@@ -428,7 +428,7 @@
               <plugin>
                 <groupId>com.spotify</groupId>
                 <artifactId>dockerfile-maven-plugin</artifactId>
-                <version>1.4.10</version>
+                <version>1.4.13</version>
                 <executions>
                   <execution>
                     <id>tag-latest</id>

@@ -75,38 +75,38 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <java.version>8</java.version>
         <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
-        <aether.version>0.9.0.M2</aether.version>
-        <apache.curator.version>4.1.0</apache.curator.version>
-        <apache.curator.test.version>2.12.0</apache.curator.test.version>
-        <avatica.version>1.12.0</avatica.version>
-        <avro.version>1.9.0</avro.version>
-        <calcite.version>1.17.0</calcite.version>
-        <derby.version>10.14.2.0</derby.version>
-        <dropwizard.metrics.version>4.0.0</dropwizard.metrics.version>
+        <aether.version>0.9.1.v20140329</aether.version>
+        <apache.curator.version>4.3.0</apache.curator.version>
+        <apache.curator.test.version>2.13.0</apache.curator.test.version>
+        <avatica.version>1.26.0</avatica.version>
+        <avro.version>1.12.0</avro.version>
+        <calcite.version>1.39.0</calcite.version>
+        <derby.version>10.17.1.0</derby.version>
+        <dropwizard.metrics.version>4.2.30</dropwizard.metrics.version>
         <guava.version>16.0.1</guava.version>
-        <guice.version>4.1.0</guice.version>
+        <guice.version>4.2.3</guice.version>
         <hamcrest.version>1.3</hamcrest.version>
-        <jetty.version>9.4.10.v20180503</jetty.version>
-        <jersey.version>1.19.3</jersey.version>
+        <jetty.version>9.4.57.v20241219</jetty.version>
+        <jersey.version>1.19.4</jersey.version>
         <!-- jackson 2.7.x causes injection error and 2.8.x can't be used because avatica is using 2.6.3 -->
-        <jackson.version>2.6.7</jackson.version>
-        <log4j.version>2.5</log4j.version>
+        <jackson.version>2.19.0</jackson.version>
+        <log4j.version>2.24.3</log4j.version>
         <!-- HttpClient has not yet been ported to Netty 4.x -->
         <netty3.version>3.10.6.Final</netty3.version>
         <!-- Spark updated in https://github.com/apache/spark/pull/19884 -->
-        <netty4.version>4.1.30.Final</netty4.version>
+        <netty4.version>4.2.1.Final</netty4.version>
         <node.version>v10.14.2</node.version>
         <npm.version>6.5.0</npm.version>
-        <slf4j.version>1.7.12</slf4j.version>
+        <slf4j.version>1.7.36</slf4j.version>
         <!-- If compiling with different hadoop version also modify default hadoop coordinates in TaskConfig.java -->
-        <hadoop.compile.version>2.8.3</hadoop.compile.version>
-        <powermock.version>2.0.2</powermock.version>
-        <aws.sdk.version>1.11.199</aws.sdk.version>
-        <caffeine.version>2.5.5</caffeine.version>
+        <hadoop.compile.version>2.10.2</hadoop.compile.version>
+        <powermock.version>2.0.9</powermock.version>
+        <aws.sdk.version>1.12.783</aws.sdk.version>
+        <caffeine.version>2.9.3</caffeine.version>
         <!-- When upgrading ZK, edit docs and integration tests as well (integration-tests/docker-base/setup.sh) -->
         <zookeeper.version>3.4.14</zookeeper.version>
-        <checkerframework.version>2.5.7</checkerframework.version>
-        <com.google.apis.client.version>1.22.0</com.google.apis.client.version>
+        <checkerframework.version>2.11.1</checkerframework.version>
+        <com.google.apis.client.version>1.35.2</com.google.apis.client.version>
         <repoOrgId>apache.snapshots</repoOrgId>
         <repoOrgName>Apache Snapshot Repository</repoOrgName>
         <repoOrgUrl>https://repository.apache.org/snapshots</repoOrgUrl>
@@ -201,7 +201,7 @@
             <dependency>
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
-                <version>1.12</version>
+                <version>1.18.0</version>
             </dependency>
             <dependency>
                 <groupId>commons-httpclient</groupId>
@@ -216,7 +216,7 @@
             <dependency>
                 <groupId>commons-logging</groupId>
                 <artifactId>commons-logging</artifactId>
-                <version>1.1.1</version>
+                <version>1.3.5</version>
             </dependency>
             <dependency>
                 <groupId>commons-lang</groupId>
@@ -231,7 +231,7 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <version>3.8.1</version>
+                <version>3.17.0</version>
             </dependency>
             <dependency>
                 <groupId>com.amazonaws</groupId>
@@ -251,12 +251,12 @@
             <dependency>
                 <groupId>com.ning</groupId>
                 <artifactId>compress-lzf</artifactId>
-                <version>1.0.4</version>
+                <version>1.1.2</version>
             </dependency>
             <dependency>
                 <groupId>io.airlift</groupId>
                 <artifactId>airline</artifactId>
-                <version>0.7</version>
+                <version>0.9</version>
                 <exclusions>
                     <exclusion>
                         <!--LGPL licenced library-->
@@ -268,7 +268,7 @@
             <dependency>
                 <groupId>org.skife.config</groupId>
                 <artifactId>config-magic</artifactId>
-                <version>0.9</version>
+                <version>0.22</version>
                 <exclusions>
                     <exclusion>
                         <groupId>org.slf4j</groupId>
@@ -364,7 +364,7 @@
             <dependency>
                 <groupId>org.apache.hive</groupId>
                 <artifactId>hive-storage-api</artifactId>
-                <version>2.6.0</version>
+                <version>2.8.1</version>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -389,17 +389,17 @@
             <dependency>
                 <groupId>com.google.errorprone</groupId>
                 <artifactId>error_prone_annotations</artifactId>
-                <version>2.3.2</version>
+                <version>2.38.0</version>
             </dependency>
             <dependency>
                 <groupId>com.ibm.icu</groupId>
                 <artifactId>icu4j</artifactId>
-                <version>54.1.1</version>
+                <version>54.2</version>
             </dependency>
             <dependency>
                 <groupId>org.mozilla</groupId>
                 <artifactId>rhino</artifactId>
-                <version>1.7.11</version>
+                <version>1.8.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
@@ -409,7 +409,7 @@
             <dependency>
                 <groupId>org.tukaani</groupId>
                 <artifactId>xz</artifactId>
-                <version>1.8</version>
+                <version>1.10</version>
             </dependency>
             <dependency>
                 <groupId>com.github.luben</groupId>
@@ -495,17 +495,17 @@
             <dependency>
                 <groupId>org.glassfish.grizzly</groupId>
                 <artifactId>grizzly-http-server</artifactId>
-                <version>2.2.16</version>
+                <version>2.4.4</version>
             </dependency>
             <dependency>
                 <groupId>org.glassfish.jaxb</groupId>
                 <artifactId>jaxb-runtime</artifactId>
-                <version>2.3.1</version>
+                <version>2.3.9</version>
             </dependency>
             <dependency>
                 <groupId>org.jdbi</groupId>
                 <artifactId>jdbi</artifactId>
-                <version>2.63.1</version>
+                <version>2.78</version>
             </dependency>
             <dependency>
                 <groupId>com.sun.jersey</groupId>
@@ -661,12 +661,12 @@
             <dependency>
                 <groupId>joda-time</groupId>
                 <artifactId>joda-time</artifactId>
-                <version>2.10.2</version>
+                <version>2.14.0</version>
             </dependency>
             <dependency>
                 <groupId>com.google.code.findbugs</groupId>
                 <artifactId>jsr305</artifactId>
-                <version>2.0.1</version>
+                <version>2.0.3</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
@@ -710,7 +710,7 @@
             <dependency>
                 <groupId>com.lmax</groupId>
                 <artifactId>disruptor</artifactId>
-                <version>3.3.6</version>
+                <version>3.4.4</version>
             </dependency>
             <dependency>
                 <groupId>net.spy</groupId>
@@ -720,7 +720,7 @@
             <dependency>
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr4-runtime</artifactId>
-                <version>4.5.1</version>
+                <version>4.13.2</version>
             </dependency>
             <dependency>
                 <groupId>org.antlr</groupId>
@@ -730,17 +730,17 @@
             <dependency>
                 <groupId>commons-cli</groupId>
                 <artifactId>commons-cli</artifactId>
-                <version>1.3.1</version>
+                <version>1.9.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-dbcp2</artifactId>
-                <version>2.0.1</version>
+                <version>2.13.0</version>
             </dependency>
             <dependency>
                 <groupId>org.lz4</groupId>
                 <artifactId>lz4-java</artifactId>
-                <version>1.6.0</version>
+                <version>1.8.0</version>
             </dependency>
             <dependency>
                 <groupId>com.google.protobuf</groupId>
@@ -776,7 +776,7 @@
             <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
                 <artifactId>httpcore</artifactId>
-                <version>4.4.11</version>
+                <version>4.4.16</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.hadoop</groupId>
@@ -828,7 +828,7 @@
             <dependency>
                 <groupId>org.mapdb</groupId>
                 <artifactId>mapdb</artifactId>
-                <version>1.0.8</version>
+                <version>1.0.9</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.derby</groupId>
@@ -853,7 +853,7 @@
             <dependency>
                 <groupId>it.unimi.dsi</groupId>
                 <artifactId>fastutil</artifactId>
-                <version>8.2.3</version>
+                <version>8.5.15</version>
             </dependency>
             <dependency>
                 <groupId>com.opencsv</groupId>
@@ -868,27 +868,27 @@
             <dependency>
                 <groupId>net.thisptr</groupId>
                 <artifactId>jackson-jq</artifactId>
-                <version>0.0.10</version>
+                <version>0.0.13</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.7.25</version>
+                <version>1.7.36</version>
             </dependency>
             <dependency>
                 <groupId>org.roaringbitmap</groupId>
                 <artifactId>RoaringBitmap</artifactId>
-                <version>0.8.11</version>
+                <version>0.9.49</version>
             </dependency>
             <dependency>
                 <groupId>org.ow2.asm</groupId>
                 <artifactId>asm</artifactId>
-                <version>7.1</version>
+                <version>7.3.1</version>
             </dependency>
             <dependency>
                 <groupId>org.ow2.asm</groupId>
                 <artifactId>asm-commons</artifactId>
-                <version>7.1</version>
+                <version>7.3.1</version>
             </dependency>
             <dependency>
                 <groupId>org.asynchttpclient</groupId>
@@ -904,7 +904,7 @@
             <dependency>
                 <groupId>net.java.dev.jna</groupId>
                 <artifactId>jna</artifactId>
-                <version>4.5.1</version>
+                <version>4.5.2</version>
             </dependency>
             <dependency>
                 <groupId>io.dropwizard.metrics</groupId>
@@ -949,7 +949,7 @@
             <dependency>
                 <groupId>org.apache.maven</groupId>
                 <artifactId>maven-artifact</artifactId>
-                <version>3.6.0</version>
+                <version>3.9.9</version>
             </dependency>
             <dependency>
                 <groupId>javax.ws.rs</groupId>
@@ -969,7 +969,7 @@
             <dependency>
                 <groupId>org.apache.directory.api</groupId>
                 <artifactId>api-util</artifactId>
-                <version>1.0.0-M20</version>
+                <version>1.0.3</version>
             </dependency>
             <dependency>
                 <groupId>com.yahoo.datasketches</groupId>
@@ -987,7 +987,7 @@
             <dependency>
                 <groupId>org.easymock</groupId>
                 <artifactId>easymock</artifactId>
-                <version>4.0.2</version>
+                <version>4.3</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -1057,7 +1057,7 @@
             <dependency>
                 <groupId>com.maxmind.geoip2</groupId>
                 <artifactId>geoip2</artifactId>
-                <version>0.4.0</version>
+                <version>0.10.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>com.google.http-client</groupId>
@@ -1181,7 +1181,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.4</version>
+                <version>0.8.13</version>
                 <configuration>
                     <excludes>
                         <!-- Ignore generated code -->
@@ -1211,7 +1211,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.0.0</version>
+                <version>3.6.0</version>
                 <configuration>
                     <sourceDirectories>
                         <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
@@ -1245,7 +1245,7 @@
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>3.1.12</version>
+                <version>3.1.12.2</version>
                 <dependencies>
                     <!-- overwrite dependency on spotbugs if you want to specify the version of spotbugs -->
                     <dependency>
@@ -1261,7 +1261,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
-                <version>3.8</version>
+                <version>3.26.0</version>
                 <configuration>
                     <printFailingErrors>true</printFailingErrors>
                     <rulesets>
@@ -1284,7 +1284,7 @@
             <plugin>
                 <groupId>de.thetaphi</groupId>
                 <artifactId>forbiddenapis</artifactId>
-                <version>2.6</version>
+                <version>2.7</version>
                 <configuration>
                     <failOnUnresolvableSignatures>false</failOnUnresolvableSignatures>
                     <bundledSignatures>
@@ -1329,7 +1329,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>animal-sniffer-maven-plugin</artifactId>
-                <version>1.17</version>
+                <version>1.24</version>
                 <executions>
                     <execution>
                         <id>check-java-api</id>
@@ -1403,7 +1403,7 @@
             <plugin>
                 <groupId>pl.project13.maven</groupId>
                 <artifactId>git-commit-id-plugin</artifactId>
-                <version>2.2.5</version>
+                <version>2.2.6</version>
                 <executions>
                     <execution>
                         <goals>
@@ -1497,27 +1497,27 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-clean-plugin</artifactId>
-                    <version>2.5</version>
+                    <version>2.6.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <version>3.1.1</version>
+                    <version>3.8.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-deploy-plugin</artifactId>
-                    <version>2.7</version>
+                    <version>2.8.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-help-plugin</artifactId>
-                    <version>2.1.1</version>
+                    <version>2.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-install-plugin</artifactId>
-                    <version>2.3.1</version>
+                    <version>2.5.2</version>
                     <executions>
                         <execution>
                             <phase>package</phase>
@@ -1530,17 +1530,17 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-resources-plugin</artifactId>
-                    <version>3.1.0</version>
+                    <version>3.3.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>
-                    <version>2.2</version>
+                    <version>2.4.3</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-site-plugin</artifactId>
-                    <version>3.1</version>
+                    <version>3.21.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.scala-tools</groupId>
@@ -1550,17 +1550,17 @@
                 <plugin>
                     <groupId>org.antlr</groupId>
                     <artifactId>antlr4-maven-plugin</artifactId>
-                    <version>4.5.1</version>
+                    <version>4.13.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-assembly-plugin</artifactId>
-                    <version>3.1.0</version>
+                    <version>3.7.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>license-maven-plugin</artifactId>
-                    <version>1.8</version>
+                    <version>1.20</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
@@ -1570,7 +1570,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>2.10.1</version>
+                    <version>2.10.4</version>
                     <configuration>
                         <!-- jdk8 started linting javadocs by default; ours are not fully compliant -->
                         <additionalparam>-Xdoclint:none</additionalparam>
@@ -1582,7 +1582,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.8.1</version>
+                    <version>3.14.0</version>
                     <configuration>
                         <source>${maven.compiler.source}</source>
                         <target>${maven.compiler.target}</target>
@@ -1591,7 +1591,7 @@
                 <plugin>
                     <groupId>com.github.eirslett</groupId>
                     <artifactId>frontend-maven-plugin</artifactId>
-                    <version>1.6</version>
+                    <version>1.15.1</version>
                     <configuration>
                         <nodeVersion>v10.13.0</nodeVersion>
                         <npmVersion>6.4.1</npmVersion>
@@ -1675,14 +1675,14 @@
                             <dependency>
                                 <groupId>org.codehaus.plexus</groupId>
                                 <artifactId>plexus-compiler-javac-errorprone</artifactId>
-                                <version>2.8.5</version>
+                                <version>2.15.0</version>
                             </dependency>
                             <!-- override plexus-compiler-javac-errorprone's dependency on
                                  Error Prone with the latest version -->
                             <dependency>
                                 <groupId>com.google.errorprone</groupId>
                                 <artifactId>error_prone_core</artifactId>
-                                <version>2.3.2</version>
+                                <version>2.38.0</version>
                             </dependency>
                         </dependencies>
                     </plugin>
@@ -1735,7 +1735,7 @@
                     <plugin>
                         <groupId>org.apache.rat</groupId>
                         <artifactId>apache-rat-plugin</artifactId>
-                        <version>0.12</version>
+                        <version>0.16.1</version>
                         <executions>
                             <execution>
                                 <phase>verify</phase>
