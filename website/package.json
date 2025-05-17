@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "fast-glob": "^3.0.4",
-    "fs-extra": "^8.1.0",
+    "fs-extra": "^11.0.0",
     "replace-in-file": "^4.1.3"
   }
 }
