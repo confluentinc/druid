@@ -77,7 +77,7 @@
         <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
         <aether.version>0.9.0.M2</aether.version>
         <apache.curator.version>4.1.0</apache.curator.version>
-        <apache.curator.test.version>2.12.0</apache.curator.test.version>
+        <apache.curator.test.version>5.8.0</apache.curator.test.version>
         <avatica.version>1.12.0</avatica.version>
         <avro.version>1.9.0</avro.version>
         <calcite.version>1.17.0</calcite.version>
