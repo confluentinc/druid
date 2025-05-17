@@ -39,7 +39,7 @@
         <jclouds.version>1.9.1</jclouds.version>
         <!-- The version of guice is forced to 3.0 since JClouds 1.9.1 does not
           work with guice 4.0-beta -->
-        <guice.version>3.0</guice.version>
+        <guice.version>7.0.0</guice.version>
     </properties>
 
     <dependencies>
