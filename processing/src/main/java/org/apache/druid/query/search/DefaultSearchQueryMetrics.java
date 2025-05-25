@@ -232,6 +232,12 @@ public class DefaultSearchQueryMetrics implements SearchQueryMetrics
   }
 
   @Override
+  public QueryMetrics reportBrokerCpuTime(long timeNs)
+  {
+    return delegateQueryMetrics.reportBrokerCpuTime(timeNs);
+  }
+
+  @Override
   public QueryMetrics reportRowsScannedCount(long rowsScannedCount)
   {
     return delegateQueryMetrics.reportRowsScannedCount(rowsScannedCount);

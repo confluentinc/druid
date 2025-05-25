@@ -9,6 +9,10 @@
     "dataSource",
     "type"
   ],
+  "query/brokerCpuTime": [
+    "dataSource",
+    "type"
+  ],
   "query/node/time": [
     "dataSource",
     "type"
