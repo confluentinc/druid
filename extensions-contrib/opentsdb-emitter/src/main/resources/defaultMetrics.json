@@ -27,6 +27,10 @@
     "dataSource",
     "type"
   ],
+  "query/brokerCpuTime": [
+    "dataSource",
+    "type"
+  ],
   "jetty/numOpenConnections": [],
   "jetty/threadPool/total": [],
   "jetty/threadPool/idle": [],

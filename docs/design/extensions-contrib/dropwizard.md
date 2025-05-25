@@ -162,6 +162,14 @@ Latest default metrics mapping can be found [here] (https://github.com/apache/dr
     "type": "timer",
     "timeUnit": "NANOSECONDS"
   },
+  "query/brokerCpuTime": {
+    "dimensions": [
+      "dataSource",
+      "type"
+    ],
+    "type": "timer",
+    "timeUnit": "NANOSECONDS"
+  },
   "query/cache/delta/numEntries": {
     "dimensions": [],
     "type": "counter"
