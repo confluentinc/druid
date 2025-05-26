@@ -94,8 +94,9 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
               if (cpuTimeNs > 0) {
                 queryWithMetrics.getQueryMetrics().reportCpuTime(cpuTimeNs).emit(emitter);
               }
-              if (cpuTimeAccumulator.get() > 0) {
-                queryWithMetrics.getQueryMetrics().reportBrokerCpuTime(cpuTimeAccumulator.get()).emit(emitter);
+              final long brokerCpuTimeNs = responseContext.getBrokerCpuNanos();
+              if (brokerCpuTimeNs > 0) {
+                queryWithMetrics.getQueryMetrics().reportBrokerCpuTime(brokerCpuTimeNs).emit(emitter);
               }
             }
           }

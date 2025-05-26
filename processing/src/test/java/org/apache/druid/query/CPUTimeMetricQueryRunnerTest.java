@@ -20,7 +20,6 @@
 package org.apache.druid.query;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
@@ -33,6 +32,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -69,15 +69,17 @@ public class CPUTimeMetricQueryRunnerTest
     );
 
     Assert.assertEquals(expectedResults, results.toList());
-    Assert.assertEquals(1, emitter.getEvents().size());
+    Assert.assertEquals(2, emitter.getEvents().size());
+    HashSet<String> expectedMetrics = new HashSet<>();
+    expectedMetrics.add("query/cpu/time");
+    expectedMetrics.add("query/brokerCpuTime");
 
-    final Event event = Iterables.getOnlyElement(emitter.getEvents());
-
-    Assert.assertEquals("metrics", event.toMap().get("feed"));
-    Assert.assertEquals("query/cpu/time", event.toMap().get("metric"));
-
-    final Object value = event.toMap().get("value");
-    Assert.assertThat(value, CoreMatchers.instanceOf(Long.class));
-    Assert.assertTrue((long) value > 0);
+    for (Event event : emitter.getEvents()) {
+      Assert.assertEquals("metrics", event.toMap().get("feed"));
+      Assert.assertTrue(expectedMetrics.contains(event.toMap().get("metric")));
+      final Object value = event.toMap().get("value");
+      Assert.assertThat(value, CoreMatchers.instanceOf(Long.class));
+      Assert.assertTrue((long) value > 0);
+    }
   }
 }

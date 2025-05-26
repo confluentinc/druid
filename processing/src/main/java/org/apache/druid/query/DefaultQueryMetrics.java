@@ -271,7 +271,8 @@ public class DefaultQueryMetrics<QueryType extends Query<?>> implements QueryMet
   }
 
   @Override
-  public QueryMetrics<QueryType> reportBrokerCpuTime(long timeNs) {
+  public QueryMetrics<QueryType> reportBrokerCpuTime(long timeNs)
+  {
     return reportMetric("query/brokerCpuTime", TimeUnit.NANOSECONDS.toMicros(timeNs));
   }
 
