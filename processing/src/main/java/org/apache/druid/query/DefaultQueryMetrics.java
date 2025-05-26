@@ -271,6 +271,12 @@ public class DefaultQueryMetrics<QueryType extends Query<?>> implements QueryMet
   }
 
   @Override
+  public QueryMetrics<QueryType> reportBrokerCpuTime(long timeNs)
+  {
+    return reportMetric("query/brokerCpuTime", TimeUnit.NANOSECONDS.toMicros(timeNs));
+  }
+
+  @Override
   public QueryMetrics<QueryType> reportRowsScannedCount(long rowsScannedCount)
   {
     return reportMetric("query/rows/scanned", rowsScannedCount);

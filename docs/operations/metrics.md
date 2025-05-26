@@ -51,6 +51,7 @@ Metrics may have additional dimensions beyond those listed above.
 |`query/time`|Milliseconds taken to complete a query.|<p>Common: `dataSource`, `type`, `interval`, `hasFilters`, `duration`, `context`, `remoteAddress`, `id`.</p><p>Aggregation Queries: `numMetrics`, `numComplexMetrics`.</p><p>GroupBy: `numDimensions`.</p><p> TopN: `threshold`, `dimension`.</p>|< 1s|
 |`query/planningTime`|Milliseconds taken to complete query planning at Broker before query is fanned out to the Data nodes.|<p>Common: `dataSource`, `type`, `interval`, `hasFilters`, `duration`, `context`, `remoteAddress`, `id`.</p><p>Aggregation Queries: `numMetrics`, `numComplexMetrics`.</p><p>GroupBy: `numDimensions`.</p><p> TopN: `threshold`, `dimension`.</p>|< 1s|
 |`query/bytes`|The total number of bytes returned to the requesting client in the query response from the broker. Other services report the total bytes for their portion of the query. |<p>Common: `dataSource`, `type`, `interval`, `hasFilters`, `duration`, `context`, `remoteAddress`, `id`.</p><p> Aggregation Queries: `numMetrics`, `numComplexMetrics`.</p><p> GroupBy: `numDimensions`.</p><p> TopN: `threshold`, `dimension`.</p>| |
+|`query/brokerCpuTtime`| The total amount of time spent at broker (excluding data-nodes), for query planning and merging intermediate results.|<p>Common: `dataSource`, `type`, `interval`, `hasFilters`, `duration`, `context`, `remoteAddress`, `id`.</p><p>Aggregation Queries: `numMetrics`, `numComplexMetrics`.</p><p>GroupBy: `numDimensions`.</p><p> TopN: `threshold`, `dimension`.</p>|< 1s|
 |`query/node/time`|Milliseconds taken to query individual historical/realtime processes.|`id`, `status`, `server`|< 1s|
 |`query/node/bytes`|Number of bytes returned from querying individual historical/realtime processes.|`id`, `status`, `server`| |
 |`query/node/ttfb`|Time to first byte. Milliseconds elapsed until Broker starts receiving the response from individual historical/realtime processes.|`id`, `status`, `server`|< 1s|
@@ -69,6 +70,7 @@ Metrics may have additional dimensions beyond those listed above.
 |`sqlQuery/planningTimeMs`|Milliseconds taken to plan a SQL to native query.|`id`, `nativeQueryIds`, `dataSource`, `remoteAddress`, `success`| |
 |`sqlQuery/bytes`|Number of bytes returned in the SQL query response.|`id`, `nativeQueryIds`, `dataSource`, `remoteAddress`, `success`| |
 |`httpClient/channelAcquire/timeNs`|Time in nanoseconds spent by the httpclient to acquire the channel.| |
+
 
 ### Historical
 
