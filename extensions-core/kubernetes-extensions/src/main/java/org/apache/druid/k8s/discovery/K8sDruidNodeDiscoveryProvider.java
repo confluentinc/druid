@@ -41,15 +41,12 @@ import org.apache.druid.utils.CloseableUtils;
 import java.io.Closeable;
 import java.net.SocketTimeoutException;
 import java.util.Collection;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
-import java.util.stream.Collectors;
-import java.util.Map;
 
 @ManageLifecycle
 public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
