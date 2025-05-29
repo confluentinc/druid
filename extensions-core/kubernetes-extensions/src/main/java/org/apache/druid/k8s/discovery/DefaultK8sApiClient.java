@@ -85,6 +85,24 @@ public class DefaultK8sApiClient implements K8sApiClient
 
       Map<String, DiscoveryDruidNode> allNodes = new HashMap();
       for (V1Pod podDef : podList.getItems()) {
+        // Skip pods that have deletion timestamp and have been in termination for more than grace period + 30s
+        if (podDef.getMetadata() != null && podDef.getMetadata().getDeletionTimestamp() != null) {
+          long deletionTimestamp = podDef.getMetadata().getDeletionTimestamp().toInstant().toEpochMilli();
+          long currentTimestamp = System.currentTimeMillis();
+          long terminationGracePeriod = podDef.getSpec().getTerminationGracePeriodSeconds() != null ? 
+              podDef.getSpec().getTerminationGracePeriodSeconds() * 1000L : 30 * 1000L; // Default to 30s if graceperiod is not set
+          
+          // irrespective of the grace period, we skip the pod if it has been in termination for more than 30s
+          if (currentTimestamp - deletionTimestamp + terminationGracePeriod > 30000) {
+            LOGGER.info(
+                "Skipping pod %s/%s from discovery as it has been in termination for more than grace period + 30s",
+                podDef.getMetadata().getNamespace(),
+                podDef.getMetadata().getName()
+            );
+            continue;
+          }
+        }
+
         DiscoveryDruidNode node = getDiscoveryDruidNodeFromPodDef(nodeRole, podDef);
         allNodes.put(node.getDruidNode().getHostAndPortToUse(), node);
       }
