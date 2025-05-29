@@ -126,44 +126,7 @@ public class K8sDruidNodeAnnouncer implements DruidNodeAnnouncer
   @Override
   public void unannounce(DiscoveryDruidNode discoveryDruidNode)
   {
-    LOGGER.info("Unannouncing DiscoveryDruidNode[%s]", discoveryDruidNode);
-
-    String roleAnnouncementLabel = getRoleAnnouncementLabel(discoveryDruidNode.getNodeRole());
-    String idHashAnnouncementLabel = getIdHashAnnouncementLabel();
-    String clusterIdentifierAnnouncementLabel = getClusterIdentifierAnnouncementLabel();
-    String infoAnnotation = getInfoAnnotation(discoveryDruidNode.getNodeRole());
-
-    try {
-      List<Map<String, Object>> patches = new ArrayList<>();
-      patches.add(createPatchObj(OP_REMOVE, getPodDefLabelPath(roleAnnouncementLabel), null));
-      patches.add(createPatchObj(OP_REMOVE, getPodDefLabelPath(idHashAnnouncementLabel), null));
-      patches.add(createPatchObj(OP_REMOVE, getPodDefLabelPath(clusterIdentifierAnnouncementLabel), null));
-      patches.add(createPatchObj(OP_REMOVE, getPodDefAnnocationPath(infoAnnotation), null));
-
-      // Creating patch string outside of retry block to not retry json serialization failures
-      String jsonPatchStr = jsonMapper.writeValueAsString(patches);
-
-      RetryUtils.retry(
-          () -> {
-            k8sApiClient.patchPod(podInfo.getPodName(), podInfo.getPodNamespace(), jsonPatchStr);
-            return "na";
-          },
-          (throwable) -> true,
-          3
-      );
-
-      LOGGER.info("Unannounced DiscoveryDruidNode[%s]", discoveryDruidNode);
-
-    }
-    catch (Exception ex) {
-      // Unannouncement happens when druid process is shutting down, there is no point throwing exception
-      // in shutdown sequence.
-      if (ex instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      }
-
-      LOGGER.error(ex, "Failed to unannounce DiscoveryDruidNode[%s]", discoveryDruidNode);
-    }
+    LOGGER.info("NOT Unannouncing DiscoveryDruidNode[%s]", discoveryDruidNode);
   }
 
   private Map<String, Object> createPatchObj(String op, String path, Object value)
