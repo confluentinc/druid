@@ -41,12 +41,15 @@ import org.apache.druid.utils.CloseableUtils;
 import java.io.Closeable;
 import java.net.SocketTimeoutException;
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.stream.Collectors;
+import java.util.Map;
 
 @ManageLifecycle
 public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
@@ -225,6 +228,29 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
         return;
       }
 
+      // Create a scheduled executor for periodic listing
+      ScheduledExecutorService periodicListExecutor = Execs.scheduledSingleThreaded(
+          "K8sDruidNodeDiscoveryProvider-PeriodicList-" + nodeRole.getJsonName()
+      );
+
+      // Schedule periodic listing every minute
+      periodicListExecutor.scheduleAtFixedRate(() -> {
+        try {
+          if (lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS)) {
+            LOGGER.info("Performing periodic pod listing for NodeRole [%s]", nodeRole);
+            DiscoveryDruidNodeList list = k8sApiClient.listPods(
+                podInfo.getPodNamespace(), 
+                labelSelector, 
+                nodeRole
+            );
+            baseNodeRoleWatcher.resetNodes(list.getDruidNodes());
+          }
+        }
+        catch (Throwable ex) {
+          LOGGER.error(ex, "Error during periodic pod listing for NodeRole [%s]", nodeRole);
+        }
+      }, 2, 1, TimeUnit.MINUTES);
+
       while (lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS)) {
         try {
           DiscoveryDruidNodeList list = k8sApiClient.listPods(podInfo.getPodNamespace(), labelSelector, nodeRole);
@@ -242,13 +268,13 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
           );
         }
         catch (Throwable ex) {
-          LOGGER.error(ex, "Expection while watching for NodeRole [%s].", nodeRole);
-
-          // Wait a little before trying again.
+          LOGGER.error(ex, "Exception while watching for NodeRole [%s].", nodeRole);
           sleep(watcherErrorRetryWaitMS);
         }
       }
 
+      // Shutdown the periodic executor when the watch is stopped
+      periodicListExecutor.shutdownNow();
       LOGGER.info("Exited Watch for NodeRole [%s].", nodeRole);
     }
 
