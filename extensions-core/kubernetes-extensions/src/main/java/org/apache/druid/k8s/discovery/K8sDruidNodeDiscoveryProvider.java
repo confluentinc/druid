@@ -243,15 +243,13 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
                 labelSelector, 
                 nodeRole
             );
-            
-            logNodeDifferences(list.getDruidNodes());
             baseNodeRoleWatcher.resetNodes(list.getDruidNodes());
           }
         }
         catch (Throwable ex) {
           LOGGER.error(ex, "Error during periodic pod listing for NodeRole [%s]", nodeRole);
         }
-      }, 1, 1, TimeUnit.MINUTES);
+      }, 2, 1, TimeUnit.MINUTES);
 
       while (lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS)) {
         try {
@@ -279,38 +277,6 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
       // Shutdown the periodic executor when the watch is stopped
       periodicListExecutor.shutdownNow();
       LOGGER.info("Exited Watch for NodeRole [%s].", nodeRole);
-    }
-
-    private void logNodeDifferences(Map<String, DiscoveryDruidNode> newNodes)
-    {
-      // Get current nodes before reset
-      Collection<DiscoveryDruidNode> currentNodes = baseNodeRoleWatcher.getAllNodes();
-      
-      // Find differences
-      Set<String> currentHosts = currentNodes.stream()
-          .map(node -> node.getDruidNode().getHostAndPortToUse())
-          .collect(Collectors.toSet());
-      Set<String> newHosts = newNodes.keySet();
-      
-      // Find added nodes
-      Set<String> addedNodes = newHosts.stream()
-          .filter(host -> !currentHosts.contains(host))
-          .collect(Collectors.toSet());
-      
-      // Find removed nodes
-      Set<String> removedNodes = currentHosts.stream()
-          .filter(host -> !newHosts.contains(host))
-          .collect(Collectors.toSet());
-      
-      // Log differences if any
-      if (!addedNodes.isEmpty() || !removedNodes.isEmpty()) {
-        LOGGER.info(
-            "Node changes detected for role [%s]: Added: %s, Removed: %s",
-            nodeRole,
-            addedNodes.isEmpty() ? "none" : addedNodes,
-            removedNodes.isEmpty() ? "none" : removedNodes
-        );
-      }
     }
 
     private void keepWatching(String namespace, String labelSelector, String resourceVersion)

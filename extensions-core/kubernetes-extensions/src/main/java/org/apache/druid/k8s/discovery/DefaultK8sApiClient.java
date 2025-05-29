@@ -85,6 +85,16 @@ public class DefaultK8sApiClient implements K8sApiClient
 
       Map<String, DiscoveryDruidNode> allNodes = new HashMap();
       for (V1Pod podDef : podList.getItems()) {
+        // Skip pods that have deletion timestamp
+        if (podDef.getMetadata() != null && podDef.getMetadata().getDeletionTimestamp() != null) {
+          LOGGER.info(
+              "Skipping pod %s/%s from discovery as it has deletion timestamp",
+              podDef.getMetadata().getNamespace(),
+              podDef.getMetadata().getName()
+          );
+          continue;
+        }
+
         DiscoveryDruidNode node = getDiscoveryDruidNodeFromPodDef(nodeRole, podDef);
         allNodes.put(node.getDruidNode().getHostAndPortToUse(), node);
       }
