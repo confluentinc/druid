@@ -36,8 +36,9 @@ import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.logger.Logger;
-import javax.annotation.Nullable;
 import org.joda.time.Duration;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;

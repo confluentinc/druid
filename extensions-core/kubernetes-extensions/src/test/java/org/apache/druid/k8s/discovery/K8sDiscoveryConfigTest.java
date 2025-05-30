@@ -52,7 +52,7 @@ public class K8sDiscoveryConfigTest
         + "  \"renewDeadline\": \"PT2S\",\n"
         + "  \"retryPeriod\": \"PT1S\",\n"
         + "  \"terminatingStateCheckDuration\": \"PT30S\"\n"
-                +"\n}",
+                + "\n}",
         new K8sDiscoveryConfig(
             "test-cluster",
             "PODNAMETEST",
