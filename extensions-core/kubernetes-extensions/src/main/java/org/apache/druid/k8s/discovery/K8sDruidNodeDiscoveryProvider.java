@@ -98,7 +98,8 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
     return () -> k8sApiClient.listPods(
         podInfo.getPodNamespace(),
         K8sDruidNodeAnnouncer.getLabelSelectorForNode(discoveryConfig, nodeRole, node),
-        nodeRole
+        nodeRole,
+        discoveryConfig.getTerminatingStateCheckDuration()
     ).getDruidNodes().containsKey(node.getHostAndPortToUse());
   }
 
@@ -238,7 +239,8 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
             DiscoveryDruidNodeList list = k8sApiClient.listPods(
                 podInfo.getPodNamespace(), 
                 labelSelector, 
-                nodeRole
+                nodeRole,
+                discoveryConfig.getTerminatingStateCheckDuration()
             );
             baseNodeRoleWatcher.resetNodes(list.getDruidNodes());
           }
@@ -250,7 +252,7 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
 
       while (lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS)) {
         try {
-          DiscoveryDruidNodeList list = k8sApiClient.listPods(podInfo.getPodNamespace(), labelSelector, nodeRole);
+          DiscoveryDruidNodeList list = k8sApiClient.listPods(podInfo.getPodNamespace(), labelSelector, nodeRole, discoveryConfig.getTerminatingStateCheckDuration());
           baseNodeRoleWatcher.resetNodes(list.getDruidNodes());
 
           if (!cacheInitialized) {
