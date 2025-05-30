@@ -20,8 +20,6 @@
 package org.apache.druid.k8s.discovery;
 
 import org.apache.druid.discovery.NodeRole;
-import org.joda.time.Duration;
-import javax.annotation.Nullable;
 
 /**
  * Interface to abstract pod read/update with K8S API Server to allow unit tests with mock impl.
@@ -30,7 +28,7 @@ public interface K8sApiClient
 {
   void patchPod(String podName, String namespace, String jsonPatchStr);
 
-  DiscoveryDruidNodeList listPods(String namespace, String labelSelector, NodeRole nodeRole,@Nullable Duration terminatingStateCheckDuration);
+  DiscoveryDruidNodeList listPods(String namespace, String labelSelector, NodeRole nodeRole);
 
   /**
    * @return NULL if history not available or else return the {@link WatchResult} object
