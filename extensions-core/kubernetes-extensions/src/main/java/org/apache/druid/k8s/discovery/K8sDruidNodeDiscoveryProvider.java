@@ -266,6 +266,8 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
         }
         catch (Throwable ex) {
           LOGGER.error(ex, "Exception while watching for NodeRole [%s].", nodeRole);
+          
+          // Wait a little before trying again.
           sleep(watcherErrorRetryWaitMS);
         }
       }
