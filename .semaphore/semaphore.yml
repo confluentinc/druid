@@ -28,8 +28,7 @@ blocks:
           value: "-DskipTests -Djacoco.skip=true"
       prologue:
         commands:
-          - cache restore
-              key: m2-repo-{{ checksum "pom.xml" }}
+          - cache restore key=m2-repo-$(checksum pom.xml)
           - echo $SEMAPHORE_WORKFLOW_ID
           - sem-version java 17
           - checkout
@@ -46,10 +45,7 @@ blocks:
             # also cache target to avoid the cost of recompiling tests
             - tar zcf cache-post-install.tgz .m2 target
             - artifact push workflow cache-post-install.tgz
-            - cache store
-                key: m2-repo-{{ checksum "pom.xml" }}
-                paths:
-                  - .m2/repository
+            - cache store key=m2-repo-$(checksum pom.xml) paths=.m2/repository
 
   - name: "Tests"
     task:
