@@ -11,6 +11,8 @@ blocks:
       env_vars: &env_vars
         - name: MVN
           value: "mvn -B"
+        - name: MAVEN_OPTS
+          value: "-Daether.syncContext.named.factory=file-lock -Daether.syncContext.named.time=300 -Daether.connector.http.retryHandler.count=3"
         - name: MAVEN_SKIP
           value: >
             -Danimal.sniffer.skip=true
@@ -37,7 +39,7 @@ blocks:
             - rm ~/.m2/settings.xml
             - >
               MAVEN_OPTS="${MAVEN_OPTS} -Xmx3000m" ${MVN} clean install
-              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T4 -X
+              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -X
             # downstream tests depend on artifacts installed by mvn install into .m2
             # also cache target to avoid the cost of recompiling tests
             - tar zcf cache-post-install.tgz .m2 target
