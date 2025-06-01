@@ -12,7 +12,7 @@ blocks:
         - name: MVN
           value: "mvn -B"
         - name: MAVEN_OPTS
-          value: "-Daether.syncContext.named.factory=file-lock -Daether.syncContext.named.time=300 -Daether.connector.http.retryHandler.count=3 -Daether.syncContext.named.nameMapper=file-gav"
+          value: "-Daether.syncContext.named.factory=file-lock -Daether.syncContext.named.time=60 -Daether.connector.http.retryHandler.count=3 -Daether.syncContext.named.nameMapper=file-gav -Daether.connector.http.connectionTimeout=60000 -Daether.connector.http.socketTimeout=60000 -Daether.connector.http.maxConnections=50 -Dmaven.repo.local=$SEMAPHORE_CACHE_DIR/.m2/repository"
         - name: MAVEN_SKIP
           value: >
             -Danimal.sniffer.skip=true
@@ -28,6 +28,8 @@ blocks:
           value: "-DskipTests -Djacoco.skip=true"
       prologue:
         commands:
+          - cache restore
+              key: m2-repo-{{ checksum "pom.xml" }}
           - echo $SEMAPHORE_WORKFLOW_ID
           - sem-version java 17
           - checkout
@@ -39,11 +41,15 @@ blocks:
             - rm ~/.m2/settings.xml
             - >
               MAVEN_OPTS="${MAVEN_OPTS} -Xmx3000m" ${MVN} clean install
-              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -X
+              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
             # downstream tests depend on artifacts installed by mvn install into .m2
             # also cache target to avoid the cost of recompiling tests
             - tar zcf cache-post-install.tgz .m2 target
             - artifact push workflow cache-post-install.tgz
+            - cache store
+                key: m2-repo-{{ checksum "pom.xml" }}
+                paths:
+                  - .m2/repository
 
   - name: "Tests"
     task:
