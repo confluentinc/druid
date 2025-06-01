@@ -12,7 +12,7 @@ blocks:
         - name: MVN
           value: "mvn -B"
         - name: MAVEN_OPTS
-          value: "-Daether.syncContext.named.factory=file-lock -Daether.syncContext.named.time=300 -Daether.connector.http.retryHandler.count=3"
+          value: "-Daether.syncContext.named.factory=file-lock -Daether.syncContext.named.time=300 -Daether.connector.http.retryHandler.count=3 -Daether.syncContext.named.nameMapper=simple"
         - name: MAVEN_SKIP
           value: >
             -Danimal.sniffer.skip=true
