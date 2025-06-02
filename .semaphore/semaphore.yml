@@ -12,7 +12,14 @@ blocks:
         - name: MVN
           value: "mvn -B"
         - name: MAVEN_OPTS
-          value: "-Dmaven.repo.local=.m2"
+          value: >
+            -Dmaven.repo.local=.m2
+            -Dmaven.artifact.threads=1
+            -Dorg.slf4j.simpleLogger.defaultLogLevel=warn
+            -Dmaven.wagon.httpconnectionManager.ttlSeconds=60
+            -Dmaven.wagon.http.retryHandler.count=3
+            -Dmaven.wagon.http.retryHandler.requestSentEnabled=true
+            -Xmx2g
         - name: MAVEN_SKIP
           value: >
             -Danimal.sniffer.skip=true
@@ -39,7 +46,7 @@ blocks:
             - rm ~/.m2/settings.xml
             - >
               MAVEN_OPTS="${MAVEN_OPTS} -Xmx3000m" ${MVN} clean install
-              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
+              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1
             # downstream tests depend on artifacts installed by mvn install into .m2
             # also cache target to avoid the cost of recompiling tests
             - tar zcf cache-post-install.tgz .m2 target
