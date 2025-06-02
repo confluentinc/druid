@@ -239,6 +239,12 @@
           <id>sigar</id>
           <url>https://repository.mulesoft.org/nexus/content/repositories/public</url>
         </repository>
+
+        <!-- Add Confluent repository -->
+        <repository>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
+        </repository>
     </repositories>
 
     <dependencyManagement>
