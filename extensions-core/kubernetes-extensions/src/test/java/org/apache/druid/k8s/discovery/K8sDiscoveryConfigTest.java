@@ -51,7 +51,7 @@ public class K8sDiscoveryConfigTest
         + "  \"leaseDuration\": \"PT3S\",\n"
         + "  \"renewDeadline\": \"PT2S\",\n"
         + "  \"retryPeriod\": \"PT1S\",\n"
-        + "  \"terminatingStateCheckDuration\": \"PT30S\"\n"
+        + "  \"terminatingStateCheckDuration\": \"PT30S\",\n"
         + "  \"periodicListInterval\": \"PT20S\"\n"
         + "\n}",
         new K8sDiscoveryConfig(
