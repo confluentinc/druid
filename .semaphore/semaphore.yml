@@ -45,7 +45,6 @@ blocks:
         commands:
           - echo $SEMAPHORE_WORKFLOW_ID
           - sem-version java 17
-          - sem-version maven 3.8.8
           - checkout
       jobs:
         - name: "Install"
