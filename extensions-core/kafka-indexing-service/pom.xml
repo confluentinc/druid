@@ -154,6 +154,18 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-server-common</artifactId>
+      <version>${apache.kafka.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-storage</artifactId>
+      <version>${apache.kafka.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.apache.druid</groupId>
       <artifactId>druid-core</artifactId>
       <version>${project.parent.version}</version>
