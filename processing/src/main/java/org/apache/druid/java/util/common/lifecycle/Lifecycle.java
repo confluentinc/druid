@@ -401,7 +401,7 @@ public class Lifecycle
     }
   }
 
-  public void stop(long waitTimeMin)
+  public void stopUngracefully(long waitTimeMin)
   {
     handlers.remove(Stage.ANNOUNCEMENTS);
     stop();
@@ -427,7 +427,7 @@ public class Lifecycle
                   log.info("Lifecycle [%s] running shutdown hook", name);
                   Long waitTime = getUngracefulShutDownWaitTime();
                   if (waitTime != null) {
-                    stop(waitTime);
+                    stopUngracefully(waitTime);
                   } else {
                     stop();
                   }
