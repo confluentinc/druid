@@ -110,7 +110,7 @@ blocks:
           commands: &run_tests
             - >
               MAVEN_OPTS="${MAVEN_OPTS} -Xmx1g" ${MVN} test -pl ${MAVEN_PROJECTS}
-              ${MAVEN_SKIP} -Dremoteresources.skip=true
+              ${MAVEN_SKIP}
 
         - name: "Server"
           env_vars:
