@@ -230,7 +230,7 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
           "K8sDruidNodeDiscoveryProvider-PeriodicList-" + nodeRole.getJsonName()
       );
 
-      // Schedule periodic listing every 20 seconds
+      // Schedule periodic listing every minute
       periodicListExecutor.scheduleAtFixedRate(() -> {
         try {
           if (lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS)) {
@@ -246,7 +246,7 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
         catch (Throwable ex) {
           LOGGER.error(ex, "Error during periodic pod listing for NodeRole [%s]", nodeRole);
         }
-      }, 60, 20, TimeUnit.SECONDS);
+      }, 2, 2, TimeUnit.MINUTES);
 
       while (lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS)) {
         try {
