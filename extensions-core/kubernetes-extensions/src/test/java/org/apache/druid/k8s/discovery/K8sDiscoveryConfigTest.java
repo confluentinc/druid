@@ -34,7 +34,7 @@ public class K8sDiscoveryConfigTest
   {
     testSerde(
         "{\"clusterIdentifier\": \"test-cluster\"}\n",
-        new K8sDiscoveryConfig("test-cluster", null, null, null, null, null, null, null, null)
+        new K8sDiscoveryConfig("test-cluster", null, null, null, null, null, null, null, null, null)
     );
   }
 
@@ -52,7 +52,8 @@ public class K8sDiscoveryConfigTest
         + "  \"renewDeadline\": \"PT2S\",\n"
         + "  \"retryPeriod\": \"PT1S\",\n"
         + "  \"terminatingStateCheckDuration\": \"PT30S\"\n"
-                + "\n}",
+        + "  \"periodicListInterval\": \"PT20S\"\n"
+        + "\n}",
         new K8sDiscoveryConfig(
             "test-cluster",
             "PODNAMETEST",
@@ -62,7 +63,8 @@ public class K8sDiscoveryConfigTest
             Duration.millis(3000),
             Duration.millis(2000),
             Duration.millis(1000),
-                Duration.millis(30000)
+                Duration.millis(30000),
+                Duration.millis(20000)
         )
     );
   }
