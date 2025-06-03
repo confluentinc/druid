@@ -16,6 +16,7 @@ blocks:
             -Dmaven.repo.local=.m2
             -Daether.syncContext.named.factory=file-lock
             -Daether.syncContext.named.time=300
+            -Daether.syncContext.named.time.unit=SECONDS
             -Daether.connector.http.retryHandler.count=3
             -Daether.connector.http.retryHandler.requestSentEnabled=true
             -Daether.connector.http.connectionPoolSize=20
@@ -44,6 +45,7 @@ blocks:
         commands:
           - echo $SEMAPHORE_WORKFLOW_ID
           - sem-version java 17
+          - sem-version maven 3.8.8
           - checkout
       jobs:
         - name: "Install"
