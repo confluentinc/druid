@@ -10,7 +10,7 @@ blocks:
     task:
       env_vars: &env_vars
         - name: MVN
-          value: "mvn -B -T 2C"
+          value: "mvn -B -T1C"
         - name: MAVEN_OPTS
           value: >
             -Dmaven.repo.local=.m2
@@ -27,7 +27,6 @@ blocks:
             -Dmaven.wagon.httpconnectionManager.ttlSeconds=60
             -Dmaven.wagon.http.retryHandler.count=3
             -Dmaven.wagon.http.retryHandler.requestSentEnabled=true
-            -Xmx2g
         - name: MAVEN_SKIP
           value: >
             -Danimal.sniffer.skip=true
