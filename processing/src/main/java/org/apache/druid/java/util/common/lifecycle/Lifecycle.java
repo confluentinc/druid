@@ -122,7 +122,8 @@ public class Lifecycle
     if (waitTimeStr != null) {
       try {
         return Long.parseLong(waitTimeStr);
-      } catch (NumberFormatException e) {
+      }
+      catch (NumberFormatException e) {
         log.warn("Invalid value for %s: %s", UNGRACEFUL_SHUTDOWN_WAIT_TIME_PROPERTY, waitTimeStr);
       }
     }
@@ -408,7 +409,8 @@ public class Lifecycle
     System.out.println("waiting for " + waitTimeMin + " minutes");
     try {
       Thread.sleep(waitTimeMin * 60 * 1000);
-    } catch (InterruptedException e) {
+    }
+    catch (InterruptedException e) {
       log.warn(e, "Sleep interrupted");
     }
     System.out.println("waited for " + waitTimeMin + " minutes, exiting");
