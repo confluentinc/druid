@@ -58,7 +58,6 @@ blocks:
             # also cache target to avoid the cost of recompiling tests
             - tar zcf cache-post-install.tgz .m2 target
             - artifact push workflow cache-post-install.tgz
-            - exit 0
 
   - name: "Tests"
     task:
