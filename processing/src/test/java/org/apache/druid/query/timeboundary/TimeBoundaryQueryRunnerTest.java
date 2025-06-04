@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.io.CharSource;
 import org.apache.commons.lang.StringUtils;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.UOE;
@@ -90,6 +91,10 @@ public class TimeBoundaryQueryRunnerTest
   )
   {
     this.runner = runner;
+  }
+
+  static {
+    NullHandling.initializeForTests();
   }
 
   // Adapted from MultiSegmentSelectQueryTest, with modifications to make filtering meaningful
