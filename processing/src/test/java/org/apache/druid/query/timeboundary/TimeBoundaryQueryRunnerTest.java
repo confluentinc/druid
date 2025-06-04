@@ -58,6 +58,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.apache.druid.math.expr.ExpressionProcessing;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -95,6 +96,7 @@ public class TimeBoundaryQueryRunnerTest
 
   static {
     NullHandling.initializeForTests();
+    ExpressionProcessing.initializeForTests(null);
   }
 
   // Adapted from MultiSegmentSelectQueryTest, with modifications to make filtering meaningful
