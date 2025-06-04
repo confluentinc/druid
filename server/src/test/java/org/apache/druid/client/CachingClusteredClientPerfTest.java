@@ -29,6 +29,7 @@ import org.apache.druid.client.selector.HighestPriorityTierSelectorStrategy;
 import org.apache.druid.client.selector.QueryableDruidServer;
 import org.apache.druid.client.selector.RandomServerSelectorStrategy;
 import org.apache.druid.client.selector.ServerSelector;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.guice.http.DruidHttpClientConfig;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.guava.Sequence;
@@ -80,6 +81,10 @@ public class CachingClusteredClientPerfTest
   @Test(timeout = 10_000)
   public void testGetQueryRunnerForSegments_singleIntervalLargeSegments()
   {
+
+    static {
+    NullHandling.initializeForTests();
+  }
     final int segmentCount = 30_000;
     final Interval interval = Intervals.of("2021-02-13/2021-02-14");
     final List<SegmentDescriptor> segmentDescriptors = new ArrayList<>(segmentCount);
