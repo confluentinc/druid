@@ -58,6 +58,7 @@ blocks:
             # also cache target to avoid the cost of recompiling tests
             - tar zcf cache-post-install.tgz .m2 target
             - artifact push workflow cache-post-install.tgz
+            - exit 0
 
   - name: "Tests"
     task:
@@ -149,17 +150,17 @@ blocks:
             - name: MAVEN_PROJECTS
               value: extensions-core/kafka-indexing-service
           commands: *run_tests
-
-        - name: "Other Tests"
-          env_vars:
-            - name: MAVEN_PROJECTS
-              value: '!server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!integration-tests-ex/cases,!services'
-          commands: *run_tests
-
+        
         - name: "Services"
           env_vars:
             - name: MAVEN_PROJECTS
               value: services
             - name: MAVEN_OPTS
               value: "-DforkCount=1 -DreuseForks=false"
-          commands: *run_tests  
+          commands: *run_tests    
+
+        - name: "Other Tests"
+          env_vars:
+            - name: MAVEN_PROJECTS
+              value: '!server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!integration-tests-ex/cases,!services'
+          commands: *run_tests
