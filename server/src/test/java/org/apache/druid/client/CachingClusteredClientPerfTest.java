@@ -81,6 +81,7 @@ public class CachingClusteredClientPerfTest
   static {
     NullHandling.initializeForTests();
   }
+
   @Test(timeout = 10_000)
   public void testGetQueryRunnerForSegments_singleIntervalLargeSegments()
   {
