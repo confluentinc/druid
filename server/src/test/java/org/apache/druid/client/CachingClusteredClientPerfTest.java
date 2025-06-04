@@ -78,13 +78,12 @@ import static org.mockito.ArgumentMatchers.any;
 public class CachingClusteredClientPerfTest
 {
 
+  static {
+    NullHandling.initializeForTests();
+  }
   @Test(timeout = 10_000)
   public void testGetQueryRunnerForSegments_singleIntervalLargeSegments()
   {
-
-    static {
-    NullHandling.initializeForTests();
-  }
     final int segmentCount = 30_000;
     final Interval interval = Intervals.of("2021-02-13/2021-02-14");
     final List<SegmentDescriptor> segmentDescriptors = new ArrayList<>(segmentCount);
