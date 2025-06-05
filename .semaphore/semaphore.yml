@@ -155,6 +155,4 @@ blocks:
           env_vars:
             - name: MAVEN_PROJECTS
               value: '!server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!integration-tests-ex/cases'
-            - name: MAVEN_OPTS
-              value: "-DforkCount=1 -DreuseForks=false"
           commands: *run_tests
