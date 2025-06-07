@@ -1798,7 +1798,7 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
   public Response pause() throws InterruptedException
   {
     final Status currentStatus = status;
-    if (!(status == Status.PAUSED || status == Status.READING)) {
+    if (!(currentStatus == Status.PAUSED || currentStatus == Status.READING)) {
       log.error("Cannot pause task[%s] as it is currently in state[%s]", task.getId(), currentStatus);
       return Response.status(Response.Status.BAD_REQUEST)
                      .type(MediaType.TEXT_PLAIN)
