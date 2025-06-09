@@ -39,6 +39,7 @@ import org.apache.druid.java.util.common.logger.Logger;
 import org.joda.time.Duration;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.HashMap;
@@ -90,7 +91,7 @@ public class DefaultK8sApiClient implements K8sApiClient
       for (V1Pod podDef : podList.getItems()) {
         // irrespective of the grace period, we skip the pod if it has been in termination for more than terminatingStateCheckDuration
         if (podDef.getMetadata() != null && podDef.getMetadata().getDeletionTimestamp() != null) {
-          long deletionTimestamp = podDef.getMetadata().getDeletionTimestamp().toInstant().toEpochMilli();
+          long deletionTimestamp = podDef.getMetadata().getDeletionTimestamp().toInstant().getMillis();
           long currentTimestamp = System.currentTimeMillis();
           long terminationGracePeriod = podDef.getSpec().getTerminationGracePeriodSeconds() != null ?
                   podDef.getSpec().getTerminationGracePeriodSeconds() * 1000L : 30 * 1000L; // Default to 30s if graceperiod is not set
