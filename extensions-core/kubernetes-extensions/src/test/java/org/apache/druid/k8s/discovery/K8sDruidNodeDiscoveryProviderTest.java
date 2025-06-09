@@ -84,7 +84,7 @@ public class K8sDruidNodeDiscoveryProviderTest
   {
     String labelSelector = "druidDiscoveryAnnouncement-cluster-identifier=druid-cluster,druidDiscoveryAnnouncement-router=true";
     K8sApiClient mockK8sApiClient = EasyMock.createMock(K8sApiClient.class);
-    EasyMock.expect(mockK8sApiClient.listPods(podInfo.getPodNamespace(), labelSelector, NodeRole.ROUTER,  Duration.millis(30000))).andReturn(
+    EasyMock.expect(mockK8sApiClient.listPods(podInfo.getPodNamespace(), labelSelector, NodeRole.ROUTER, Duration.millis(30000))).andReturn(
         new DiscoveryDruidNodeList(
             "v1",
             ImmutableMap.of(
@@ -95,7 +95,7 @@ public class K8sDruidNodeDiscoveryProviderTest
     );
     EasyMock.expect(mockK8sApiClient.watchPods(
         podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER)).andReturn(null);
-    EasyMock.expect(mockK8sApiClient.listPods(podInfo.getPodNamespace(), labelSelector, NodeRole.ROUTER,  Duration.millis(30000))).andReturn(
+    EasyMock.expect(mockK8sApiClient.listPods(podInfo.getPodNamespace(), labelSelector, NodeRole.ROUTER, Duration.millis(30000))).andReturn(
         new DiscoveryDruidNodeList(
             "v2",
             ImmutableMap.of(
