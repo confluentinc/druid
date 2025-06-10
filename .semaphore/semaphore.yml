@@ -10,7 +10,7 @@ blocks:
     task:
       env_vars: &env_vars
         - name: MVN
-          value: "mvn -B -T1C"
+          value: "mvn -B"
         - name: MAVEN_OPTS
           value: >
             -Dmaven.repo.local=.m2
