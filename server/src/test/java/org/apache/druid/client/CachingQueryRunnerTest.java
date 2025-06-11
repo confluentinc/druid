@@ -68,6 +68,7 @@ import org.apache.druid.query.topn.TopNQueryBuilder;
 import org.apache.druid.query.topn.TopNQueryConfig;
 import org.apache.druid.query.topn.TopNQueryQueryToolChest;
 import org.apache.druid.query.topn.TopNResultValue;
+import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.easymock.EasyMock;
 import org.joda.time.DateTime;
 import org.junit.Assert;
@@ -90,7 +91,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @RunWith(Parameterized.class)
-public class CachingQueryRunnerTest
+public class CachingQueryRunnerTest extends InitializedNullHandlingTest
 {
   @Parameterized.Parameters(name = "numBackgroundThreads={0}")
   public static Iterable<Object[]> constructorFeeder()

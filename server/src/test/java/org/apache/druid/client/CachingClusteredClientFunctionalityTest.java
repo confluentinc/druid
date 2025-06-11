@@ -50,6 +50,7 @@ import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.server.QueryStackTests;
 import org.apache.druid.server.coordination.ServerType;
 import org.apache.druid.server.metrics.NoopServiceEmitter;
+import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.TimelineLookup;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
@@ -75,7 +76,7 @@ import java.util.concurrent.ForkJoinPool;
 /**
  *
  */
-public class CachingClusteredClientFunctionalityTest
+public class CachingClusteredClientFunctionalityTest extends InitializedNullHandlingTest
 {
   private static final ObjectMapper OBJECT_MAPPER = CachingClusteredClientTestUtils.createObjectMapper();
   private static final Pair<QueryToolChestWarehouse, Closer> WAREHOUSE_AND_CLOSER =
