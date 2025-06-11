@@ -122,6 +122,7 @@ import org.apache.druid.server.initialization.ServerConfig;
 import org.apache.druid.server.metrics.NoopServiceEmitter;
 import org.apache.druid.server.scheduling.ManualQueryPrioritizationStrategy;
 import org.apache.druid.server.scheduling.NoQueryLaningStrategy;
+import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.SegmentId;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
@@ -170,7 +171,7 @@ import java.util.stream.IntStream;
  *
  */
 @RunWith(Parameterized.class)
-public class CachingClusteredClientTest
+public class CachingClusteredClientTest extends InitializedNullHandlingTest
 {
   private static final ImmutableMap<String, Object> CONTEXT = ImmutableMap.of(
       QueryContexts.FINALIZE_KEY, false
