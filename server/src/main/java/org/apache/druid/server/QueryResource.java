@@ -225,6 +225,8 @@ public class QueryResource implements QueryCountStatsProvider
                 (long) responseContext.get(Keys.NUM_SCANNED_ROWS) : 0;
         long cpuConsumedMillis = TimeUnit.NANOSECONDS.toMillis(responseContext.get(Keys.CPU_CONSUMED_NANOS) != null ?
                                 (long) responseContext.get(Keys.CPU_CONSUMED_NANOS) : 0);
+        long brokerCpuConsumedMillis = TimeUnit.NANOSECONDS.toMillis(responseContext.get(Keys.BROKER_CPU_CONSUMED_NANOS) != null ?
+                (long) responseContext.get(Keys.BROKER_CPU_CONSUMED_NANOS) : 0);
 
         Response.ResponseBuilder responseBuilder = Response
             .ok(
@@ -251,7 +253,7 @@ public class QueryResource implements QueryCountStatsProvider
                     finally {
                       Thread.currentThread().setName(currThreadName);
 
-                      queryLifecycle.emitLogsAndMetrics(e, req.getRemoteAddr(), os.getCount(), rowsScanned, cpuConsumedMillis);
+                      queryLifecycle.emitLogsAndMetrics(e, req.getRemoteAddr(), os.getCount(), rowsScanned, cpuConsumedMillis, brokerCpuConsumedMillis);
 
                       if (e == null) {
                         successfulQueryCount.incrementAndGet();
