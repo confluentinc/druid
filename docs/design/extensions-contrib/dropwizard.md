@@ -160,7 +160,7 @@ Latest default metrics mapping can be found [here] (https://github.com/apache/dr
       "type"
     ],
     "type": "timer",
-    "timeUnit": "NANOSECONDS"
+    "timeUnit": "MICROSECONDS"
   },
   "query/brokerCpuTime": {
     "dimensions": [
@@ -168,7 +168,7 @@ Latest default metrics mapping can be found [here] (https://github.com/apache/dr
       "type"
     ],
     "type": "timer",
-    "timeUnit": "NANOSECONDS"
+    "timeUnit": "MICROSECONDS"
   },
   "query/cache/delta/numEntries": {
     "dimensions": [],

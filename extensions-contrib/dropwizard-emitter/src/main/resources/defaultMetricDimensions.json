@@ -65,7 +65,7 @@
       "type"
     ],
     "type": "timer",
-    "timeUnit": "NANOSECONDS"
+    "timeUnit": "MICROSECONDS"
   },
   "query/brokerCpuTime": {
     "dimensions": [
@@ -73,7 +73,7 @@
       "type"
     ],
     "type": "timer",
-    "timeUnit": "NANOSECONDS"
+    "timeUnit": "MICROSECONDS"
   },
   "query/cache/delta/numEntries": {
     "dimensions": [],
