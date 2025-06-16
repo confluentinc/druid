@@ -2,9 +2,9 @@ version: v1.0
 name: Apache Druid
 agent:
   machine:
-    type: s1-prod-ubuntu24-04-amd64-2
+    type: s1-prod-ubuntu24-04-amd64-3
 execution_time_limit:
-  hours: 5
+  hours: 3
 blocks:
   - name: "Install"
     task:
@@ -12,21 +12,7 @@ blocks:
         - name: MVN
           value: "mvn -B"
         - name: MAVEN_OPTS
-          value: >
-            -Dmaven.repo.local=.m2
-            -Daether.syncContext.named.factory=file-lock
-            -Daether.syncContext.named.time=300
-            -Daether.syncContext.named.time.unit=SECONDS
-            -Daether.connector.http.retryHandler.count=3
-            -Daether.connector.http.retryHandler.requestSentEnabled=true
-            -Daether.connector.http.connectionPoolSize=20
-            -Daether.connector.http.maxConnectionsPerHost=10
-            -Dmaven.artifact.threads=4
-            -Daether.syncContext.named.nameMapper=file-gav
-            -Dorg.slf4j.simpleLogger.defaultLogLevel=warn
-            -Dmaven.wagon.httpconnectionManager.ttlSeconds=60
-            -Dmaven.wagon.http.retryHandler.count=3
-            -Dmaven.wagon.http.retryHandler.requestSentEnabled=true
+          value: "-Dmaven.repo.local=.m2"
         - name: MAVEN_SKIP
           value: >
             -Danimal.sniffer.skip=true
@@ -50,11 +36,10 @@ blocks:
           commands:
             # This is a change meant to validate semaphore public builds
             # so thus removing configurations for Confluent's internal CodeArtifact
-            - rm -rf ~/.m2/
-            - cache clear
+            - rm ~/.m2/settings.xml
             - >
               MAVEN_OPTS="${MAVEN_OPTS} -Xmx3000m" ${MVN} clean install
-              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
+              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
             # downstream tests depend on artifacts installed by mvn install into .m2
             # also cache target to avoid the cost of recompiling tests
             - tar zcf cache-post-install.tgz .m2 target
@@ -72,7 +57,7 @@ blocks:
           - tar zxf cache-post-install.tgz
           # This is a change meant to validate semaphore public builds
           # so thus removing configurations for Confluent's internal CodeArtifact
-          - rm -rf ~/.m2/
+          - rm ~/.m2/settings.xml
       jobs:
         - name: "animal sniffer checks"
           commands:
@@ -151,8 +136,22 @@ blocks:
               value: extensions-core/kafka-indexing-service
           commands: *run_tests
 
+        - name: "Web Console"
+          env_vars:
+            - name: MAVEN_PROJECTS
+              value: web-console
+          commands: *run_tests
+
+        - name: "Services"
+          env_vars:
+            - name: MAVEN_PROJECTS
+              value: services
+            - name: MAVEN_OPTS
+              value: "-DforkCount=1 -DreuseForks=false"
+          commands: *run_tests
+
         - name: "Other Tests"
           env_vars:
             - name: MAVEN_PROJECTS
-              value: '!server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!integration-tests-ex/cases'
+              value: '!server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!integration-tests-ex/cases,!web-console,!services'
           commands: *run_tests
