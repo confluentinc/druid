@@ -37,7 +37,7 @@ blocks:
         - name: "Install"
           commands:
             # Clean any stale lock file
-            - find .m2 -name "*.lock" -delete
+            - find ~/.m2/repository -name "*.lock" -delete
             # This is a change meant to validate semaphore public builds
             # so thus removing configurations for Confluent's internal CodeArtifact
             - rm ~/.m2/settings.xml
