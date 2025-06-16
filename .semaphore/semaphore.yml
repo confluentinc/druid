@@ -21,6 +21,8 @@ blocks:
             -Denforcer.skip=true
             -Dforbiddenapis.skip=true
             -Dmaven.javadoc.skip=true
+            -Dmaven.source.skip=true
+            -Dmaven.site.skip=true
             -Dpmd.skip=true
             -Dspotbugs.skip=true
 
