@@ -51,10 +51,9 @@ blocks:
             # This is a change meant to validate semaphore public builds
             # so thus removing configurations for Confluent's internal CodeArtifact
             - rm -rf ~/.m2/
-            - cache clear
             - >
               MAVEN_OPTS="${MAVEN_OPTS} -Xmx3000m" ${MVN} clean install
-              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
+              -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
             # downstream tests depend on artifacts installed by mvn install into .m2
             # also cache target to avoid the cost of recompiling tests
             - tar zcf cache-post-install.tgz .m2 target
