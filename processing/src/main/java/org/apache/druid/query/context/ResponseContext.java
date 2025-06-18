@@ -447,6 +447,15 @@ public abstract class ResponseContext
         false);
 
     /**
+     * The total CPU time consumed by the broker for processing the query.
+     * This is equal to the time spent in planning the query, finding data-nodes and merging sub-results.
+     * BROKER_CPU_CONSUMED_NANOS = CPU_CONSUMED_NANOS - Time spent by Query in historical/ realtime nodes.
+     */
+    public static final Key BROKER_CPU_CONSUMED_NANOS = new CounterKey(
+            "brokerCpuConsumed",
+            false);
+
+    /**
      * Indicates if a {@link ResponseContext} was truncated during serialization.
      */
     public static final Key TRUNCATED = new BooleanKey(
@@ -480,6 +489,7 @@ public abstract class ResponseContext
           TIMEOUT_AT,
           NUM_SCANNED_ROWS,
           CPU_CONSUMED_NANOS,
+          BROKER_CPU_CONSUMED_NANOS,
           TRUNCATED,
           QUERY_SEGMENT_COUNT,
       });
@@ -690,6 +700,11 @@ public abstract class ResponseContext
     return (Long) get(Keys.CPU_CONSUMED_NANOS);
   }
 
+  public Long getBrokerCpuNanos()
+  {
+    return (Long) get(Keys.BROKER_CPU_CONSUMED_NANOS);
+  }
+
   public Object remove(Key key)
   {
     return getDelegate().remove(key);
@@ -726,6 +741,11 @@ public abstract class ResponseContext
   public void addCpuNanos(long ns)
   {
     addValue(Keys.CPU_CONSUMED_NANOS, ns);
+  }
+
+  public void addBrokerCpuNanos(long ns)
+  {
+    addValue(Keys.BROKER_CPU_CONSUMED_NANOS, ns);
   }
 
   private Object addValue(Key key, Object value)

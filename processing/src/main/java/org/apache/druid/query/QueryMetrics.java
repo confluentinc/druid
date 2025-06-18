@@ -336,6 +336,15 @@ public interface QueryMetrics<QueryType extends Query<?>>
   QueryMetrics<QueryType> reportCpuTime(long timeNs);
 
   /**
+   * Registers "broker cpu time" metric.
+   * Measures the total time spent in broker for answering the query. This includes the following:-
+   * 1. Determining segments for the given time interval.
+   * 2. Determining the Data nodes responsible for the segments.
+   * 3. Merging the results from the Data nodes.
+   */
+  QueryMetrics<QueryType> reportBrokerCpuTime(long timeNs);
+
+  /**
    * Registers "rows scanned count" metric.
    */
   QueryMetrics<QueryType> reportRowsScannedCount(long rowsScannedCount);
