@@ -21,6 +21,7 @@ package org.apache.druid.data.input.impl;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.ColumnsFilter;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputRowSchema;
@@ -44,6 +45,11 @@ import java.util.List;
 
 public class InputEntityIteratingReaderTest
 {
+
+  static {
+    NullHandling.initializeForTests();
+  }
+
   @Rule
   public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
