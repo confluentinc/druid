@@ -13,6 +13,7 @@
   "segment/scan/active" : { "dimensions" : [], "type" : "gauge"},
   "query/segmentAndCache/time" : { "dimensions" : [], "type" : "timer" },
   "query/cpu/time" : { "dimensions" : ["dataSource", "type"], "type" : "timer" },
+  "query/brokerCpuTime" : { "dimensions" : ["dataSource", "type"], "type" : "timer" },
 
   "query/count" : { "dimensions" : [], "type" : "count" },
   "query/success/count" : { "dimensions" : [], "type" : "count" },

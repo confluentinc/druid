@@ -576,9 +576,9 @@ public class QueryResource implements QueryCountStatsProvider
         }
 
         @Override
-        public void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis)
+        public void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis, long brokerCpuTimeMillis)
         {
-          queryLifecycle.emitLogsAndMetrics(null, req.getRemoteAddr(), numBytes, numRowsScanned, cpuTimeInMillis);
+          queryLifecycle.emitLogsAndMetrics(null, req.getRemoteAddr(), numBytes, numRowsScanned, cpuTimeInMillis, brokerCpuTimeMillis);
         }
 
         @Override
