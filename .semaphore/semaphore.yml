@@ -2,7 +2,7 @@ version: v1.0
 name: Apache Druid
 agent:
   machine:
-    type: s1-prod-ubuntu24-04-amd64-2
+    type: s1-prod-ubuntu24-04-amd64-3
 execution_time_limit:
   hours: 5
 blocks:
@@ -15,13 +15,13 @@ blocks:
           value: >
             -Dmaven.repo.local=.m2
             -Daether.syncContext.named.factory=file-lock
-            -Daether.syncContext.named.time=300
+            -Daether.syncContext.named.time=120
             -Daether.syncContext.named.time.unit=SECONDS
             -Daether.connector.http.retryHandler.count=3
             -Daether.connector.http.retryHandler.requestSentEnabled=true
             -Daether.connector.http.connectionPoolSize=20
             -Daether.connector.http.maxConnectionsPerHost=10
-            -Dmaven.artifact.threads=4
+            -Dmaven.artifact.threads=16
             -Daether.syncContext.named.nameMapper=file-gav
             -Dorg.slf4j.simpleLogger.defaultLogLevel=warn
             -Dmaven.wagon.httpconnectionManager.ttlSeconds=60
@@ -50,11 +50,11 @@ blocks:
           commands:
             # This is a change meant to validate semaphore public builds
             # so thus removing configurations for Confluent's internal CodeArtifact
-            - rm -rf ~/.m2/
+            - rm -rf ~/.m2/settings.xml
             - cache clear
             - >
-              MAVEN_OPTS="${MAVEN_OPTS} -Xmx3000m" ${MVN} clean install
-              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
+              MAVEN_OPTS="${MAVEN_OPTS} -Xmx3000m" ${MVN} clean install -T 1.5C
+              -X -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
             # downstream tests depend on artifacts installed by mvn install into .m2
             # also cache target to avoid the cost of recompiling tests
             - tar zcf cache-post-install.tgz .m2 target
@@ -72,7 +72,7 @@ blocks:
           - tar zxf cache-post-install.tgz
           # This is a change meant to validate semaphore public builds
           # so thus removing configurations for Confluent's internal CodeArtifact
-          - rm -rf ~/.m2/
+          - rm -rf ~/.m2/settings.xml
       jobs:
         - name: "animal sniffer checks"
           commands:
