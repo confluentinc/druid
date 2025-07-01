@@ -14,10 +14,10 @@ blocks:
         - name: MAVEN_OPTS
           value: >
             -Dmaven.repo.local=.m2
-            -Daether.syncContext.named.factory=file-lock
-            -Daether.syncContext.named.time=300
+            -Daether.syncContext.named.factory=noop
+            -Daether.syncContext.named.time=60
             -Daether.syncContext.named.time.unit=SECONDS
-            -Daether.connector.http.retryHandler.count=3
+            -Daether.connector.http.retryHandler.count=1
             -Daether.connector.http.retryHandler.requestSentEnabled=true
             -Daether.connector.http.connectionPoolSize=20
             -Daether.connector.http.maxConnectionsPerHost=10
@@ -50,11 +50,11 @@ blocks:
           commands:
             # This is a change meant to validate semaphore public builds
             # so thus removing configurations for Confluent's internal CodeArtifact
-            - rm -rf ~/.m2/
+            - rm ~/.m2/settings.xml
             - cache clear
             - >
               MAVEN_OPTS="${MAVEN_OPTS} -Xmx3000m" ${MVN} clean install
-              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
+              -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
             # downstream tests depend on artifacts installed by mvn install into .m2
             # also cache target to avoid the cost of recompiling tests
             - tar zcf cache-post-install.tgz .m2 target
@@ -72,7 +72,7 @@ blocks:
           - tar zxf cache-post-install.tgz
           # This is a change meant to validate semaphore public builds
           # so thus removing configurations for Confluent's internal CodeArtifact
-          - rm -rf ~/.m2/
+          - rm ~/.m2/settings.xml
       jobs:
         - name: "animal sniffer checks"
           commands:
