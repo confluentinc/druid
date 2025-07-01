@@ -12,21 +12,7 @@ blocks:
         - name: MVN
           value: "mvn -B"
         - name: MAVEN_OPTS
-          value: >
-            -Dmaven.repo.local=.m2
-            -Daether.syncContext.named.factory=noop
-            -Daether.syncContext.named.time=60
-            -Daether.syncContext.named.time.unit=SECONDS
-            -Daether.connector.http.retryHandler.count=1
-            -Daether.connector.http.retryHandler.requestSentEnabled=true
-            -Daether.connector.http.connectionPoolSize=20
-            -Daether.connector.http.maxConnectionsPerHost=10
-            -Dmaven.artifact.threads=4
-            -Daether.syncContext.named.nameMapper=file-gav
-            -Dorg.slf4j.simpleLogger.defaultLogLevel=warn
-            -Dmaven.wagon.httpconnectionManager.ttlSeconds=60
-            -Dmaven.wagon.http.retryHandler.count=3
-            -Dmaven.wagon.http.retryHandler.requestSentEnabled=true
+          value: "-Dmaven.repo.local=.m2"
         - name: MAVEN_SKIP
           value: >
             -Danimal.sniffer.skip=true
@@ -51,7 +37,6 @@ blocks:
             # This is a change meant to validate semaphore public builds
             # so thus removing configurations for Confluent's internal CodeArtifact
             - rm ~/.m2/settings.xml
-            - cache clear
             - >
               MAVEN_OPTS="${MAVEN_OPTS} -Xmx3000m" ${MVN} clean install
               -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
