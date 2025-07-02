@@ -370,6 +370,7 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
                         <executions>
                             <execution>
                                 <id>pull-deps-contrib-exts</id>
@@ -482,6 +483,7 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
                         <executions>
                             <execution>
                                 <id>pull-deps</id>
@@ -654,9 +656,7 @@
                                         <argument>-Ddruid.extensions.loadList=[]</argument>
                                         <argument>-Ddruid.extensions.directory=${project.build.directory}/extensions
                                         </argument>
-                                        <argument>
-                                            -Ddruid.extensions.hadoopDependenciesDir=${project.build.directory}/hadoop-dependencies
-                                        </argument>
+                                        <argument>--no-default-hadoop</argument>
                                         <argument>org.apache.druid.cli.Main</argument>
                                         <argument>tools</argument>
                                         <argument>pull-deps</argument>
@@ -742,6 +742,7 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
                         <executions>
                             <execution>
                                 <id>pull-deps-contrib-exts</id>
