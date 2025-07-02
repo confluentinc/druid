@@ -656,9 +656,7 @@
                                         <argument>-Ddruid.extensions.loadList=[]</argument>
                                         <argument>-Ddruid.extensions.directory=${project.build.directory}/extensions
                                         </argument>
-                                        <argument>
-                                            -Ddruid.extensions.hadoopDependenciesDir=${project.build.directory}/hadoop-dependencies
-                                        </argument>
+                                        <argument>--no-default-hadoop</argument>
                                         <argument>org.apache.druid.cli.Main</argument>
                                         <argument>tools</argument>
                                         <argument>pull-deps</argument>
