@@ -444,6 +444,8 @@
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions.contrib:druid-tdigestsketch</argument>
                                         <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions.contrib:druid-ddsketch</argument>
+                                        <argument>-c</argument>
                                         <argument>org.apache.druid.extensions.contrib:gce-extensions</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions.contrib:aliyun-oss-extensions</argument>
@@ -684,6 +686,8 @@
                                         <argument>org.apache.druid.extensions:simple-client-sslcontext</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-basic-security</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-pac4j</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-kubernetes-extensions</argument>
                                         <argument>-c</argument>
