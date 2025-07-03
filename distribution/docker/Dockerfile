@@ -112,7 +112,7 @@ RUN if [ ! -x "$(command -v ip)" ]; then \
         apt update \
         && apt install -y iproute2; \
       else \
-        rm -rf /var/cache/apk/* && apk update && apk add --no-cache iproute2; \
+        apk update && apk add --no-cache --force-overwrite iproute2; \
       fi; \
     fi;
 
@@ -120,7 +120,7 @@ RUN if [ -x "$(command -v apt)" ]; then \
     apt update \
       && apt install -y curl htop strace bind-tools netcat ; \
     else \
-        rm -rf /var/cache/apk/* && apk update && apk add --no-cache curl htop strace bind-tools netcat-openbsd  ; \
+        apk update && apk add --no-cache --force-overwrite curl htop strace bind-tools netcat-openbsd  ; \
     fi;
 
 USER druid
