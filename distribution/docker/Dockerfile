@@ -32,7 +32,8 @@ ARG BUILD_FROM_SOURCE="true"
 
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get -qq update \
-    && apt-get -qq -y install --no-install-recommends python3 python3-yaml
+    && apt-get -qq -y install --no-install-recommends python3 python3-yaml \
+    && apt-get -qq -y install --no-install-recommends iproute2 curl htop strace bind9-host netcat-openbsd
 
 COPY . /src
 WORKDIR /src
@@ -98,6 +99,16 @@ COPY distribution/docker/druid.sh /druid.sh
 COPY distribution/docker/peon.sh /peon.sh
 COPY --chown=druid:druid distribution/docker/extra_jars/ /opt/druid/lib/
 
+# Copy utility tools from builder stage
+COPY --from=builder /usr/bin/curl /usr/bin/curl
+COPY --from=builder /usr/bin/htop /usr/bin/htop
+COPY --from=builder /usr/bin/strace /usr/bin/strace
+COPY --from=builder /usr/bin/host /usr/bin/host
+COPY --from=builder /usr/bin/nc /usr/bin/nc
+COPY --from=builder /usr/bin/nc.openbsd /usr/bin/nc.openbsd
+COPY --from=builder /usr/sbin/ip /usr/sbin/ip
+COPY --from=builder /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu
+
 # create necessary directories which could be mounted as volume
 #   /opt/druid/var is used to keep individual files(e.g. log) of each Druid service
 #   /opt/shared is used to keep segments and task logs shared among Druid services
@@ -105,23 +116,8 @@ RUN mkdir /opt/druid/var /opt/shared \
  && chown druid:druid /opt/druid/var /opt/shared \
  && chmod 775 /opt/druid/var /opt/shared
 
-# Install iproute2 to get the ip command needed to set config of druid.host IP address
-# Command needed in druid.sh Line 140;
-RUN if [ ! -x "$(command -v ip)" ]; then \
-      if [ -x "$(command -v apt)" ]; then \
-        apt update \
-        && apt install -y iproute2; \
-      else \
-        apk add iproute2; \
-      fi; \
-    fi;
-
-RUN if [ -x "$(command -v apt)" ]; then \
-    apt update \
-      && apt install -y curl htop strace bind-tools netcat ; \
-    else \
-      apk add --no-cache curl htop strace bind-tools netcat-openbsd  ; \
-    fi;
+# Utility tools are now copied from builder stage instead of being installed here
+# This avoids package manager conflicts in the distroless image
 
 USER druid
 VOLUME /opt/druid/var
