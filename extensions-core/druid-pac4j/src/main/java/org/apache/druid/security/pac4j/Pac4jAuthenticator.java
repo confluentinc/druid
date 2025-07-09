@@ -79,9 +79,10 @@ public class Pac4jAuthenticator implements Authenticator
   public Filter getFilter()
   {
     return new Pac4jFilter(
+        name,
+        authorizerName,
         pac4jConfigSupplier.get(),
         Pac4jCallbackResource.SELF_URL,
-        authorizerName,
         pac4jCommonConfig.getCookiePassphrase().getPassword()
     );
   }

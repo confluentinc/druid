@@ -21,6 +21,7 @@ package org.apache.druid.security.pac4j;
 
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.security.AuthConfig;
+import org.apache.druid.server.security.AuthenticationResult;
 import org.pac4j.core.config.Config;
 import org.pac4j.core.engine.DefaultCallbackLogic;
 import org.pac4j.core.engine.DefaultSecurityLogic;
@@ -45,17 +46,20 @@ public class Pac4jFilter implements Filter
   private final Config pac4jConfig;
   private final Pac4jSessionStore sessionStore;
   private final String callbackPath;
+  private final String name;
   private final String authorizerName;
 
   public Pac4jFilter(
+      String name,
+      String authorizerName,
       Config pac4jConfig,
       String callbackPath,
-      String authorizerName,
       String cookieName
   )
   {
     this.pac4jConfig = pac4jConfig;
     this.callbackPath = callbackPath;
+    this.name = name;
     this.authorizerName = authorizerName;
     this.sessionStore = new Pac4jSessionStore(cookieName);
   }
@@ -100,7 +104,18 @@ public class Pac4jFilter implements Filter
             pac4jConfig,
             (ctx, session, profiles, parameters) -> {
               try {
-                filterChain.doFilter(servletRequest, servletResponse);
+                // Extract user ID from pac4j profiles and create AuthenticationResult
+                if (profiles != null && !profiles.isEmpty()) {
+                  String uid = profiles.iterator().next().getId();
+                  if (uid != null) {
+                    AuthenticationResult authenticationResult = new AuthenticationResult(uid, authorizerName, name, null);
+                    servletRequest.setAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT, authenticationResult);
+                    filterChain.doFilter(servletRequest, servletResponse);
+                  }
+                } else {
+                  LOGGER.warn("No profiles found after OIDC auth.");
+                  // Don't continue the filter chain - let pac4j handle the authentication failure
+                }
               }
               catch (IOException | ServletException e) {
                 throw new RuntimeException(e);
@@ -109,7 +124,7 @@ public class Pac4jFilter implements Filter
             },
             JEEHttpActionAdapter.INSTANCE,
             null,
-            authorizerName,
+            "none",  // Use "none" instead of authorizerName to avoid CSRF issues
             null
         );
       }
