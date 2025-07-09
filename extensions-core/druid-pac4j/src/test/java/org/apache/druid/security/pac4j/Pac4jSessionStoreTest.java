@@ -42,7 +42,7 @@ public class Pac4jSessionStoreTest
   @Test
   public void testSetAndGet()
   {
-    Pac4jSessionStore<WebContext> sessionStore = new Pac4jSessionStore<>(COOKIE_PASSPHRASE);
+    Pac4jSessionStore sessionStore = new Pac4jSessionStore(COOKIE_PASSPHRASE);
 
     WebContext webContext1 = EasyMock.mock(WebContext.class);
     EasyMock.expect(webContext1.getScheme()).andReturn("https");
@@ -69,7 +69,7 @@ public class Pac4jSessionStoreTest
   @Test
   public void testSetAndGetClearUserProfile()
   {
-    Pac4jSessionStore<WebContext> sessionStore = new Pac4jSessionStore<>(COOKIE_PASSPHRASE);
+    Pac4jSessionStore sessionStore = new Pac4jSessionStore(COOKIE_PASSPHRASE);
 
     WebContext webContext1 = EasyMock.mock(WebContext.class);
     EasyMock.expect(webContext1.getScheme()).andReturn("https");
@@ -101,7 +101,7 @@ public class Pac4jSessionStoreTest
   @Test
   public void testSetAndGetClearUserMultipleProfile()
   {
-    Pac4jSessionStore<WebContext> sessionStore = new Pac4jSessionStore<>(COOKIE_PASSPHRASE);
+    Pac4jSessionStore sessionStore = new Pac4jSessionStore(COOKIE_PASSPHRASE);
 
     WebContext webContext1 = EasyMock.mock(WebContext.class);
     EasyMock.expect(webContext1.getScheme()).andReturn("https");
@@ -151,10 +151,10 @@ public class Pac4jSessionStoreTest
     EasyMock.replay(webContext);
 
     // Create a cookie with an invalid passphrase
-    new Pac4jSessionStore<>("invalid-passphrase").set(webContext, "key", "value");
+    new Pac4jSessionStore("invalid-passphrase").set(webContext, "key", "value");
 
     // Verify that trying to decrypt the invalid cookie throws an exception
-    final Pac4jSessionStore<WebContext> sessionStore = new Pac4jSessionStore<>(COOKIE_PASSPHRASE);
+    final Pac4jSessionStore sessionStore = new Pac4jSessionStore(COOKIE_PASSPHRASE);
     DruidException exception = Assert.assertThrows(
         DruidException.class,
         () -> sessionStore.get(webContext, "key")
