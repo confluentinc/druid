@@ -86,12 +86,15 @@ public class Pac4jFilter implements Filter
 
     if (request.getRequestURI().equals(callbackPath)) {
       DefaultCallbackLogic callbackLogic = new DefaultCallbackLogic();
+      String originalUrl = (String) request.getSession().getAttribute("pac4j.originalUrl");
+      String redirectUrl = originalUrl != null ? originalUrl : "/";
+
       callbackLogic.perform(
           context,
           sessionStore,
           pac4jConfig,
           JEEHttpActionAdapter.INSTANCE,
-          null,
+          redirectUrl,                      // Redirect to original URL or root
           null,
           null
       );
