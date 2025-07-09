@@ -22,6 +22,7 @@ package org.apache.druid.security.pac4j;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import org.apache.druid.crypto.CryptoService;
+import org.apache.druid.error.InvalidInput;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.pac4j.core.context.WebContext;
@@ -41,6 +42,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.zip.GZIPInputStream;
@@ -64,7 +66,7 @@ public class Pac4jSessionStore implements SessionStore
     this.cryptoService = new CryptoService(
         cookiePassphrase,
         "AES",
-        "CBC", 
+        "CBC",
         "PKCS5Padding",
         "PBKDF2WithHmacSHA256",
         128,
@@ -76,7 +78,10 @@ public class Pac4jSessionStore implements SessionStore
   @Override
   public Optional<String> getSessionId(WebContext context, boolean createSession)
   {
-    return delegate.getSessionId(context, createSession);
+    if (context instanceof JEEContext) {
+      return delegate.getSessionId(context, createSession);
+    }
+    return Optional.empty();
   }
 
   @Override
@@ -120,33 +125,58 @@ public class Pac4jSessionStore implements SessionStore
       JEEContext jeeContext = (JEEContext) context;
       HttpServletResponse response = jeeContext.getNativeResponse();
       response.addCookie(cookie);
+      // Only delegate to JEESessionStore if we have a JEEContext
+      delegate.set(context, key, value);
+    } else {
+      // For non-JEE contexts (like test mocks), add cookie to response
+      org.pac4j.core.context.Cookie pac4jCookie = new org.pac4j.core.context.Cookie(
+          cookie.getName(), cookie.getValue()
+      );
+      pac4jCookie.setHttpOnly(cookie.isHttpOnly());
+      pac4jCookie.setSecure(cookie.getSecure());
+      pac4jCookie.setMaxAge(cookie.getMaxAge());
+      pac4jCookie.setPath(cookie.getPath());
+      if (cookie.getDomain() != null) {
+        pac4jCookie.setDomain(cookie.getDomain());
+      }
+      context.addResponseCookie(pac4jCookie);
     }
-
-    delegate.set(context, key, value);
   }
 
   @Override
   public boolean destroySession(WebContext context)
   {
-    return delegate.destroySession(context);
+    if (context instanceof JEEContext) {
+      return delegate.destroySession(context);
+    }
+    return false;
   }
 
   @Override
   public Optional<Object> getTrackableSession(WebContext context)
   {
-    return delegate.getTrackableSession(context);
+    if (context instanceof JEEContext) {
+      return delegate.getTrackableSession(context);
+    }
+    return Optional.empty();
   }
 
   @Override
   public Optional<SessionStore> buildFromTrackableSession(WebContext context, Object trackableSession)
   {
-    return delegate.buildFromTrackableSession(context, trackableSession);
+    if (context instanceof JEEContext) {
+      return delegate.buildFromTrackableSession(context, trackableSession);
+    }
+    return Optional.empty();
   }
 
   @Override
   public boolean renewSession(WebContext context)
   {
-    return delegate.renewSession(context);
+    if (context instanceof JEEContext) {
+      return delegate.renewSession(context);
+    }
+    return false;
   }
 
   @Nullable
@@ -171,9 +201,15 @@ public class Pac4jSessionStore implements SessionStore
   private Serializable uncompressDecryptBase64(final String v)
   {
     if (v != null && !v.isEmpty()) {
-      byte[] bytes = StringUtils.decodeBase64String(v);
-      if (bytes != null) {
-        return deserializeFromBytes(uncompress(cryptoService.decrypt(bytes)));
+      try {
+        byte[] bytes = StringUtils.decodeBase64String(v);
+        if (bytes != null) {
+          return deserializeFromBytes(uncompress(cryptoService.decrypt(bytes)));
+        }
+      }
+      catch (Exception e) {
+        LOGGER.debug("Failed to decrypt cookie value", e);
+        throw InvalidInput.exception(e, "Decryption failed. Check service logs.");
       }
     }
     return null;
@@ -282,6 +318,29 @@ public class Pac4jSessionStore implements SessionStore
           }
         }
       }
+    } else {
+      // For non-JEE contexts (like test mocks), check if context supports cookies
+      if (context != null) {
+        Collection<org.pac4j.core.context.Cookie> requestCookies = context.getRequestCookies();
+        if (requestCookies != null) {
+          for (org.pac4j.core.context.Cookie cookie : requestCookies) {
+            if (name.equals(cookie.getName())) {
+              // Convert pac4j Cookie to javax.servlet.http.Cookie
+              Cookie servletCookie = new Cookie(cookie.getName(), cookie.getValue());
+              servletCookie.setHttpOnly(cookie.isHttpOnly());
+              servletCookie.setSecure(cookie.isSecure());
+              servletCookie.setMaxAge(cookie.getMaxAge());
+              if (cookie.getPath() != null) {
+                servletCookie.setPath(cookie.getPath());
+              }
+              if (cookie.getDomain() != null) {
+                servletCookie.setDomain(cookie.getDomain());
+              }
+              return servletCookie;
+            }
+          }
+        }
+      }
     }
     return null;
   }
@@ -298,6 +357,7 @@ public class Pac4jSessionStore implements SessionStore
              "https".equalsIgnoreCase(request.getScheme()) ||
              "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"));
     }
-    return false;
+    // For non-JEE contexts (like test mocks), check the scheme
+    return "https".equalsIgnoreCase(context.getScheme());
   }
 }

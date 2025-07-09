@@ -35,6 +35,8 @@ import org.pac4j.jee.http.adapter.JEEHttpActionAdapter;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
 
 import static org.mockito.ArgumentMatchers.any;
 
@@ -46,11 +48,16 @@ public class Pac4jFilterTest
   private HttpServletRequest request;
   @Mock
   private HttpServletResponse response;
+  @Mock
+  private PrintWriter printWriter;
+  
   private JEEContext context;
 
   @Before
-  public void setUp()
+  public void setUp() throws IOException
   {
+    // Mock the PrintWriter for the response
+    Mockito.when(response.getWriter()).thenReturn(printWriter);
     context = new JEEContext(request, response);
   }
 
