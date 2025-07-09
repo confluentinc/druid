@@ -19,194 +19,138 @@
 
 package org.apache.druid.security.pac4j;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.druid.crypto.CryptoService;
-import org.apache.druid.java.util.common.StringUtils;
+import com.google.common.base.Preconditions;
 import org.apache.druid.java.util.common.logger.Logger;
-import org.pac4j.core.context.ContextHelper;
-import org.pac4j.core.context.Cookie;
 import org.pac4j.core.context.WebContext;
 import org.pac4j.core.context.session.SessionStore;
-import org.pac4j.core.exception.TechnicalException;
-import org.pac4j.core.profile.CommonProfile;
-import org.pac4j.core.util.JavaSerializationHelper;
 import org.pac4j.core.util.Pac4jConstants;
+import org.pac4j.jee.context.JEEContext;
+import org.pac4j.jee.context.session.JEESessionStore;
 
-import javax.annotation.Nullable;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.util.Map;
+import java.util.Base64;
 import java.util.Optional;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
-/**
- * Code here is slight adaptation from <a href="https://github.com/apache/knox/blob/master/gateway-provider-security-pac4j/src/main/java/org/apache/knox/gateway/pac4j/session/KnoxSessionStore.java">KnoxSessionStore</a>
- * for storing oauth session information in cookies.
- */
-public class Pac4jSessionStore<T extends WebContext> implements SessionStore<T>
+public class Pac4jSessionStore implements SessionStore
 {
-
   private static final Logger LOGGER = new Logger(Pac4jSessionStore.class);
+  private final JEESessionStore delegate = JEESessionStore.INSTANCE;
+  private final String cookieName;
 
-  public static final String PAC4J_SESSION_PREFIX = "pac4j.session.";
-
-  private final JavaSerializationHelper javaSerializationHelper;
-  private final CryptoService cryptoService;
-
-  public Pac4jSessionStore(String cookiePassphrase)
+  public Pac4jSessionStore(String cookieName)
   {
-    javaSerializationHelper = new JavaSerializationHelper();
-    cryptoService = new CryptoService(
-        cookiePassphrase,
-        "AES",
-        "CBC",
-        "PKCS5Padding",
-        "PBKDF2WithHmacSHA256",
-        128,
-        65536,
-        128
-    );
+    this.cookieName = cookieName;
   }
 
   @Override
-  public String getOrCreateSessionId(WebContext context)
+  public Optional<String> getSessionId(WebContext context, boolean createSession)
   {
-    return null;
+    return delegate.getSessionId(context, createSession);
   }
 
-  @Nullable
   @Override
   public Optional<Object> get(WebContext context, String key)
   {
-    final Cookie cookie = ContextHelper.getCookie(context, PAC4J_SESSION_PREFIX + key);
-    Object value = null;
-    if (cookie != null) {
-      value = uncompressDecryptBase64(cookie.getValue());
-    }
-    LOGGER.debug("Get from session: [%s] = [%s]", key, value);
-    return Optional.ofNullable(value);
+    return delegate.get(context, key);
   }
 
   @Override
-  public void set(WebContext context, String key, @Nullable Object value)
+  public void set(WebContext context, String key, Object value)
   {
     Object profile = value;
     Cookie cookie;
 
     if (value == null) {
-      cookie = new Cookie(PAC4J_SESSION_PREFIX + key, null);
+      cookie = new Cookie(key, "");
+      cookie.setMaxAge(0);
     } else {
-      if (key.contentEquals(Pac4jConstants.USER_PROFILES)) {
-        /* trim the profile object */
-        profile = clearUserProfile(value);
+      if (Pac4jConstants.USER_PROFILES.equals(key)) {
+        profile = serializeProfile(value);
       }
-      LOGGER.debug("Save in session: [%s] = [%s]", key, profile);
-      cookie = new Cookie(
-          PAC4J_SESSION_PREFIX + key,
-          compressEncryptBase64(profile)
-      );
+      String serializedProfile = Base64.getEncoder().encodeToString((byte[]) profile);
+      cookie = new Cookie(key, serializedProfile);
+      cookie.setMaxAge(-1);
     }
 
-    cookie.setDomain("");
     cookie.setHttpOnly(true);
-    cookie.setSecure(ContextHelper.isHttpsOrSecure(context));
+    cookie.setSecure(true);
     cookie.setPath("/");
-    cookie.setMaxAge(900);
 
-    context.addResponseCookie(cookie);
-  }
-
-  @Nullable
-  private String compressEncryptBase64(final Object o)
-  {
-    if (o == null || "".equals(o)
-        || (o instanceof Map<?, ?> && ((Map<?, ?>) o).isEmpty())) {
-      return null;
-    } else {
-      byte[] bytes = javaSerializationHelper.serializeToBytes((Serializable) o);
-
-      bytes = compress(bytes);
-      if (bytes.length > 3000) {
-        LOGGER.warn("Cookie too big, it might not be properly set");
-      }
-
-      return StringUtils.encodeBase64String(cryptoService.encrypt(bytes));
+    if (context instanceof JEEContext) {
+      JEEContext jeeContext = (JEEContext) context;
+      HttpServletResponse response = jeeContext.getNativeResponse();
+      response.addCookie(cookie);
     }
-  }
 
-  @Nullable
-  private Serializable uncompressDecryptBase64(final String v)
-  {
-    if (v != null && !v.isEmpty()) {
-      byte[] bytes = StringUtils.decodeBase64String(v);
-      if (bytes != null) {
-        return javaSerializationHelper.deserializeFromBytes(unCompress(cryptoService.decrypt(bytes)));
-      }
-    }
-    return null;
-  }
-
-  private byte[] compress(final byte[] data)
-  {
-    try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream(data.length)) {
-      try (GZIPOutputStream gzip = new GZIPOutputStream(byteStream)) {
-        gzip.write(data);
-      }
-      return byteStream.toByteArray();
-    }
-    catch (IOException ex) {
-      throw new TechnicalException(ex);
-    }
-  }
-
-  private byte[] unCompress(final byte[] data)
-  {
-    try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
-         GZIPInputStream gzip = new GZIPInputStream(inputStream)) {
-      return IOUtils.toByteArray(gzip);
-    }
-    catch (IOException ex) {
-      throw new TechnicalException(ex);
-    }
-  }
-
-  private Object clearUserProfile(final Object value)
-  {
-    if (value instanceof Map<?, ?>) {
-      final Map<String, CommonProfile> profiles = (Map<String, CommonProfile>) value;
-      profiles.forEach((name, profile) -> profile.removeLoginData());
-      return profiles;
-    } else {
-      final CommonProfile profile = (CommonProfile) value;
-      profile.removeLoginData();
-      return profile;
-    }
+    delegate.set(context, key, value);
   }
 
   @Override
-  public Optional<SessionStore<T>> buildFromTrackableSession(WebContext arg0, Object arg1)
+  public boolean destroySession(WebContext context)
   {
-    return Optional.empty();
+    return delegate.destroySession(context);
   }
 
   @Override
-  public boolean destroySession(WebContext arg0)
+  public Optional<Object> getTrackableSession(WebContext context)
   {
-    return false;
+    return delegate.getTrackableSession(context);
   }
 
   @Override
-  public Optional getTrackableSession(WebContext arg0)
+  public Optional<SessionStore> buildFromTrackableSession(WebContext context, Object trackableSession)
   {
-    return Optional.empty();
+    return delegate.buildFromTrackableSession(context, trackableSession);
   }
 
   @Override
-  public boolean renewSession(final WebContext context)
+  public boolean renewSession(WebContext context)
   {
-    return false;
+    return delegate.renewSession(context);
+  }
+
+  /**
+   * Serialize object using standard Java serialization
+   */
+  private byte[] serializeProfile(Object obj)
+  {
+    Preconditions.checkNotNull(obj, "Object to serialize cannot be null");
+    
+    if (!(obj instanceof Serializable)) {
+      throw new IllegalArgumentException("Object must be Serializable");
+    }
+
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+         ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+      oos.writeObject(obj);
+      oos.flush();
+      return baos.toByteArray();
+    }
+    catch (IOException e) {
+      throw new RuntimeException("Failed to serialize object", e);
+    }
+  }
+
+  /**
+   * Deserialize object using standard Java serialization
+   */
+  private Object deserializeProfile(byte[] data)
+  {
+    Preconditions.checkNotNull(data, "Data to deserialize cannot be null");
+    
+    try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+         ObjectInputStream ois = new ObjectInputStream(bais)) {
+      return ois.readObject();
+    }
+    catch (IOException | ClassNotFoundException e) {
+      throw new RuntimeException("Failed to deserialize object", e);
+    }
   }
 }
