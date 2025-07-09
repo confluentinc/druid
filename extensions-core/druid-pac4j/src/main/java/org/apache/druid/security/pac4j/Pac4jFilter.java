@@ -20,6 +20,7 @@
 package org.apache.druid.security.pac4j;
 
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.server.security.AuthConfig;
 import org.pac4j.core.config.Config;
 import org.pac4j.core.engine.DefaultCallbackLogic;
 import org.pac4j.core.engine.DefaultSecurityLogic;
@@ -39,7 +40,7 @@ import java.io.IOException;
 
 public class Pac4jFilter implements Filter
 {
-  private static final Logger log = new Logger(Pac4jFilter.class);
+  private static final Logger LOGGER = new Logger(Pac4jFilter.class);
 
   private final Config pac4jConfig;
   private final Pac4jSessionStore sessionStore;
@@ -62,16 +63,21 @@ public class Pac4jFilter implements Filter
   @Override
   public void init(FilterConfig filterConfig)
   {
-    // nothing to do
   }
 
   @Override
   public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
       throws IOException, ServletException
   {
+    // If there's already an auth result, then we have authenticated already, skip this or else caller
+    // could get HTTP redirect even if one of the druid authenticators in chain has successfully authenticated.
+    if (servletRequest.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT) != null) {
+      filterChain.doFilter(servletRequest, servletResponse);
+      return;
+    }
+
     HttpServletRequest request = (HttpServletRequest) servletRequest;
     HttpServletResponse response = (HttpServletResponse) servletResponse;
-
     JEEContext context = new JEEContext(request, response);
 
     if (request.getRequestURI().equals(callbackPath)) {
@@ -116,6 +122,5 @@ public class Pac4jFilter implements Filter
   @Override
   public void destroy()
   {
-    // nothing to do
   }
 }
