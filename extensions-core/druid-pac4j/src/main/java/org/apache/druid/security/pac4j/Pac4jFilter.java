@@ -54,14 +54,14 @@ public class Pac4jFilter implements Filter
       String authorizerName,
       Config pac4jConfig,
       String callbackPath,
-      String cookieName
+      String cookiePassphrase
   )
   {
     this.pac4jConfig = pac4jConfig;
     this.callbackPath = callbackPath;
     this.name = name;
     this.authorizerName = authorizerName;
-    this.sessionStore = new Pac4jSessionStore(cookieName);
+    this.sessionStore = new Pac4jSessionStore(cookiePassphrase);
   }
 
   @Override
