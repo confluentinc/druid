@@ -400,7 +400,7 @@ public class MemcachedCache implements Cache
             .setProtocol(ConnectionFactoryBuilder.Protocol.valueOf(StringUtils.toUpperCase(config.getProtocol())))
             .setLocatorType(ConnectionFactoryBuilder.Locator.valueOf(StringUtils.toUpperCase(config.getLocator())))
             .setDaemon(true)
-            .setFailureMode(FailureMode.Cancel)
+            .setFailureMode(FailureMode.Redistribute)
             .setTranscoder(transcoder)
             .setShouldOptimize(true)
             .setOpQueueMaxBlockTime(config.getTimeout())
