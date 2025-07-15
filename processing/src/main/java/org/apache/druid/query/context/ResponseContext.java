@@ -716,7 +716,8 @@ public abstract class ResponseContext
     return (Long) get(Keys.CPU_CONSUMED_NANOS);
   }
 
-  public Long getBrokerCpuNanos() {
+  public Long getBrokerCpuNanos()
+  {
     return (Long) get(Keys.BROKER_CPU_CONSUMED_NANOS);
   }
 
