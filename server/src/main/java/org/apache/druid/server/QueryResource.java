@@ -521,7 +521,7 @@ public class QueryResource implements QueryCountStatsProvider
           final String prevEtag = getPreviousEtag(req);
 
           if (prevEtag != null && prevEtag.equals(responseContext.getEntityTag())) {
-            queryLifecycle.emitLogsAndMetrics(null, req.getRemoteAddr(), -1, -1, -1);
+            queryLifecycle.emitLogsAndMetrics(null, req.getRemoteAddr(), -1, -1, -1, -1);
             counter.incrementSuccess();
             return Response.status(Status.NOT_MODIFIED);
           }
@@ -576,15 +576,15 @@ public class QueryResource implements QueryCountStatsProvider
         }
 
         @Override
-        public void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis)
+        public void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis, long brokerCpuTimeMillis)
         {
-          queryLifecycle.emitLogsAndMetrics(null, req.getRemoteAddr(), numBytes, numRowsScanned, cpuTimeInMillis);
+          queryLifecycle.emitLogsAndMetrics(null, req.getRemoteAddr(), numBytes, numRowsScanned, cpuTimeInMillis, brokerCpuTimeMillis);
         }
 
         @Override
         public void recordFailure(Exception e)
         {
-          queryLifecycle.emitLogsAndMetrics(e, req.getRemoteAddr(), -1, -1, -1);
+          queryLifecycle.emitLogsAndMetrics(e, req.getRemoteAddr(), -1, -1, -1, -1);
         }
 
         @Override

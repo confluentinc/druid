@@ -88,7 +88,7 @@ public class QueryResultPusherTest
       }
 
       @Override
-      public void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis)
+      public void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis, long brokerCpuTimeInMillis)
       {
 
       }

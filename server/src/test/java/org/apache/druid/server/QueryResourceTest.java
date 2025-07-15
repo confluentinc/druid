@@ -433,7 +433,7 @@ public class QueryResourceTest
                 System.nanoTime())
             {
               @Override
-              public void emitLogsAndMetrics(@Nullable Throwable e, @Nullable String remoteAddress, long bytesWritten, long rowsScanned, long cpuConsumedMillis)
+              public void emitLogsAndMetrics(@Nullable Throwable e, @Nullable String remoteAddress, long bytesWritten, long rowsScanned, long cpuConsumedMillis, long brokerConsumedMillis)
               {
                 Assert.assertTrue(Throwables.getStackTraceAsString(e).contains(embeddedExceptionMessage));
               }

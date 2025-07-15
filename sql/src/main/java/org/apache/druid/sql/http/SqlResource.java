@@ -316,7 +316,7 @@ public class SqlResource
         }
 
         @Override
-        public void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis)
+        public void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis, long brokerCpuTimeMillis)
         {
           stmt.reporter().succeeded(numBytes, numRowsScanned, cpuTimeInMillis);
         }

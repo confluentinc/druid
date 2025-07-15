@@ -82,6 +82,7 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
               long cpuTimeDelta = JvmUtils.getCurrentThreadCpuTime() - start;
               cpuTimeAccumulator.addAndGet(cpuTimeDelta);
               responseContext.addCpuNanos(cpuTimeDelta);
+              responseContext.addBrokerCpuNanos(cpuTimeAccumulator.get());
             }
           }
 
@@ -92,6 +93,10 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
               final long cpuTimeNs = responseContext.getCpuNanos();
               if (cpuTimeNs > 0) {
                 queryWithMetrics.getQueryMetrics().reportCpuTime(cpuTimeNs).emit(emitter);
+              }
+              final long brokerCpuTimeNs = responseContext.getBrokerCpuNanos();
+              if (brokerCpuTimeNs > 0) {
+                queryWithMetrics.getQueryMetrics().reportBrokerCpuTime(brokerCpuTimeNs).emit(emitter);
               }
             }
           }

@@ -152,7 +152,7 @@ public abstract class QueryResultPusher
 
       counter.incrementSuccess();
       accumulator.close();
-      resultsWriter.recordSuccess(accumulator.getNumBytesSent(), accumulator.rowsScanned, accumulator.cpuConsumedMillis);
+      resultsWriter.recordSuccess(accumulator.getNumBytesSent(), accumulator.rowsScanned, accumulator.cpuConsumedMillis, accumulator.brokerCpuTime);
     }
     catch (DruidException e) {
       // Less than ideal. But, if we return the result as JSON, this is
@@ -308,7 +308,7 @@ public abstract class QueryResultPusher
 
     void recordSuccess(long numBytes);
 
-    void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis);
+    void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis, long brokerCpuTimeMillis);
 
     void recordFailure(Exception e);
   }
@@ -347,6 +347,7 @@ public abstract class QueryResultPusher
     private Long cpuConsumedMillis;
     private Long querySegmentCount;
     private Long brokerQueryTime;
+    private Long brokerCpuTime;
 
     public StreamingHttpResponseAccumulator(
         ResponseContext responseContext,
@@ -430,6 +431,7 @@ public abstract class QueryResultPusher
         cpuConsumedMillis = TimeUnit.NANOSECONDS.toMillis(responseContext.getValueOrDefaultZero(ResponseContext::getCpuNanos));
         querySegmentCount = responseContext.getValueOrDefaultZero(ResponseContext::getQuerySegmentCount);
         brokerQueryTime = TimeUnit.NANOSECONDS.toMillis(Objects.nonNull(startTime) ? System.nanoTime() - (Long) startTime : -1L);
+        brokerCpuTime = TimeUnit.NANOSECONDS.toMillis(responseContext.getValueOrDefaultZero(ResponseContext::getBrokerCpuNanos));
 
         response.setHeader(QueryResource.NUM_SCANNED_ROWS, String.valueOf(rowsScanned));
         // Emit Cpu time as a response header. Note that it doesn't include Cpu spent on serializing the response.
