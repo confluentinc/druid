@@ -275,7 +275,7 @@
         </dependency>
         <dependency>
             <groupId>javax.ws.rs</groupId>
-            <artifactId>jsr311-api</artifactId>
+                            <artifactId>javax.ws.rs-api</artifactId>
         </dependency>
         <dependency>
             <groupId>javax.servlet</groupId>
@@ -501,9 +501,15 @@
                     <usedDependencies>
                         <!-- These are needed for scope: compile -->
                         <dependency>io.tesla.aether:tesla-aether</dependency>
+                        <!-- JAX-RS API: newer API for application code -->
+                        <dependency>javax.ws.rs:javax.ws.rs-api</dependency>
                         <!-- These are needed for scope: runtime -->
                         <dependency>org.xerial.snappy:snappy-java</dependency>
                     </usedDependencies>
+                    <ignoredUsedUndeclaredDependencies>
+                        <!-- jsr311-api is a transitive dependency from jersey-core that's needed -->
+                        <dependency>javax.ws.rs:jsr311-api</dependency>
+                    </ignoredUsedUndeclaredDependencies>
                 </configuration>
             </plugin>
         </plugins>

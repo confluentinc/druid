@@ -97,7 +97,7 @@
         </dependency>
         <dependency>
             <groupId>javax.ws.rs</groupId>
-            <artifactId>jsr311-api</artifactId>
+                            <artifactId>javax.ws.rs-api</artifactId>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -315,6 +315,20 @@
                             <filtering>true</filtering>
                         </resource>
                     </resources>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <usedDependencies>
+                        <!-- JAX-RS API: newer API for application code -->
+                        <dependency>javax.ws.rs:javax.ws.rs-api</dependency>
+                    </usedDependencies>
+                    <ignoredUsedUndeclaredDependencies>
+                        <!-- jsr311-api is a transitive dependency from jersey-core that's needed -->
+                        <dependency>javax.ws.rs:jsr311-api</dependency>
+                    </ignoredUsedUndeclaredDependencies>
                 </configuration>
             </plugin>
             <plugin>
