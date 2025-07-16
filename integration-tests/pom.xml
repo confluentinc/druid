@@ -293,7 +293,7 @@
         </dependency>
         <dependency>
             <groupId>javax.ws.rs</groupId>
-            <artifactId>jsr311-api</artifactId>
+            <artifactId>javax.ws.rs-api</artifactId>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -400,7 +400,7 @@
                 </exclusion>
                 <exclusion>
                     <groupId>javax.ws.rs</groupId>
-                    <artifactId>jsr311-api</artifactId>
+                    <artifactId>javax.ws.rs-api</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>jakarta.ws.rs</groupId>
