@@ -1762,9 +1762,9 @@
                 <version>3.1.1</version>
                 <executions>
                     <execution>
-                        <id>analyze-deps</id>
-                        <goals>
-                            <goal>analyze-deps</goal>
+                                        <id>analyze-deps</id>
+                <goals>
+                  <goal>analyze</goal>
                         </goals>
                         <configuration>
                           <usedDependencies>

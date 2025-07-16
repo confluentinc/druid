@@ -20,11 +20,10 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <groupId>org.apache.druid.extensions</groupId>
-  <artifactId>druid-pac4j</artifactId>
-  <name>druid-pac4j</name>
-  <description>druid-pac4j</description>
+  <artifactId>druid-lookups-cached-global</artifactId>
+  <name>druid-lookups-cached-global</name>
+  <description>Extension to rename Druid dimension values using namespaces</description>
 
   <parent>
     <groupId>org.apache.druid</groupId>
@@ -33,27 +32,7 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <properties>
-    <pac4j.version>5.7.3</pac4j.version>
-
-    <!-- Following must be updated along with any updates to pac4j version. One can find the compatible version of nimbus libraries in org.pac4j:pac4j-oidc dependencies-->
-    <nimbus.lang.tag.version>1.7</nimbus.lang.tag.version>
-    <nimbus.jose.jwt.version>9.37.2</nimbus.jose.jwt.version>
-    <oauth2.oidc.sdk.version>10.8</oauth2.oidc.sdk.version>
-  </properties>
-
   <dependencies>
-    <dependency>
-      <groupId>org.apache.druid</groupId>
-      <artifactId>druid-server</artifactId>
-      <version>${project.parent.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>joda-time</groupId>
-      <artifactId>joda-time</artifactId>
-      <scope>provided</scope>
-    </dependency>
     <dependency>
       <groupId>org.apache.druid</groupId>
       <artifactId>druid-processing</artifactId>
@@ -61,49 +40,28 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.pac4j</groupId>
-      <artifactId>pac4j-oidc</artifactId>
-      <version>${pac4j.version}</version>
-      <exclusions>
-        <!-- pac4j-oidc erroneously declares mockito as a compile time instead of test dependency -->
-        <exclusion>
-          <groupId>org.mockito</groupId>
-          <artifactId>mockito-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <!-- Add pac4j-javaee dependency for JEE components -->
-    <dependency>
-      <groupId>org.pac4j</groupId>
-      <artifactId>pac4j-javaee</artifactId>
-      <version>${pac4j.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.nimbusds</groupId>
-      <artifactId>lang-tag</artifactId>
-      <version>${nimbus.lang.tag.version}</version>
+      <groupId>org.apache.druid</groupId>
+      <artifactId>druid-server</artifactId>
+      <version>${project.parent.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.nimbusds</groupId>
-      <artifactId>nimbus-jose-jwt</artifactId>
-      <version>${nimbus.jose.jwt.version}</version>
+      <groupId>org.mapdb</groupId>
+      <artifactId>mapdb</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.nimbusds</groupId>
-      <artifactId>oauth2-oidc-sdk</artifactId>
-      <version>${oauth2.oidc.sdk.version}</version>
+      <groupId>it.unimi.dsi</groupId>
+      <artifactId>fastutil-core</artifactId>
+      <scope>provided</scope>
     </dependency>
-
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -117,24 +75,34 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>javax.servlet-api</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>commons-io</groupId>
-      <artifactId>commons-io</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.pac4j</groupId>
-      <artifactId>pac4j-core</artifactId>
-      <version>${pac4j.version}</version>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.inject.extensions</groupId>
+      <artifactId>guice-multibindings</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jdbi</groupId>
+      <artifactId>jdbi</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>javax.ws.rs</groupId>
@@ -142,9 +110,34 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- Tests -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.druid</groupId>
+      <artifactId>druid-server</artifactId>
+      <version>${project.parent.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.curator</groupId>
+      <artifactId>curator-test</artifactId>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.javassist</groupId>
+          <artifactId>javassist</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>mx4j</groupId>
+      <artifactId>mx4j-tools</artifactId>
+      <version>3.0.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -152,30 +145,29 @@
       <artifactId>easymock</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- explicitly declare mockito-core dependency to make anaylize-dependencies happy when running with Java 8 -->
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-${mockito.inline.artifact}</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <version>${mysql.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${postgresql.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <configuration>
-          <ignoredUnusedDeclaredDependencies>
-            <!-- Transitive dependency explicitly added to lock a specific version -->
-            <ignoredUnusedDeclaredDependency>com.nimbusds:lang-tag</ignoredUnusedDeclaredDependency>
-          </ignoredUnusedDeclaredDependencies>
-          <ignoredUsedUndeclaredDependencies>
-            <!-- jsr311-api is a transitive dependency from jersey-core -->
-            <dependency>javax.ws.rs:jsr311-api</dependency>
-          </ignoredUsedUndeclaredDependencies>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
-
 </project>
