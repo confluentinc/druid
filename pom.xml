@@ -1756,6 +1756,29 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.1.1</version>
+                <executions>
+                    <execution>
+                        <id>analyze-deps</id>
+                        <goals>
+                            <goal>analyze-deps</goal>
+                        </goals>
+                        <configuration>
+                          <usedDependencies>
+                            <!-- JAX-RS API: newer API for application code -->
+                            <dependency>javax.ws.rs:javax.ws.rs-api</dependency>
+                          </usedDependencies>
+                          <ignoredUsedUndeclaredDependencies>
+                            <!-- jsr311-api is a transitive dependency from jersey-core that's needed -->
+                            <dependency>javax.ws.rs:jsr311-api</dependency>
+                          </ignoredUsedUndeclaredDependencies>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
         <pluginManagement>
             <plugins>

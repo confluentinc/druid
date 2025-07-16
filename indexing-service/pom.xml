@@ -318,6 +318,20 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <usedDependencies>
+                        <!-- JAX-RS API: newer API for application code -->
+                        <dependency>javax.ws.rs:javax.ws.rs-api</dependency>
+                    </usedDependencies>
+                    <ignoredUsedUndeclaredDependencies>
+                        <!-- jsr311-api is a transitive dependency from jersey-core that's needed -->
+                        <dependency>javax.ws.rs:jsr311-api</dependency>
+                    </ignoredUsedUndeclaredDependencies>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <configuration>
