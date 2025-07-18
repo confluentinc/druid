@@ -493,7 +493,7 @@ name: Apache Commons BeanUtils
 license_category: binary
 module: java-core
 license_name: Apache License version 2.0
-version: 1.9.4
+version: 1.11.0
 libraries:
   - commons-beanutils: commons-beanutils
 notices:
@@ -1655,7 +1655,7 @@ name: Apache Curator
 license_category: binary
 module: java-core
 license_name: Apache License version 2.0
-version: 5.5.0
+version: 5.8.0
 libraries:
   - org.apache.curator: curator-client
   - org.apache.curator: curator-framework
@@ -3076,7 +3076,7 @@ libraries:
 ---
 
 name: Apache Kafka
-version: 3.9.0
+version: 3.9.1
 license_category: binary
 module: extensions/druid-kafka-indexing-service
 license_name: Apache License version 2.0
