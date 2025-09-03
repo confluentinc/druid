@@ -39,6 +39,7 @@ import org.apache.druid.query.Result;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorAdapters;
 import org.apache.druid.query.aggregation.AggregatorFactory;
+<<<<<<< HEAD
 import org.apache.druid.query.vector.VectorCursorGranularizer;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.Cursor;
@@ -46,6 +47,13 @@ import org.apache.druid.segment.CursorBuildSpec;
 import org.apache.druid.segment.CursorFactory;
 import org.apache.druid.segment.CursorHolder;
 import org.apache.druid.segment.Cursors;
+=======
+import org.apache.druid.query.context.ResponseContext;
+import org.apache.druid.query.filter.Filter;
+import org.apache.druid.query.vector.VectorCursorGranularizer;
+import org.apache.druid.segment.ColumnInspector;
+import org.apache.druid.segment.RowCountingCursorDecorator;
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 import org.apache.druid.segment.SegmentMissingException;
 import org.apache.druid.segment.TimeBoundaryInspector;
 import org.apache.druid.segment.filter.Filters;
@@ -87,10 +95,17 @@ public class TimeseriesQueryEngine
    * scoped down to a single interval before calling this method.
    */
   public Sequence<Result<TimeseriesResultValue>> process(
+<<<<<<< HEAD
       TimeseriesQuery query,
       final CursorFactory cursorFactory,
       @Nullable TimeBoundaryInspector timeBoundaryInspector,
       @Nullable final TimeseriesQueryMetrics timeseriesQueryMetrics
+=======
+      final TimeseriesQuery query,
+      final StorageAdapter adapter,
+      @Nullable final TimeseriesQueryMetrics timeseriesQueryMetrics,
+      ResponseContext responseContext
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   )
   {
     if (cursorFactory == null) {
@@ -102,9 +117,26 @@ public class TimeseriesQueryEngine
     final Interval interval = Iterables.getOnlyElement(query.getIntervals());
     final Granularity gran = query.getGranularity();
 
+<<<<<<< HEAD
     final CursorHolder cursorHolder = cursorFactory.makeCursorHolder(makeCursorBuildSpec(query, timeseriesQueryMetrics));
     if (cursorHolder.isPreAggregated()) {
       query = query.withAggregatorSpecs(Preconditions.checkNotNull(cursorHolder.getAggregatorsForPreAggregated()));
+=======
+    final ColumnInspector inspector = query.getVirtualColumns().wrapInspector(adapter);
+
+    final boolean doVectorize = query.context().getVectorize().shouldVectorize(
+        adapter.canVectorize(filter, query.getVirtualColumns(), descending)
+        && VirtualColumns.shouldVectorize(query, query.getVirtualColumns(), adapter)
+        && query.getAggregatorSpecs().stream().allMatch(aggregatorFactory -> aggregatorFactory.canVectorize(inspector))
+    );
+
+    final Sequence<Result<TimeseriesResultValue>> result;
+
+    if (doVectorize) {
+      result = processVectorized(query, adapter, filter, interval, gran, descending, timeseriesQueryMetrics, responseContext);
+    } else {
+      result = processNonVectorized(query, adapter, filter, interval, gran, descending, timeseriesQueryMetrics, responseContext);
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     }
     try {
       final Sequence<Result<TimeseriesResultValue>> result;
@@ -133,7 +165,14 @@ public class TimeseriesQueryEngine
       final CursorHolder cursorHolder,
       @Nullable final TimeBoundaryInspector timeBoundaryInspector,
       final Interval queryInterval,
+<<<<<<< HEAD
       final Granularity gran
+=======
+      final Granularity gran,
+      final boolean descending,
+      final TimeseriesQueryMetrics timeseriesQueryMetrics,
+      final ResponseContext responseContext
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   )
   {
     final boolean skipEmptyBuckets = query.isSkipEmptyBuckets();
@@ -183,6 +222,7 @@ public class TimeseriesQueryEngine
                   bucketInterval -> {
                     // Whether or not the current bucket is empty
                     boolean emptyBucket = true;
+                    long numRowsScanned = 0;
 
                     while (!cursor.isDone()) {
                       granularizer.setCurrentOffsets(bucketInterval);
@@ -198,13 +238,16 @@ public class TimeseriesQueryEngine
                             granularizer.getStartOffset(),
                             granularizer.getEndOffset()
                         );
-
+                        numRowsScanned += granularizer.getEndOffset() - granularizer.getStartOffset();
                         emptyBucket = false;
                       }
 
                       if (!granularizer.advanceCursorWithinBucket()) {
                         break;
                       }
+                    }
+                    if (responseContext != null) {
+                      responseContext.addRowScanCount(numRowsScanned);
                     }
 
                     if (emptyBucket && skipEmptyBuckets) {
@@ -250,11 +293,19 @@ public class TimeseriesQueryEngine
       final CursorHolder cursorHolder,
       @Nullable TimeBoundaryInspector timeBoundaryInspector,
       final Interval queryInterval,
+<<<<<<< HEAD
       final Granularity gran
+=======
+      final Granularity gran,
+      final boolean descending,
+      final TimeseriesQueryMetrics timeseriesQueryMetrics,
+      final ResponseContext responseContext
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   )
   {
     final boolean skipEmptyBuckets = query.isSkipEmptyBuckets();
     final List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
+<<<<<<< HEAD
     final Cursor cursor = cursorHolder.asCursor();
     if (cursor == null) {
       return Sequences.empty();
@@ -281,6 +332,20 @@ public class TimeseriesQueryEngine
                           }
                           final Aggregator[] aggregators = new Aggregator[aggregatorSpecs.size()];
                           final String[] aggregatorNames = new String[aggregatorSpecs.size()];
+=======
+    return QueryRunnerHelper.makeCursorBasedQuery(
+        adapter,
+        Collections.singletonList(queryInterval),
+        filter,
+        query.getVirtualColumns(),
+        descending,
+        gran,
+        c -> {
+          RowCountingCursorDecorator cursor = new RowCountingCursorDecorator(c, responseContext);
+          if (skipEmptyBuckets && cursor.isDone()) {
+            return null;
+          }
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
                           for (int i = 0; i < aggregatorSpecs.size(); i++) {
                             aggregators[i] = aggregatorSpecs.get(i).factorize(columnSelectorFactory);
@@ -300,6 +365,7 @@ public class TimeseriesQueryEngine
                               }
                             }
 
+<<<<<<< HEAD
                             if (emptyBucket && skipEmptyBuckets) {
                               // Return null, will get filtered out later by the Objects::nonNull filter.
                               return null;
@@ -311,6 +377,16 @@ public class TimeseriesQueryEngine
                             for (int i = 0; i < aggregatorSpecs.size(); i++) {
                               bob.addMetric(aggregatorNames[i], aggregators[i].get());
                             }
+=======
+          try {
+            while (!cursor.isDone()) {
+              for (Aggregator aggregator : aggregators) {
+                aggregator.aggregate();
+              }
+              cursor.advance();
+            }
+            TimeseriesResultBuilder bob = new TimeseriesResultBuilder(cursor.getTime());
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
                             return bob.build();
                           }

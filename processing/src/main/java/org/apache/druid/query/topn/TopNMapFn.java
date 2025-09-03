@@ -22,6 +22,7 @@ package org.apache.druid.query.topn;
 import org.apache.druid.query.ColumnSelectorPlus;
 import org.apache.druid.query.CursorGranularizer;
 import org.apache.druid.query.Result;
+import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.topn.types.TopNColumnAggregatesProcessor;
 import org.apache.druid.segment.Cursor;
 
@@ -43,12 +44,16 @@ public class TopNMapFn
 
   @SuppressWarnings("unchecked")
   @Nullable
+<<<<<<< HEAD
   public Result<TopNResultValue> apply(
       final Cursor cursor,
       ColumnSelectorPlus<TopNColumnAggregatesProcessor<?>> selectorPlus,
       final CursorGranularizer granularizer,
       final @Nullable TopNQueryMetrics queryMetrics
   )
+=======
+  public Result<TopNResultValue> apply(final Cursor cursor, final @Nullable TopNQueryMetrics queryMetrics, ResponseContext responseContext)
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   {
     TopNParams params = null;
     try {
@@ -60,7 +65,7 @@ public class TopNMapFn
 
       TopNResultBuilder resultBuilder = BaseTopNAlgorithm.makeResultBuilder(params, query);
 
-      topNAlgorithm.run(params, resultBuilder, null, queryMetrics);
+      topNAlgorithm.run(params, resultBuilder, null, queryMetrics, responseContext);
 
       return resultBuilder.build();
     }

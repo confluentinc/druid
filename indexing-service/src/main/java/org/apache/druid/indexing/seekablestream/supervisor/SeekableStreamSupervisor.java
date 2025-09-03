@@ -2596,7 +2596,11 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
             }
           }
           if (!isTaskGroupPresent) {
+<<<<<<< HEAD
             log.info("Creating new pending completion task group[%s] for discovered task[%s].", groupId, taskId);
+=======
+            log.info("Creating new pending completion task group [%s] for discovered task [%s].", groupId, taskId);
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
             // reading the minimumMessageTime & maximumMessageTime from the publishing task and setting it here is not necessary as this task cannot
             // change to a state where it will read any more events.
@@ -2605,8 +2609,13 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
                 groupId,
                 ImmutableMap.copyOf(startingPartitions),
                 null,
+<<<<<<< HEAD
                 null,
                 null,
+=======
+                Optional.absent(),
+                Optional.absent(),
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
                 null
             );
 
@@ -2622,10 +2631,14 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     for (TaskGroup taskGroup : taskGroupList) {
       if (taskGroup.startingSequences.equals(startingPartitions)) {
         if (taskGroup.tasks.putIfAbsent(taskId, new TaskData()) == null) {
+<<<<<<< HEAD
           log.info(
               "Added discovered task[%s] to taskGroup[%s] with pending completion tasks[%s].",
               taskId, groupId, taskGroup.taskIds()
           );
+=======
+          log.info("Added discovered task [%s] to existing pending completion task group [%s]. PendingCompletionTaskGroup: %s", taskId, groupId, taskGroup.taskIds());
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
         }
         return;
       }

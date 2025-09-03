@@ -28,9 +28,15 @@ public class S3TransferConfigTest
   public void testDefaultValues()
   {
     S3TransferConfig config = new S3TransferConfig();
+<<<<<<< HEAD
     Assert.assertTrue(config.isUseTransferManager());
     Assert.assertEquals(20 * 1024 * 1024L, config.getMinimumUploadPartSize());
     Assert.assertEquals(20 * 1024 * 1024L, config.getMultipartUploadThreshold());
+=======
+    Assert.assertFalse(config.isUseTransferManager());
+    Assert.assertEquals(5 * 1024 * 1024L, config.getMinimumUploadPartSize());
+    Assert.assertEquals(5 * 1024 * 1024L, config.getMultipartUploadThreshold());
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   }
 
   @Test

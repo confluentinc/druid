@@ -29,6 +29,7 @@ import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.QueryRunnerTestHelper;
 import org.apache.druid.query.Result;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
+import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.topn.TopNQuery;
 import org.apache.druid.query.topn.TopNQueryBuilder;
 import org.apache.druid.query.topn.TopNQueryEngine;
@@ -42,6 +43,7 @@ import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.apache.druid.timeline.SegmentId;
 import org.joda.time.DateTime;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -129,13 +131,18 @@ public class DistinctCountTopNQueryTest extends InitializedNullHandlingTest
                               new DistinctCountAggregatorFactory("UV", visitor_id, null)
                           )
                           .build();
-
+    ResponseContext responseContext = ResponseContext.createEmpty();
     final Iterable<Result<TopNResultValue>> results =
+<<<<<<< HEAD
         engine.query(
             query,
             new IncrementalIndexSegment(index, SegmentId.dummy(QueryRunnerTestHelper.DATA_SOURCE)),
             null
         ).toList();
+=======
+        engine.query(query, new IncrementalIndexStorageAdapter(index), null, responseContext).toList();
+    Assert.assertEquals(3L, (long) responseContext.getRowScanCount());
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
     List<Result<TopNResultValue>> expectedResults = Collections.singletonList(
         new Result<>(

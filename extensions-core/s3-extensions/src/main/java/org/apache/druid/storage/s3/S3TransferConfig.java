@@ -28,6 +28,7 @@ import javax.validation.constraints.Min;
 public class S3TransferConfig
 {
   @JsonProperty
+<<<<<<< HEAD
   private boolean useTransferManager = true;
 
   @JsonProperty
@@ -37,6 +38,17 @@ public class S3TransferConfig
   @JsonProperty
   @Min(1)
   private long multipartUploadThreshold = 20 * 1024 * 1024L;
+=======
+  private boolean useTransferManager = false;
+
+  @JsonProperty
+  @Min(1)
+  private long minimumUploadPartSize = 5 * 1024 * 1024L;
+
+  @JsonProperty
+  @Min(1)
+  private long multipartUploadThreshold = 5 * 1024 * 1024L;
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
   public void setUseTransferManager(boolean useTransferManager)
   {

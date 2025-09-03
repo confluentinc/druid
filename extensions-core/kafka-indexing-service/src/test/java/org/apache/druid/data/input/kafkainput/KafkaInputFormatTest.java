@@ -28,7 +28,11 @@ import org.apache.druid.data.input.ColumnsFilter;
 import org.apache.druid.data.input.InputEntityReader;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputRowSchema;
+<<<<<<< HEAD
 import org.apache.druid.data.input.impl.CsvInputFormat;
+=======
+import org.apache.druid.data.input.MapBasedInputRow;
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.TimestampSpec;
@@ -363,6 +367,7 @@ public class KafkaInputFormatTest
       while (iterator.hasNext()) {
 
         final InputRow row = iterator.next();
+        final MapBasedInputRow mrow = (MapBasedInputRow) row;
         // Payload verifications
         // this isn't super realistic, since most of these columns are not actually defined in the dimensionSpec
         // but test reading them anyway since it isn't technically illegal

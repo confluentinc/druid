@@ -19,46 +19,12 @@
 
 package org.apache.druid.java.util.http.client.pool;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.java.util.common.io.Closer;
-import org.apache.druid.java.util.common.logger.Logger;
-
-import javax.annotation.Nullable;
 import java.io.Closeable;
-import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * A resource pool based on {@link LoadingCache}. When a resource is first requested for a new key,
- * If the flag: eagerInitialization is true: use {@link EagerCreationResourceHolder}
- *    {@link ResourcePoolConfig#getMaxPerKey()} resources are initialized and cached in the {@link #pool}.
- * Else:
- *    Initialize a single resource and further lazily using {@link LazyCreationResourceHolder}
- * The individual resource in {@link ResourceHolderPerKey} is valid while (current time - last access time)
- * <= {@link ResourcePoolConfig#getUnusedConnectionTimeoutMillis()}.
- *
- * A resource is closed and reinitialized if {@link ResourceFactory#isGood} returns false or it's expired based on
- * {@link ResourcePoolConfig#getUnusedConnectionTimeoutMillis()}.
- *
- * {@link ResourcePoolConfig#getMaxPerKey() is a hard limit for the max number of resources per cache entry. The total
- * number of resources in {@link ResourceHolderPerKey} cannot be larger than the limit in any case.
- */
-public class ResourcePool<K, V> implements Closeable
+public interface ResourcePool<K, V> extends Closeable
 {
-  private static final Logger log = new Logger(ResourcePool.class);
-  private final LoadingCache<K, ResourceHolderPerKey<K, V>> pool;
-  private final AtomicBoolean closed = new AtomicBoolean(false);
 
+<<<<<<< HEAD
   public ResourcePool(final ResourceFactory<K, V> factory, final ResourcePoolConfig config,
                       final boolean eagerInitialization)
   {
@@ -377,4 +343,8 @@ public class ResourcePool<K, V> implements Closeable
     }
 
   }
+=======
+  ResourceContainer<V> take(K key);
+
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 }

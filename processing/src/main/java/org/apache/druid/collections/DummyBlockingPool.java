@@ -63,7 +63,11 @@ public final class DummyBlockingPool<T> implements BlockingPool<T>
   }
 
   @Override
+<<<<<<< HEAD
   public long getUsedResourcesCount()
+=======
+  public int getUsedBufferCount()
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   {
     return 0;
   }

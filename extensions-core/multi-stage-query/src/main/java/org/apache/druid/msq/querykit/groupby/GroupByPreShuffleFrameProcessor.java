@@ -175,9 +175,14 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
       final Sequence<ResultRow> rowSequence =
           groupingEngine.process(
               query.withQuerySegmentSpec(new SpecificSegmentSpec(segment.getDescriptor())),
+<<<<<<< HEAD
               Objects.requireNonNull(mappedSegment.as(CursorFactory.class)),
               mappedSegment.as(TimeBoundaryInspector.class),
               bufferPool,
+=======
+              mapSegment(segmentHolder.get()).asStorageAdapter(),
+              null,
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
               null
           );
 
@@ -210,9 +215,14 @@ public class GroupByPreShuffleFrameProcessor extends BaseLeafFrameProcessor
         final Sequence<ResultRow> rowSequence =
             groupingEngine.process(
                 query.withQuerySegmentSpec(new MultipleIntervalSegmentSpec(Intervals.ONLY_ETERNITY)),
+<<<<<<< HEAD
                 Objects.requireNonNull(mappedSegment.as(CursorFactory.class)),
                 mappedSegment.as(TimeBoundaryInspector.class),
                 bufferPool,
+=======
+                mapSegment(frameSegment).asStorageAdapter(),
+                null,
+>>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
                 null
             );
 
