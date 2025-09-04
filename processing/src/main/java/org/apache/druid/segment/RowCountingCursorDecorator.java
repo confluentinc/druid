@@ -20,7 +20,6 @@
 package org.apache.druid.segment;
 
 import org.apache.druid.query.context.ResponseContext;
-import org.joda.time.DateTime;
 
 public class RowCountingCursorDecorator implements Cursor
 {
@@ -37,12 +36,6 @@ public class RowCountingCursorDecorator implements Cursor
   public ColumnSelectorFactory getColumnSelectorFactory()
   {
     return this.cursor.getColumnSelectorFactory();
-  }
-
-  @Override
-  public DateTime getTime()
-  {
-    return this.cursor.getTime();
   }
 
   @Override

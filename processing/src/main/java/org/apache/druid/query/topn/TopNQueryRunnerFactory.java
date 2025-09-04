@@ -75,15 +75,12 @@ public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNRes
         }
 
         TopNQuery query = (TopNQuery) input.getQuery();
-<<<<<<< HEAD
         return queryEngine.query(
             query,
             segment,
-            (TopNQueryMetrics) input.getQueryMetrics()
+            (TopNQueryMetrics) input.getQueryMetrics(),
+            responseContext
         );
-=======
-        return queryEngine.query(query, segment.asStorageAdapter(), (TopNQueryMetrics) input.getQueryMetrics(), responseContext);
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
       }
     };
 

@@ -133,16 +133,13 @@ public class DistinctCountTopNQueryTest extends InitializedNullHandlingTest
                           .build();
     ResponseContext responseContext = ResponseContext.createEmpty();
     final Iterable<Result<TopNResultValue>> results =
-<<<<<<< HEAD
         engine.query(
             query,
             new IncrementalIndexSegment(index, SegmentId.dummy(QueryRunnerTestHelper.DATA_SOURCE)),
-            null
+            null,
+            responseContext
         ).toList();
-=======
-        engine.query(query, new IncrementalIndexStorageAdapter(index), null, responseContext).toList();
     Assert.assertEquals(3L, (long) responseContext.getRowScanCount());
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
     List<Result<TopNResultValue>> expectedResults = Collections.singletonList(
         new Result<>(

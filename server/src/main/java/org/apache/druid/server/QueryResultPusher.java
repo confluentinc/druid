@@ -349,8 +349,6 @@ public abstract class QueryResultPusher
 
     Writer makeWriter(OutputStream out) throws IOException;
 
-    void recordSuccess(long numBytes);
-
     void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis);
 
     void recordFailure(Exception e);
@@ -434,28 +432,6 @@ public abstract class QueryResultPusher
 
         validateAndWriteResponseContextHeader();
 
-<<<<<<< HEAD
-=======
-        if (serializationResult.isTruncated()) {
-          final String logToPrint = StringUtils.format(
-              "Response Context truncated for id [%s]. Full context is [%s].",
-              queryId,
-              serializationResult.getFullResult()
-          );
-          if (responseContextConfig.shouldFailOnTruncatedResponseContext()) {
-            log.error(logToPrint);
-            throw new QueryInterruptedException(
-                new TruncatedResponseContextException(
-                    "Serialized response context exceeds the max size[%s]",
-                    responseContextConfig.getMaxResponseContextHeaderSize()
-                ),
-                selfNode.getHostAndPortToUse()
-            );
-          } else {
-            log.warn(logToPrint);
-          }
-        }
-
         Object startTime = request.getAttribute(QueryResource.QUERY_START_TIME_ATTRIBUTE);
 
         rowsScanned = responseContext.getValueOrDefaultZero(ResponseContext::getRowScanCount);
@@ -469,8 +445,6 @@ public abstract class QueryResultPusher
         response.setHeader(QueryResource.QUERY_CPU_TIME, String.valueOf(cpuConsumedMillis));
         response.setHeader(QueryResource.QUERY_SEGMENT_COUNT_HEADER, String.valueOf(querySegmentCount));
         response.setHeader(QueryResource.BROKER_QUERY_TIME_RESPONSE_HEADER, String.valueOf(brokerQueryTime));
-        response.setHeader(QueryResource.HEADER_RESPONSE_CONTEXT, serializationResult.getResult());
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
         response.setContentType(contentType.toString());
 
         if (response instanceof org.eclipse.jetty.server.Response) {

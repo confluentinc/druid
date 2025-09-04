@@ -29,11 +29,8 @@ import org.apache.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.Order;
 import org.apache.druid.query.aggregation.AggregatorAdapters;
-<<<<<<< HEAD
-import org.apache.druid.query.dimension.DefaultDimensionSpec;
-=======
 import org.apache.druid.query.context.ResponseContext;
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
+import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
@@ -89,13 +86,8 @@ public class VectorGroupByEngine
       @Nullable final DateTime fudgeTimestamp,
       final Interval interval,
       final GroupByQueryConfig config,
-<<<<<<< HEAD
-      final DruidProcessingConfig processingConfig
-=======
       final DruidProcessingConfig processingConfig,
-      @Nullable final GroupByQueryMetrics groupByQueryMetrics,
       ResponseContext responseContext
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   )
   {
     return new BaseSequence<>(
@@ -150,7 +142,6 @@ public class VectorGroupByEngine
                 }
             ).collect(Collectors.toList());
 
-<<<<<<< HEAD
             return new VectorGroupByEngineIterator(
                 query,
                 config,
@@ -161,32 +152,9 @@ public class VectorGroupByEngine
                 interval,
                 dimensions,
                 processingBuffer,
-                fudgeTimestamp
+                fudgeTimestamp,
+                responseContext
             );
-=======
-              return new VectorGroupByEngineIterator(
-                      query,
-                      config,
-                      processingConfig,
-                      storageAdapter,
-                      cursor,
-                      interval,
-                      dimensions,
-                      processingBuffer,
-                      fudgeTimestamp,
-                      responseContext
-              );
-            }
-            catch (Throwable e) {
-              try {
-                cursor.close();
-              }
-              catch (Throwable e2) {
-                e.addSuppressed(e2);
-              }
-              throw e;
-            }
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
           }
 
           @Override
@@ -294,7 +262,6 @@ public class VectorGroupByEngine
       this.keySize = selectors.stream().mapToInt(GroupByVectorColumnSelector::getGroupingKeySize).sum();
       this.keySpace = WritableMemory.allocate(keySize * cursor.getMaxVectorSize());
       this.vectorGrouper = makeGrouper();
-<<<<<<< HEAD
       this.granularizer = VectorCursorGranularizer.create(
           cursor,
           timeBoundaryInspector,
@@ -302,10 +269,7 @@ public class VectorGroupByEngine
           query.getGranularity(),
           queryInterval
       );
-=======
-      this.granulizer = VectorCursorGranularizer.create(storageAdapter, cursor, query.getGranularity(), queryInterval);
       this.responseContext = responseContext;
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
       if (granularizer != null) {
         this.bucketIterator = granularizer.getBucketIterable().iterator();
@@ -443,7 +407,7 @@ public class VectorGroupByEngine
               startOffset,
               granularizer.getEndOffset()
           );
-          numRowsScanned += granulizer.getEndOffset() - startOffset;
+          numRowsScanned += granularizer.getEndOffset() - startOffset;
 
           if (result.isOk()) {
             partiallyAggregatedRows = -1;

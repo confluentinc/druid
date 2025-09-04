@@ -52,11 +52,7 @@ public class ResourcePoolTest
     resourceFactory = (ResourceFactory<String, String>) EasyMock.createMock(ResourceFactory.class);
 
     EasyMock.replay(resourceFactory);
-<<<<<<< HEAD
-    pool = new ResourcePool<>(
-=======
     pool = new DefaultResourcePoolImpl<String, String>(
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
         resourceFactory,
         new ResourcePoolConfig(2, TimeUnit.MINUTES.toMillis(4)),
         eagerInitialization
@@ -422,11 +418,7 @@ public class ResourcePoolTest
   {
     resourceFactory = (ResourceFactory<String, String>) EasyMock.createMock(ResourceFactory.class);
 
-<<<<<<< HEAD
-    pool = new ResourcePool<>(
-=======
     pool = new DefaultResourcePoolImpl<>(
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
         resourceFactory,
         new ResourcePoolConfig(2, TimeUnit.MILLISECONDS.toMillis(10)),
         true

@@ -750,14 +750,10 @@ public abstract class AbstractBatchIndexTask extends AbstractTask
 
     try (
         SegmentHandoffNotifier notifier = toolbox.getSegmentHandoffNotifierFactory()
-<<<<<<< HEAD
                                                  .createSegmentHandoffNotifier(
                                                      segmentsToWaitFor.get(0).getDataSource(),
                                                      getId()
                                                  )
-=======
-                                                 .createSegmentHandoffNotifier(segmentsToWaitFor.get(0).getDataSource(), getId())
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     ) {
 
       final ExecutorService exec = Execs.directExecutor();

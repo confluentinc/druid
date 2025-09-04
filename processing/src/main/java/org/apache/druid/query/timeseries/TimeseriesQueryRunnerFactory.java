@@ -109,16 +109,13 @@ public class TimeseriesQueryRunnerFactory
         throw new ISE("Got a [%s] which isn't a %s", input.getClass(), TimeseriesQuery.class);
       }
 
-<<<<<<< HEAD
       return engine.process(
           (TimeseriesQuery) input,
           cursorFactory,
           timeBoundaryInspector,
-          (TimeseriesQueryMetrics) queryPlus.getQueryMetrics()
+          (TimeseriesQueryMetrics) queryPlus.getQueryMetrics(),
+          responseContext
       );
-=======
-      return engine.process((TimeseriesQuery) input, adapter, (TimeseriesQueryMetrics) queryPlus.getQueryMetrics(), responseContext);
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     }
   }
 }

@@ -102,9 +102,9 @@ public class DruidProcessingModule implements Module
   @Provides
   @LazySingleton
   @Merging
-  public BlockingPool<ByteBuffer> getMergeBufferPool(DruidProcessingConfig config, RuntimeInfo runtimeInfo)
+  public BlockingPool<ByteBuffer> getMergeBufferPool(DruidProcessingConfig config, RuntimeInfo runtimeInfo, ExecutorServiceMonitor executorServiceMonitor)
   {
-    return createMergeBufferPool(config, runtimeInfo);
+    return createMergeBufferPool(config, runtimeInfo, executorServiceMonitor);
   }
 
   @Provides
@@ -175,23 +175,14 @@ public class DruidProcessingModule implements Module
     );
   }
 
-<<<<<<< HEAD
   public static BlockingPool<ByteBuffer> createMergeBufferPool(
       final DruidProcessingConfig config,
-      final RuntimeInfo runtimeInfo
+      final RuntimeInfo runtimeInfo,
+      ExecutorServiceMonitor executorServiceMonitor
   )
   {
     verifyDirectMemory(config, runtimeInfo);
-    return new DefaultBlockingPool<>(
-=======
-  @Provides
-  @LazySingleton
-  @Merging
-  public BlockingPool<ByteBuffer> getMergeBufferPool(DruidProcessingConfig config, ExecutorServiceMonitor executorServiceMonitor)
-  {
-    verifyDirectMemory(config);
     return new MetricsEmittingMergingBlockingPool<>(
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
         new OffheapBufferGenerator("result merging", config.intermediateComputeSizeBytes()),
         config.getNumMergeBuffers(),
         executorServiceMonitor

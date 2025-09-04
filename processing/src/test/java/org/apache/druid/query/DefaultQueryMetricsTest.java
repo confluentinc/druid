@@ -136,11 +136,7 @@ public class DefaultQueryMetricsTest extends InitializedNullHandlingTest
     serviceEmitter.verifyValue("query/resultCache/hit", 1);
 
     queryMetrics.reportQueriedSegmentCount(25).emit(serviceEmitter);
-<<<<<<< HEAD
-    Assert.assertEquals(10, serviceEmitter.getEvents().size());
-=======
     serviceEmitter.verifyValue("query/queriedSegment/count", 25L);
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   }
 
   @Test

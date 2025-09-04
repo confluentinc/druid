@@ -77,16 +77,10 @@ public class TopNQueryEngine
    * update {@link TopNResultValue}
    */
   public Sequence<Result<TopNResultValue>> query(
-<<<<<<< HEAD
       TopNQuery query,
       final Segment segment,
-      @Nullable final TopNQueryMetrics queryMetrics
-=======
-          final TopNQuery query,
-          final StorageAdapter adapter,
-          final @Nullable TopNQueryMetrics queryMetrics,
-          final ResponseContext responseContext
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
+      @Nullable final TopNQueryMetrics queryMetrics,
+      final ResponseContext responseContext
   )
   {
     final CursorFactory cursorFactory = segment.as(CursorFactory.class);
@@ -109,7 +103,6 @@ public class TopNQueryEngine
         return Sequences.withBaggage(Sequences.empty(), cursorHolder);
       }
 
-<<<<<<< HEAD
       final TimeBoundaryInspector timeBoundaryInspector = segment.as(TimeBoundaryInspector.class);
 
       final ColumnSelectorFactory factory = cursor.getColumnSelectorFactory();
@@ -153,7 +146,7 @@ public class TopNQueryEngine
           Sequences.simple(granularizer.getBucketIterable())
                    .map(bucketInterval -> {
                      granularizer.advanceToBucket(bucketInterval);
-                     return mapFn.apply(cursor, selectorPlus, granularizer, queryMetrics);
+                     return mapFn.apply(cursor, selectorPlus, granularizer, queryMetrics, responseContext);
                    }),
           Predicates.notNull()
       ).withBaggage(cursorHolder);
@@ -161,27 +154,6 @@ public class TopNQueryEngine
     catch (Throwable t) {
       throw CloseableUtils.closeAndWrapInCatch(t, cursorHolder);
     }
-=======
-    return Sequences.filter(
-        Sequences.map(
-            adapter.makeCursors(
-                filter,
-                queryIntervals.get(0),
-                query.getVirtualColumns(),
-                granularity,
-                query.isDescending(),
-                queryMetrics
-            ),
-            input -> {
-              if (queryMetrics != null) {
-                queryMetrics.cursor(input);
-              }
-              return mapFn.apply(input, queryMetrics, responseContext);
-            }
-        ),
-        Predicates.notNull()
-    );
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   }
 
   /**

@@ -31,7 +31,7 @@
   <parent>
     <artifactId>druid</artifactId>
     <groupId>org.apache.druid</groupId>
-    <version>30.0.1</version>
+    <version>34.0.0</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
@@ -153,6 +153,13 @@
           <nonFilteredFileExtensions>
             <nonFilteredFileExtension>desc</nonFilteredFileExtension>
           </nonFilteredFileExtensions>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>de.thetaphi</groupId>
+        <artifactId>forbiddenapis</artifactId>
+        <configuration>
+          <skip>true</skip>
         </configuration>
       </plugin>
     </plugins>

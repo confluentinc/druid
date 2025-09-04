@@ -27,12 +27,8 @@ import org.apache.druid.java.util.emitter.service.SegmentMetadataEvent;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
 import org.apache.druid.query.DruidMetrics;
 import org.apache.druid.timeline.DataSegment;
-<<<<<<< HEAD
-=======
-import org.apache.druid.utils.CircularBuffer;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
 import java.util.Map;
 

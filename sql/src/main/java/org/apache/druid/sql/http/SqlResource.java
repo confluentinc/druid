@@ -172,7 +172,6 @@ public class SqlResource
       @Context final HttpContext httpContext
   )
   {
-<<<<<<< HEAD
     return doPost(SqlQuery.from(httpContext), req);
   }
 
@@ -186,6 +185,7 @@ public class SqlResource
   {
     final HttpStatement stmt;
     final QueryContext queryContext;
+    final long queryStartTime = System.nanoTime();
 
     try {
       final SqlQueryPlus sqlQueryPlus = makeSqlQueryPlus(sqlQuery, req);
@@ -193,21 +193,12 @@ public class SqlResource
       final String engineName = queryContext.getEngine();
       final SqlEngine engine = sqlEngineRegistry.getEngine(engineName);
       stmt = engine.getSqlStatementFactory().httpStatement(sqlQueryPlus, req);
+      req.setAttribute(QueryResource.QUERY_START_TIME_ATTRIBUTE, queryStartTime);
     }
     catch (Exception e) {
       // Can't use the queryContext with SETs since it might not have been created yet. Use the original one.
       return handleExceptionBeforeStatementCreated(e, sqlQuery.queryContext());
     }
-=======
-    final long queryStartTime = System.nanoTime();
-    final HttpStatement stmt = sqlStatementFactory.httpStatement(sqlQuery, req);
-    final String sqlQueryId = stmt.sqlQueryId();
-    final String currThreadName = Thread.currentThread().getName();
-
-    try {
-      req.setAttribute(QueryResource.QUERY_START_TIME_ATTRIBUTE, queryStartTime);
-      Thread.currentThread().setName(StringUtils.format("sql[%s]", sqlQueryId));
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
     final String currThreadName = Thread.currentThread().getName();
     try {
@@ -399,12 +390,6 @@ public class SqlResource
               writer.close();
             }
           };
-        }
-
-        @Override
-        public void recordSuccess(long numBytes)
-        {
-          stmt.reporter().succeeded(numBytes);
         }
 
         @Override
