@@ -51,13 +51,12 @@ public interface BlockingPool<T>
   long getPendingRequests();
 
   /**
-<<<<<<< HEAD
    * @return number of used buffers from the pool
    */
   long getUsedResourcesCount();
-=======
+
+  /**
    * @return number of buffers used/polled from the pool at that time.
    */
   int getUsedBufferCount();
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 }

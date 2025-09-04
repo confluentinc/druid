@@ -58,13 +58,8 @@ public class S3DataSegmentPusherTest
   public void testPush() throws Exception
   {
     testPushInternal(
-<<<<<<< HEAD
             false,
             "key/foo/2015-01-01T00:00:00\\.000Z_2016-01-01T00:00:00\\.000Z/0/0/index\\.zip"
-=======
-        false,
-        "key/foo/2015-01-01T00:00:00\\.000Z_2016-01-01T00:00:00\\.000Z/0/0/index\\.zip"
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     );
   }
 
@@ -72,13 +67,8 @@ public class S3DataSegmentPusherTest
   public void testPushUseUniquePath() throws Exception
   {
     testPushInternal(
-<<<<<<< HEAD
             true,
             "key/foo/2015-01-01T00:00:00\\.000Z_2016-01-01T00:00:00\\.000Z/0/0/[A-Za-z0-9-]{36}/index\\.zip"
-=======
-        true,
-        "key/foo/2015-01-01T00:00:00\\.000Z_2016-01-01T00:00:00\\.000Z/0/0/[A-Za-z0-9-]{36}/index\\.zip"
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     );
   }
 
@@ -88,17 +78,10 @@ public class S3DataSegmentPusherTest
     final DruidException exception = Assert.assertThrows(
         DruidException.class,
         () ->
-<<<<<<< HEAD
         testPushInternalForEntityTooLarge(
                 false,
                 "key/foo/2015-01-01T00:00:00\\.000Z_2016-01-01T00:00:00\\.000Z/0/0/index\\.zip"
         )
-=======
-            testPushInternalForEntityTooLarge(
-                false,
-                "key/foo/2015-01-01T00:00:00\\.000Z_2016-01-01T00:00:00\\.000Z/0/0/index\\.zip"
-            )
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     );
 
     MatcherAssert.assertThat(

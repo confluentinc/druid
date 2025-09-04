@@ -147,27 +147,22 @@ public class StringFirstTimeseriesQueryTest extends InitializedNullHandlingTest
     ResponseContext responseContext = ResponseContext.createEmpty();
     final DefaultTimeseriesQueryMetrics defaultTimeseriesQueryMetrics = new DefaultTimeseriesQueryMetrics();
     final Iterable<Result<TimeseriesResultValue>> iiResults =
-<<<<<<< HEAD
         engine.process(
             query,
             new IncrementalIndexCursorFactory(incrementalIndex),
             new IncrementalIndexTimeBoundaryInspector(incrementalIndex),
-            defaultTimeseriesQueryMetrics
+            defaultTimeseriesQueryMetrics,
+            responseContext
         ).toList();
-
+    Assert.assertEquals(3L, (long) responseContext.getRowScanCount());
     final Iterable<Result<TimeseriesResultValue>> qiResults =
         engine.process(
             query,
             new QueryableIndexCursorFactory(queryableIndex),
             QueryableIndexTimeBoundaryInspector.create(queryableIndex),
-            defaultTimeseriesQueryMetrics
+            defaultTimeseriesQueryMetrics,
+            responseContext
         ).toList();
-=======
-        engine.process(query, new IncrementalIndexStorageAdapter(incrementalIndex), defaultTimeseriesQueryMetrics, responseContext).toList();
-    Assert.assertEquals(3L, (long) responseContext.getRowScanCount());
-    final Iterable<Result<TimeseriesResultValue>> qiResults =
-        engine.process(query, new QueryableIndexStorageAdapter(queryableIndex), defaultTimeseriesQueryMetrics, responseContext).toList();
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
     TestHelper.assertExpectedResults(expectedResults, iiResults, "incremental index");
     TestHelper.assertExpectedResults(expectedResults, qiResults, "queryable index");

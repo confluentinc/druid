@@ -19,10 +19,6 @@
 
 package org.apache.druid.concurrent;
 
-<<<<<<< HEAD
-=======
-import com.google.common.util.concurrent.ListenableFuture;
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -35,10 +31,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-<<<<<<< HEAD
 import java.util.concurrent.RejectedExecutionException;
-=======
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -131,17 +124,10 @@ public class ExecsTest
   }
 
   @Test
-<<<<<<< HEAD
   public void testTaskAddedToShutdownExecutorThrowsException() throws Exception
   {
     // The implementation of Execs.newBlockingSingleThreaded() rejectedExecutionHandler should not add tasks when it's in shutDown state
     // When a SynchronousQueue is used in executor and a task is put in it in ShutDown state, it will forever stuck in WAITING state
-=======
-  public void testSynchronousQueueSingleThreadedExecutor() throws Exception
-  {
-    // The implementation of Execs.newBlockingSingleThreaded() rejectedExecutionHandler should not add tasks when it's in shutDown state
-    // When capacity is 0, a SynchronousQueue is used and if a task is put in it in ShutDown state, it will forever stuck in WAITING state
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     // as executor will not take() the task to schedule it.
     final ListeningExecutorService intermediateTempExecutor = MoreExecutors.listeningDecorator(
         Execs.newBlockingSingleThreaded("[TASK_ID]-appenderator-abandon", 0)
@@ -157,22 +143,12 @@ public class ExecsTest
     };
 
     // Submit multiple tasks together
-<<<<<<< HEAD
     Assert.assertNotNull(intermediateTempExecutor.submit(task));
     Assert.assertNotNull(intermediateTempExecutor.submit(task));
 
     intermediateTempExecutor.shutdownNow();
     // Submit task after shutDown / shutDownNow should not be added in queue
     Assert.assertThrows(RejectedExecutionException.class, () -> intermediateTempExecutor.submit(task));
-=======
-    ListenableFuture<Void> unused = intermediateTempExecutor.submit(task);
-    unused = intermediateTempExecutor.submit(task);
-    unused = intermediateTempExecutor.submit(task);
-
-    intermediateTempExecutor.shutdownNow();
-    // Submit task after shutDown / shutDownNow should not be added in queue
-    unused = intermediateTempExecutor.submit(task);
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     Assert.assertTrue(intermediateTempExecutor.awaitTermination(10, TimeUnit.SECONDS));
     Assert.assertTrue(intermediateTempExecutor.isShutdown());
   }

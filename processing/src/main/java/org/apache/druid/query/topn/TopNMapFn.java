@@ -44,16 +44,13 @@ public class TopNMapFn
 
   @SuppressWarnings("unchecked")
   @Nullable
-<<<<<<< HEAD
   public Result<TopNResultValue> apply(
       final Cursor cursor,
       ColumnSelectorPlus<TopNColumnAggregatesProcessor<?>> selectorPlus,
       final CursorGranularizer granularizer,
-      final @Nullable TopNQueryMetrics queryMetrics
+      final @Nullable TopNQueryMetrics queryMetrics,
+      ResponseContext responseContext
   )
-=======
-  public Result<TopNResultValue> apply(final Cursor cursor, final @Nullable TopNQueryMetrics queryMetrics, ResponseContext responseContext)
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   {
     TopNParams params = null;
     try {

@@ -163,12 +163,7 @@ public class Execs
           public void rejectedExecution(Runnable r, ThreadPoolExecutor executor)
           {
             if (executor.isShutdown()) {
-<<<<<<< HEAD
               throw new RejectedExecutionException("Executor is shutdown, rejecting task");
-=======
-              log.debug("Executor is shutdown, rejecting task");
-              return;
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
             }
             try {
               executor.getQueue().put(r);

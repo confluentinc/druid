@@ -371,15 +371,11 @@ public class CachingClusteredClient implements QuerySegmentWalker
       this.responseContext.put(ResponseContext.Keys.QUERY_SEGMENT_COUNT, Long.valueOf(segmentServers.size()));
       queryPlus.getQueryMetrics().reportQueriedSegmentCount(segmentServers.size()).emit(emitter);
 
-<<<<<<< HEAD
       final SortedMap<DruidServer, List<SegmentDescriptor>> segmentsByServer = groupSegmentsByServer(
           segmentServers,
           cloneQueryMode
       );
-=======
-      final SortedMap<DruidServer, List<SegmentDescriptor>> segmentsByServer = groupSegmentsByServer(segmentServers);
       queryPlus.getQueryMetrics().reportQueryPlanningTime(JvmUtils.getCurrentThreadCpuTime() - startCpuTime).emit(emitter);
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
       LazySequence<T> mergedResultSequence = new LazySequence<>(() -> {
         List<Sequence<T>> sequencesByInterval = new ArrayList<>(alreadyCachedResults.size() + segmentsByServer.size());
         addSequencesFromCache(sequencesByInterval, alreadyCachedResults);

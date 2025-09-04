@@ -162,11 +162,7 @@ public abstract class BaseTopNAlgorithm<DimValSelector, DimValAggregateStore, Pa
     long processedRows = scanAndAggregate(params, null, aggregatesStore);
     updateResults(params, null, aggregatesStore, resultBuilder);
     resetAggregators(aggregatesStore);
-<<<<<<< HEAD
-=======
-    params.getCursor().reset();
     responseContext.addRowScanCount(processedRows);
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     if (queryMetrics != null) {
       queryMetrics.addProcessedRows(processedRows);
       queryMetrics.stopRecordingScanTime();

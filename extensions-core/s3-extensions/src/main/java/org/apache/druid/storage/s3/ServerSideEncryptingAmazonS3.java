@@ -83,14 +83,11 @@ public class ServerSideEncryptingAmazonS3
     } else {
       this.transferManager = null;
     }
-<<<<<<< HEAD
   }
 
   public AmazonS3 getAmazonS3()
   {
     return amazonS3;
-=======
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
   }
 
   public boolean doesObjectExist(String bucket, String objectName)
@@ -235,7 +232,6 @@ public class ServerSideEncryptingAmazonS3
         throw new ISE("S3StorageConfig cannot be null!");
       }
 
-<<<<<<< HEAD
       AmazonS3 amazonS3Client;
       try {
         amazonS3Client = S3Utils.retryS3Operation(() -> amazonS3ClientBuilder.build());
@@ -245,9 +241,6 @@ public class ServerSideEncryptingAmazonS3
       }
 
       return new ServerSideEncryptingAmazonS3(amazonS3Client, s3StorageConfig.getServerSideEncryption(), s3StorageConfig.getS3TransferConfig());
-=======
-      return new ServerSideEncryptingAmazonS3(amazonS3ClientBuilder.build(), s3StorageConfig.getServerSideEncryption(), s3StorageConfig.getS3TransferConfig());
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
     }
   }
 }

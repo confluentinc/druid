@@ -35,11 +35,6 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.metrics.StubServiceEmitter;
 import org.apache.druid.query.DruidProcessingConfigTest;
 import org.apache.druid.storage.StorageConnector;
-<<<<<<< HEAD
-=======
-import org.apache.druid.storage.s3.NoopServerSideEncryption;
-import org.apache.druid.storage.s3.S3TransferConfig;
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,25 +67,12 @@ public class S3StorageConnectorTest
   private static final String BUCKET = "testbucket";
   private static final String PREFIX = "P/R/E/F/I/X";
   public static final String TEST_FILE = "test.csv";
-<<<<<<< HEAD
   @Container
   private static final MinIOContainer MINIO = MinioUtil.createContainer();
   @TempDir
   public static File temporaryFolder;
   private ServerSideEncryptingAmazonS3 s3Client;
-=======
 
-  private final AmazonS3Client s3Client = EasyMock.createMock(AmazonS3Client.class);
-  private final ServerSideEncryptingAmazonS3 service = new ServerSideEncryptingAmazonS3(
-      s3Client,
-      new NoopServerSideEncryption(),
-      new S3TransferConfig()
-  );
-  private final ListObjectsV2Result testResult = EasyMock.createMock(ListObjectsV2Result.class);
-
-  @Rule
-  public TemporaryFolder temporaryFolder = new TemporaryFolder();
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
   private StorageConnector storageConnector;
 

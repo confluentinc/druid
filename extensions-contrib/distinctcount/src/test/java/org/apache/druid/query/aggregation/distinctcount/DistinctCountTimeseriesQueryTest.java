@@ -105,17 +105,14 @@ public class DistinctCountTimeseriesQueryTest extends InitializedNullHandlingTes
 
     ResponseContext responseContext = ResponseContext.createEmpty();
     final Iterable<Result<TimeseriesResultValue>> results =
-<<<<<<< HEAD
         engine.process(
             query,
             new IncrementalIndexCursorFactory(index),
             new IncrementalIndexTimeBoundaryInspector(index),
-            new DefaultTimeseriesQueryMetrics()
+            new DefaultTimeseriesQueryMetrics(),
+            responseContext
         ).toList();
-=======
-        engine.process(query, new IncrementalIndexStorageAdapter(index), new DefaultTimeseriesQueryMetrics(), responseContext).toList();
     Assert.assertEquals(3L, (long) responseContext.getRowScanCount());
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
 
     List<Result<TimeseriesResultValue>> expectedResults = Collections.singletonList(
         new Result<>(

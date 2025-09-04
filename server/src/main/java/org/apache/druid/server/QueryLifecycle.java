@@ -337,20 +337,10 @@ public class QueryLifecycle
   }
 
   /**
-<<<<<<< HEAD
-   * Executes the query.
-   * <p>
-   * Note that query logs and metrics will not be emitted automatically when the Sequence is fully iterated withou. It
-   * is the caller's responsibility to call {@link #emitLogsAndMetrics(Throwable, String, long)} to emit logs and
-   * metrics.
-   * <p>
-   * The {@code state} transitions from AUTHORIZED, to EXECUTING.
-=======
    * Execute the query. Can only be called if the query has been authorized. Note that query logs and metrics will
    * not be emitted automatically when the Sequence is fully iterated. It is the caller's responsibility to call
    * {@link #emitLogsAndMetrics(Throwable, String, long, long, long)} to emit logs and metrics.
->>>>>>> e92ab77ae0 (OBSDATA-8616 Apply Confluent Patches on top of Druid 30.0.1 (#268))
-   *
+   * The {@code state} transitions from AUTHORIZED, to EXECUTING.
    * @return result sequence and response context
    * @throws DruidException if the current state is not AUTHORIZED, which indicates a bug
    */
