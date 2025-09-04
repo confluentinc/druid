@@ -39,6 +39,7 @@ import org.apache.druid.query.Result;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorAdapters;
 import org.apache.druid.query.aggregation.AggregatorFactory;
+import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.vector.VectorCursorGranularizer;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.Cursor;
@@ -90,7 +91,8 @@ public class TimeseriesQueryEngine
       TimeseriesQuery query,
       final CursorFactory cursorFactory,
       @Nullable TimeBoundaryInspector timeBoundaryInspector,
-      @Nullable final TimeseriesQueryMetrics timeseriesQueryMetrics
+      @Nullable final TimeseriesQueryMetrics timeseriesQueryMetrics,
+      ResponseContext responseContext
   )
   {
     if (cursorFactory == null) {
@@ -110,9 +112,9 @@ public class TimeseriesQueryEngine
       final Sequence<Result<TimeseriesResultValue>> result;
 
       if (query.context().getVectorize().shouldVectorize(cursorHolder.canVectorize())) {
-        result = processVectorized(query, cursorHolder, timeBoundaryInspector, interval, gran);
+        result = processVectorized(query, cursorHolder, timeBoundaryInspector, interval, gran, responseContext);
       } else {
-        result = processNonVectorized(query, cursorHolder, timeBoundaryInspector, interval, gran);
+        result = processNonVectorized(query, cursorHolder, timeBoundaryInspector, interval, gran, responseContext);
       }
 
       final int limit = query.getLimit();
@@ -133,7 +135,8 @@ public class TimeseriesQueryEngine
       final CursorHolder cursorHolder,
       @Nullable final TimeBoundaryInspector timeBoundaryInspector,
       final Interval queryInterval,
-      final Granularity gran
+      final Granularity gran,
+      final ResponseContext responseContext
   )
   {
     final boolean skipEmptyBuckets = query.isSkipEmptyBuckets();
@@ -183,6 +186,7 @@ public class TimeseriesQueryEngine
                   bucketInterval -> {
                     // Whether or not the current bucket is empty
                     boolean emptyBucket = true;
+                    long numRowsScanned = 0;
 
                     while (!cursor.isDone()) {
                       granularizer.setCurrentOffsets(bucketInterval);
@@ -198,13 +202,16 @@ public class TimeseriesQueryEngine
                             granularizer.getStartOffset(),
                             granularizer.getEndOffset()
                         );
-
+                        numRowsScanned += granularizer.getEndOffset() - granularizer.getStartOffset();
                         emptyBucket = false;
                       }
 
                       if (!granularizer.advanceCursorWithinBucket()) {
                         break;
                       }
+                    }
+                    if (responseContext != null) {
+                      responseContext.addRowScanCount(numRowsScanned);
                     }
 
                     if (emptyBucket && skipEmptyBuckets) {
@@ -250,7 +257,8 @@ public class TimeseriesQueryEngine
       final CursorHolder cursorHolder,
       @Nullable TimeBoundaryInspector timeBoundaryInspector,
       final Interval queryInterval,
-      final Granularity gran
+      final Granularity gran,
+      final ResponseContext responseContext
   )
   {
     final boolean skipEmptyBuckets = query.isSkipEmptyBuckets();
@@ -281,7 +289,6 @@ public class TimeseriesQueryEngine
                           }
                           final Aggregator[] aggregators = new Aggregator[aggregatorSpecs.size()];
                           final String[] aggregatorNames = new String[aggregatorSpecs.size()];
-
                           for (int i = 0; i < aggregatorSpecs.size(); i++) {
                             aggregators[i] = aggregatorSpecs.get(i).factorize(columnSelectorFactory);
                             aggregatorNames[i] = aggregatorSpecs.get(i).getName();

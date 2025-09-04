@@ -656,6 +656,7 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
 
           SequenceMetadata<PartitionIdType, SequenceOffsetType> sequenceToCheckpoint = null;
           AppenderatorDriverAddResult pushTriggeringAddResult = null;
+          boolean flagForLogLine = true;
           for (OrderedPartitionableRecord<PartitionIdType, SequenceOffsetType, RecordType> record : records) {
             final boolean shouldProcess = verifyRecordInRange(record.getPartitionId(), record.getSequenceNumber());
 
@@ -707,6 +708,10 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
                   );
                   if (isPushRequired && !sequenceToUse.isCheckpointed()) {
                     pushTriggeringAddResult = addResult;
+                    if (flagForLogLine) {
+                      log.info("Hit the row limit updating sequenceToCheckpoint, SequenceToUse: [%s], rowInSegment: [%s], maxTotalRows: [%s]", sequenceToUse, addResult.getNumRowsInSegment(), addResult.getTotalNumRowsInAppenderator());
+                      flagForLogLine = false;
+                    }
                     sequenceToCheckpoint = sequenceToUse;
                   }
                   isPersistRequired |= addResult.isPersistRequired();
