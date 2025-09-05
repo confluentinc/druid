@@ -41,6 +41,7 @@ import org.apache.druid.segment.CursorBuildSpec;
 import org.apache.druid.segment.CursorFactory;
 import org.apache.druid.segment.CursorHolder;
 import org.apache.druid.segment.Cursors;
+import org.apache.druid.segment.RowCountingCursorDecorator;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.ColumnCapabilities;
@@ -137,10 +138,11 @@ public class ScanQueryEngine
           @Override
           public Iterator<ScanResultValue> make()
           {
-            final Cursor cursor = cursorHolder.asCursor();
-            if (cursor == null) {
+            final Cursor rawCursor = cursorHolder.asCursor();
+            if (rawCursor == null) {
               return Collections.emptyIterator();
             }
+            final Cursor cursor = new RowCountingCursorDecorator(rawCursor, responseContext);
             final List<BaseObjectColumnValueSelector> columnSelectors = new ArrayList<>(allColumns.size());
             final RowSignature.Builder rowSignatureBuilder = RowSignature.builder();
             final ColumnSelectorFactory factory = cursor.getColumnSelectorFactory();
