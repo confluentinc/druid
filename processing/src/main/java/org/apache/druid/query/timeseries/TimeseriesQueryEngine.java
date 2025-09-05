@@ -47,6 +47,7 @@ import org.apache.druid.segment.CursorBuildSpec;
 import org.apache.druid.segment.CursorFactory;
 import org.apache.druid.segment.CursorHolder;
 import org.apache.druid.segment.Cursors;
+import org.apache.druid.segment.RowCountingCursorDecorator;
 import org.apache.druid.segment.SegmentMissingException;
 import org.apache.druid.segment.TimeBoundaryInspector;
 import org.apache.druid.segment.filter.Filters;
@@ -100,7 +101,6 @@ public class TimeseriesQueryEngine
           "Null cursor factory found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-
     final Interval interval = Iterables.getOnlyElement(query.getIntervals());
     final Granularity gran = query.getGranularity();
 
@@ -263,10 +263,11 @@ public class TimeseriesQueryEngine
   {
     final boolean skipEmptyBuckets = query.isSkipEmptyBuckets();
     final List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
-    final Cursor cursor = cursorHolder.asCursor();
-    if (cursor == null) {
+    final Cursor rawCursor = cursorHolder.asCursor();
+    if (rawCursor == null) {
       return Sequences.empty();
     }
+    final Cursor cursor = new RowCountingCursorDecorator(rawCursor, responseContext);
     final CursorGranularizer granularizer = CursorGranularizer.create(
         cursor,
         timeBoundaryInspector,

@@ -53,6 +53,7 @@ import org.apache.druid.segment.CursorBuildSpec;
 import org.apache.druid.segment.CursorHolder;
 import org.apache.druid.segment.DimensionHandlerUtils;
 import org.apache.druid.segment.DimensionSelector;
+import org.apache.druid.segment.RowCountingCursorDecorator;
 import org.apache.druid.segment.TimeBoundaryInspector;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnType;
@@ -106,10 +107,11 @@ public class GroupByQueryEngine
       ResponseContext responseContext
   )
   {
-    final Cursor cursor = cursorHolder.asCursor();
-    if (cursor == null) {
+    final Cursor rawCursor = cursorHolder.asCursor();
+    if (rawCursor == null) {
       return Sequences.empty();
     }
+    final Cursor cursor = new RowCountingCursorDecorator(rawCursor, responseContext);
     final CursorGranularizer granularizer = CursorGranularizer.create(
         cursor,
         timeBoundaryInspector,
