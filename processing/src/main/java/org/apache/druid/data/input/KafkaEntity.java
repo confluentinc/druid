@@ -17,24 +17,17 @@
  * under the License.
  */
 
-package org.apache.druid.k8s.discovery;
-
-import org.apache.druid.discovery.NodeRole;
-import org.joda.time.Duration;
-
-import javax.annotation.Nullable;
+package org.apache.druid.data.input;
 
 /**
- * Interface to abstract pod read/update with K8S API Server to allow unit tests with mock impl.
+ * Interface for record entities that contain timestamp information.
  */
-public interface K8sApiClient
+public interface KafkaEntity
 {
-  void patchPod(String podName, String namespace, String jsonPatchStr);
-
-  DiscoveryDruidNodeList listPods(String namespace, String labelSelector, NodeRole nodeRole, @Nullable Duration terminatingStateCheckDuration);
-
   /**
-   * @return NULL if history not available or else return the {@link WatchResult} object
+   * Returns the timestamp of the record in milliseconds.
+   *
+   * @return the timestamp in milliseconds
    */
-  WatchResult watchPods(String namespace, String labelSelector, String lastKnownResourceVersion, NodeRole nodeRole);
+  long getRecordTimestampMillis();
 }
