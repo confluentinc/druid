@@ -395,4 +395,3 @@ public class FilteringCloseableInputRowIteratorTest
     return new MapBasedInputRow(timestamp, DIMENSIONS, ImmutableMap.of("dim1", dim1Val, "dim2", dim2Val));
   }
 }
-

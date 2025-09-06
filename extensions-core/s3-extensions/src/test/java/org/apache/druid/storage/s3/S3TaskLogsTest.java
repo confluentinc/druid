@@ -126,8 +126,6 @@ public class S3TaskLogsTest extends EasyMockSupport
   {
     s3Client.upload(EasyMock.anyObject(PutObjectRequest.class));
 
-    EasyMock.expectLastCall().once();
-
     EasyMock.replay(s3Client);
 
     S3TaskLogsConfig config = new S3TaskLogsConfig();

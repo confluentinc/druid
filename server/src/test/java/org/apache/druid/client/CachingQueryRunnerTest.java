@@ -93,7 +93,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RunWith(Parameterized.class)
 public class CachingQueryRunnerTest extends InitializedNullHandlingTest
 {
-
   @Parameterized.Parameters(name = "numBackgroundThreads={0}")
   public static Iterable<Object[]> constructorFeeder()
   {
