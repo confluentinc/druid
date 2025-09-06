@@ -73,6 +73,7 @@ import java.util.concurrent.ForkJoinPool;
  */
 public class CachingClusteredClientFunctionalityTest
 {
+
   private static final ObjectMapper OBJECT_MAPPER = CachingClusteredClientTestUtils.createObjectMapper();
 
   private CachingClusteredClient client;
