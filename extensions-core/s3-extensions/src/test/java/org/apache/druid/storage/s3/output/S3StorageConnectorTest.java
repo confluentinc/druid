@@ -73,6 +73,7 @@ public class S3StorageConnectorTest
   public static File temporaryFolder;
   private ServerSideEncryptingAmazonS3 s3Client;
 
+
   private StorageConnector storageConnector;
 
   @BeforeEach
