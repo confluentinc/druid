@@ -104,6 +104,11 @@ public class KafkaHeaderBasedFilterEvaluator
     }
 
     String headerValue = getDecodedHeaderValue(header.value());
+    // Permissive behavior: failed to decode header value
+    if (headerValue == null) {
+      return true;
+    }
+
     return inFilter.getValues().contains(headerValue);
   }
 
