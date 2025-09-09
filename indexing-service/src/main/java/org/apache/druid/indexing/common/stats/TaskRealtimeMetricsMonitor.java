@@ -104,9 +104,6 @@ public class TaskRealtimeMetricsMonitor extends AbstractMonitor
     emitter.emit(builder.setMetric("ingest/events/processed", rowIngestionMetersTotals.getProcessed() - previousRowIngestionMetersTotals.getProcessed()));
 
     final long filtered = rowIngestionMetersTotals.getFiltered() - previousRowIngestionMetersTotals.getFiltered();
-    if (filtered > 0) {
-      log.info("[%,d] events filtered by header-based filtering.", filtered);
-    }
     emitter.emit(builder.setMetric("ingest/events/filtered", filtered));
 
     final long dedup = metrics.dedup() - previousFireDepartmentMetrics.dedup();
