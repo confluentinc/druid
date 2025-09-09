@@ -341,12 +341,7 @@ Header-based filtering provides several performance benefits:
 - **Improved throughput**: Less data to process means higher effective throughput
 - **String decoding cache**: Frequently accessed header values are cached to avoid repeated decoding
 
-The feature automatically emits metrics to monitor filtering performance:
-- `kafka/headerFilter/totalEvaluations`: Total number of records evaluated
-- `kafka/headerFilter/filteredRecords`: Number of records filtered out
-- `kafka/headerFilter/errorCount`: Number of evaluation errors
-- `kafka/headerFilter/avgEvaluationTimeMs`: Average evaluation time per record
-- `kafka/headerFilter/maxEvaluationTimeMs`: Maximum evaluation time observed
+Filtered events are tracked using the standard Druid ingestion metrics. The `ingest/events/filtered` metric reports the number of events rejected by header-based filtering. For more information about ingestion metrics, see [Ingestion metrics](../operations/metrics.md#other-ingestion-metrics).
 
 #### Data format
 
@@ -388,7 +383,7 @@ You configure it as follows:
 - `valueFormat`: Define how to parse the payload value. Set this to the payload parsing input format (`{ "type": "json" }`).
 - `timestampColumnName`: Supply a custom name for the Kafka timestamp in the Druid schema to avoid conflicts with columns from the payload. The default is `kafka.timestamp`.
 - `topicColumnName`: Supply a custom name for the Kafka topic in the Druid schema to avoid conflicts with columns from the payload. The default is `kafka.topic`. This field is useful when ingesting data from multiple topics into the same datasource.
-- `headerFormat`: The default value `string` decodes strings in UTF-8 encoding from the Kafka header.  
+- `headerFormat`: The default value `string` decodes strings in UTF-8 encoding from the Kafka header.
    Other supported encoding formats include the following:
    - `ISO-8859-1`: ISO Latin Alphabet No. 1, that is, ISO-LATIN-1.
    - `US-ASCII`: Seven-bit ASCII. Also known as ISO646-US. The Basic Latin block of the Unicode character set.
@@ -404,7 +399,7 @@ You configure it as follows:
     "type": "tsv",
     "findColumnsFromHeader": false,
     "columns": ["x"]
-  } 
+  }
   ```
   Note that for `tsv`,`csv`, and `regex` formats, you need to provide a `columns` array to make a valid input format. Only the first one is used, and its name will be ignored in favor of `keyColumnName`.
 - `keyColumnName`: Supply the name for the Kafka key column to avoid conflicts with columns from the payload. The default is `kafka.key`.
@@ -446,7 +441,7 @@ It parses the example message as follows:
 ```
 
 Finally, add these Kafka metadata columns to the `dimensionsSpec` or set your `dimensionsSpec` to auto-detect columns.
-     
+
 The following supervisor spec demonstrates how to ingest the Kafka header, key, timestamp, and topic into Druid dimensions:
 
 <details>
