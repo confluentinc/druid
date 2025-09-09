@@ -53,6 +53,10 @@ public class KafkaHeaderBasedFilterEvaluator
         .build();
 
     this.filter = headerBasedFilteringConfig.getFilter().toFilter();
+    if (!(filter instanceof InDimFilter)) {
+      // Only InDimFilter supported
+      throw new IllegalStateException("Unsupported filter type: " + filter.getClass().getSimpleName());
+    }
 
     log.info("Initialized Kafka header filter with encoding [%s] - direct evaluation for [%s] with Caffeine string cache (max %d entries)",
              headerBasedFilteringConfig.getEncoding(),
@@ -86,11 +90,6 @@ public class KafkaHeaderBasedFilterEvaluator
 
   private boolean evaluateInclusion(Headers headers)
   {
-    if (!(filter instanceof InDimFilter)) {
-      // Only InDimFilter supported
-      throw new IllegalStateException("Unsupported filter type: " + filter.getClass().getSimpleName());
-    }
-
     InDimFilter inFilter = (InDimFilter) filter;
 
     // Permissive behavior: missing headers result in inclusion
