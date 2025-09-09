@@ -36,7 +36,6 @@ import org.apache.druid.indexing.seekablestream.common.StreamException;
 import org.apache.druid.indexing.seekablestream.common.StreamPartition;
 import org.apache.druid.indexing.seekablestream.extension.KafkaConfigOverrides;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.metrics.Monitor;
 import org.apache.druid.metadata.DynamicConfigProvider;
 import org.apache.druid.metadata.PasswordProvider;
@@ -74,8 +73,6 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
 
   @Nullable
   private final KafkaHeaderBasedFilterEvaluator headerFilterEvaluator;
-  @Nullable
-  private final String dataSource;
 
   /**
    * Store the stream information when partitions get assigned. This is required because the consumer does not
@@ -90,7 +87,7 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
       boolean multiTopic
   )
   {
-    this(getKafkaConsumer(sortingMapper, consumerProperties, configOverrides), multiTopic, null, null);
+    this(getKafkaConsumer(sortingMapper, consumerProperties, configOverrides), multiTopic, (KafkaHeaderBasedFilteringConfig) null);
   }
 
   public KafkaRecordSupplier(
@@ -98,17 +95,16 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
       ObjectMapper sortingMapper,
       KafkaConfigOverrides configOverrides,
       boolean multiTopic,
-      @Nullable KafkaHeaderBasedFilteringConfig headerBasedFilteringConfig,
-      @Nullable String dataSource
+      @Nullable KafkaHeaderBasedFilteringConfig headerBasedFilteringConfig
   )
   {
-    this(getKafkaConsumer(sortingMapper, consumerProperties, configOverrides), multiTopic, headerBasedFilteringConfig, dataSource);
+    this(getKafkaConsumer(sortingMapper, consumerProperties, configOverrides), multiTopic, headerBasedFilteringConfig);
   }
 
   @VisibleForTesting
   public KafkaRecordSupplier(KafkaConsumer<byte[], byte[]> consumer, boolean multiTopic)
   {
-    this(consumer, multiTopic, null, null);
+    this(consumer, multiTopic, (KafkaHeaderBasedFilteringConfig) null);
   }
 
   @VisibleForTesting
@@ -118,20 +114,8 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
       @Nullable KafkaHeaderBasedFilteringConfig headerBasedFilteringConfig
   )
   {
-    this(consumer, multiTopic, headerBasedFilteringConfig, null);
-  }
-
-  @VisibleForTesting
-  public KafkaRecordSupplier(
-      KafkaConsumer<byte[], byte[]> consumer,
-      boolean multiTopic,
-      @Nullable KafkaHeaderBasedFilteringConfig headerBasedFilteringConfig,
-      @Nullable String dataSource
-  )
-  {
     this.consumer = consumer;
     this.multiTopic = multiTopic;
-    this.dataSource = dataSource;
     this.monitor = new KafkaConsumerMonitor(consumer);
     this.headerFilterEvaluator = headerBasedFilteringConfig != null ?
         new KafkaHeaderBasedFilterEvaluator(headerBasedFilteringConfig) : null;
@@ -204,15 +188,25 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
     List<OrderedPartitionableRecord<KafkaTopicPartition, Long, KafkaRecordEntity>> polledRecords = new ArrayList<>();
 
     for (ConsumerRecord<byte[], byte[]> record : consumer.poll(Duration.ofMillis(timeout))) {
+      KafkaTopicPartition kafkaPartition = new KafkaTopicPartition(multiTopic, record.topic(), record.partition());
+
       // Apply header filter if configured
       if (headerFilterEvaluator != null && !headerFilterEvaluator.shouldIncludeRecord(record)) {
-        continue; // Skip filtered records
+        // Create filtered record for offset advancement with filtered=true flag
+        polledRecords.add(new OrderedPartitionableRecord<>(
+            record.topic(),
+            kafkaPartition,
+            record.offset(),
+            Collections.emptyList(), // Empty list for filtered records
+            true // Mark as filtered
+        ));
+        continue;
       }
 
       // Create record for accepted records
       polledRecords.add(new OrderedPartitionableRecord<>(
           record.topic(),
-          new KafkaTopicPartition(multiTopic, record.topic(), record.partition()),
+          kafkaPartition,
           record.offset(),
           record.value() == null ? null : ImmutableList.of(new KafkaRecordEntity(record))
       ));
@@ -290,38 +284,11 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
   }
 
   /**
-   * Returns a monitor that emits both Kafka consumer metrics and header filter metrics.
+   * Returns the Kafka consumer monitor.
    */
   public Monitor monitor()
   {
-    // If no header filter, just return the Kafka consumer monitor
-    if (headerFilterEvaluator == null || dataSource == null) {
-      return monitor;
-    }
-
-    // Return a simple composite monitor that handles both
-    return new Monitor()
-    {
-      @Override
-      public void start()
-      {
-        monitor.start();
-      }
-
-      @Override
-      public void stop()
-      {
-        monitor.stop();
-      }
-
-      @Override
-      public boolean monitor(ServiceEmitter emitter)
-      {
-        boolean kafkaSuccess = monitor.monitor(emitter);
-        boolean headerSuccess = headerFilterEvaluator.getMetrics().monitor(emitter, dataSource);
-        return kafkaSuccess && headerSuccess;
-      }
-    };
+    return monitor;
   }
 
   @Override

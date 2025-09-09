@@ -194,27 +194,22 @@ public class KafkaHeaderBasedFilteringConfigIntegrationTest
   }
 
   @Test
-  public void testPerformanceMetrics()
+  public void testFilteringBehavior()
   {
-    // Test Case: Verify that metrics are collected during filtering
+    // Test Case: Verify basic filtering behavior
     InDimFilter filter = new InDimFilter("environment", Collections.singletonList("production"), null);
     KafkaHeaderBasedFilteringConfig headerFilter = new KafkaHeaderBasedFilteringConfig(filter, null, null);
     evaluator = new KafkaHeaderBasedFilterEvaluator(headerFilter);
 
-    // Process multiple records to generate metrics
+    // Process multiple records to verify filtering logic
     ConsumerRecord<byte[], byte[]> record1 = createRecord("events", 0, 100L, headers("environment", "production"));
     ConsumerRecord<byte[], byte[]> record2 = createRecord("events", 0, 101L, headers("environment", "staging"));
     ConsumerRecord<byte[], byte[]> record3 = createRecord("events", 0, 102L, headers("environment", "production"));
 
-    evaluator.shouldIncludeRecord(record1); // match
-    evaluator.shouldIncludeRecord(record2); // no match
-    evaluator.shouldIncludeRecord(record3); // match
-
-    KafkaHeaderBasedFilterEvaluator.KafkaHeaderFilterMetrics metrics = evaluator.getMetrics();
-    Assert.assertEquals("Should have 3 evaluations", 3, metrics.getTotalEvaluations());
-    Assert.assertEquals("Should have 1 filtered record", 1, metrics.getFilteredRecords());
-    Assert.assertTrue("Should have some evaluation time", metrics.getAverageEvaluationTimeNanos() > 0);
-    Assert.assertTrue("Should have average evaluation time", metrics.getAverageEvaluationTimeNanos() > 0);
+    // Verify filtering results
+    Assert.assertTrue("Production record should be included", evaluator.shouldIncludeRecord(record1));
+    Assert.assertFalse("Staging record should be excluded", evaluator.shouldIncludeRecord(record2));
+    Assert.assertTrue("Production record should be included", evaluator.shouldIncludeRecord(record3));
   }
 
   @Test

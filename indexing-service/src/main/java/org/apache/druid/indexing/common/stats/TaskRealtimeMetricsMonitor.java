@@ -65,7 +65,7 @@ public class TaskRealtimeMetricsMonitor extends AbstractMonitor
     this.dimensions = ImmutableMap.copyOf(dimensions);
     this.metricTags = metricTags;
     previousFireDepartmentMetrics = new FireDepartmentMetrics();
-    previousRowIngestionMetersTotals = new RowIngestionMetersTotals(0, 0, 0, 0, 0);
+    previousRowIngestionMetersTotals = new RowIngestionMetersTotals(0, 0, 0, 0, 0, 0);
   }
 
   @Override

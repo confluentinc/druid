@@ -72,7 +72,7 @@ public class KafkaRecordSupplierHeaderFilterTest
   public void testNoHeaderFilter()
   {
     // Test that records are not filtered when no header filter is configured
-    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, null, "test-datasource");
+    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, null);
 
     ConsumerRecord<byte[], byte[]> record1 = createRecord("topic", 0, 100L,
         headers("environment", "production"));
@@ -99,7 +99,7 @@ public class KafkaRecordSupplierHeaderFilterTest
     InDimFilter filter = new InDimFilter("environment", Collections.singletonList("production"), null);
     KafkaHeaderBasedFilteringConfig headerFilter = new KafkaHeaderBasedFilteringConfig(filter, null, null);
 
-    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter, "test-datasource");
+    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter);
 
     ConsumerRecord<byte[], byte[]> prodRecord = createRecord("topic", 0, 100L,
         headers("environment", "production"));
@@ -115,10 +115,56 @@ public class KafkaRecordSupplierHeaderFilterTest
     List<OrderedPartitionableRecord<KafkaTopicPartition, Long, KafkaRecordEntity>> results =
         recordSupplier.poll(1000);
 
-    // With permissive filtering: production record + no-header record should be included
-    Assert.assertEquals("Should include production record and no-header record", 2, results.size());
-    Assert.assertEquals(100L, (long) results.get(0).getSequenceNumber()); // Production record
-    Assert.assertEquals(102L, (long) results.get(1).getSequenceNumber()); // No-header record
+    Assert.assertEquals("Should return all records (accepted + filtered markers)", 3, results.size());
+
+    // First record: production (accepted - has data)
+    Assert.assertNotNull("Production record should have data", results.get(0).getData());
+    Assert.assertFalse("Production record should have data", results.get(0).getData().isEmpty());
+    Assert.assertEquals(100L, (long) results.get(0).getSequenceNumber());
+
+    // Second record: staging (filtered - empty data for offset advancement)
+    Assert.assertTrue("Staging record should have empty data", results.get(1).getData().isEmpty());
+    Assert.assertEquals(101L, (long) results.get(1).getSequenceNumber());
+
+    // Third record: no-header (accepted - has data, permissive behavior)
+    Assert.assertNotNull("No-header record should have data", results.get(2).getData());
+    Assert.assertFalse("No-header record should have data", results.get(2).getData().isEmpty());
+    Assert.assertEquals(102L, (long) results.get(2).getSequenceNumber());
+    EasyMock.verify(mockConsumer);
+  }
+
+  @Test
+  public void testFilteredFlagTracking()
+  {
+    // Test that filtered records are properly marked with filtered flag
+    InDimFilter filter = new InDimFilter("environment", Collections.singletonList("production"), null);
+    KafkaHeaderBasedFilteringConfig headerFilter = new KafkaHeaderBasedFilteringConfig(filter, null, null);
+
+    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter);
+
+    ConsumerRecord<byte[], byte[]> prodRecord = createRecord("topic", 0, 100L,
+        headers("environment", "production"));
+    ConsumerRecord<byte[], byte[]> stagingRecord = createRecord("topic", 0, 101L,
+        headers("environment", "staging"));
+
+    EasyMock.expect(mockConsumer.poll(EasyMock.anyObject(Duration.class)))
+        .andReturn(createConsumerRecords(Arrays.asList(prodRecord, stagingRecord)));
+    EasyMock.replay(mockConsumer);
+
+    List<OrderedPartitionableRecord<KafkaTopicPartition, Long, KafkaRecordEntity>> results =
+        recordSupplier.poll(1000);
+
+    // Verify records returned
+    Assert.assertEquals("Should return 2 records (accepted + filtered)", 2, results.size());
+
+    // Verify filtered flags
+    Assert.assertFalse("Production record should not be filtered", results.get(0).isFiltered());
+    Assert.assertTrue("Staging record should be filtered", results.get(1).isFiltered());
+
+    // Verify data presence
+    Assert.assertFalse("Production record should have data", results.get(0).getData().isEmpty());
+    Assert.assertTrue("Filtered record should have empty data", results.get(1).getData().isEmpty());
+
     EasyMock.verify(mockConsumer);
   }
 
@@ -129,7 +175,7 @@ public class KafkaRecordSupplierHeaderFilterTest
     InDimFilter filter = new InDimFilter("service", Arrays.asList("user-service", "payment-service"), null);
     KafkaHeaderBasedFilteringConfig headerFilter = new KafkaHeaderBasedFilteringConfig(filter, null, null);
 
-    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter, "test-datasource");
+    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter);
 
     ConsumerRecord<byte[], byte[]> userServiceRecord = createRecord("topic", 0, 100L,
         headers("service", "user-service"));
@@ -145,9 +191,21 @@ public class KafkaRecordSupplierHeaderFilterTest
     List<OrderedPartitionableRecord<KafkaTopicPartition, Long, KafkaRecordEntity>> results =
         recordSupplier.poll(1000);
 
-    Assert.assertEquals("Should include user-service and payment-service records", 2, results.size());
+    Assert.assertEquals("Should return all records (accepted + filtered markers)", 3, results.size());
+
+    // First record: user-service (accepted - has data)
+    Assert.assertNotNull("User-service record should have data", results.get(0).getData());
+    Assert.assertFalse("User-service record should have data", results.get(0).getData().isEmpty());
     Assert.assertEquals(100L, (long) results.get(0).getSequenceNumber());
+
+    // Second record: payment-service (accepted - has data)
+    Assert.assertNotNull("Payment-service record should have data", results.get(1).getData());
+    Assert.assertFalse("Payment-service record should have data", results.get(1).getData().isEmpty());
     Assert.assertEquals(101L, (long) results.get(1).getSequenceNumber());
+
+    // Third record: order-service (filtered - empty data for offset advancement marker)
+    Assert.assertTrue("Order-service record should have empty data", results.get(2).getData().isEmpty());
+    Assert.assertEquals(102L, (long) results.get(2).getSequenceNumber());
     EasyMock.verify(mockConsumer);
   }
 
@@ -158,7 +216,7 @@ public class KafkaRecordSupplierHeaderFilterTest
     InDimFilter serviceFilter = new InDimFilter("service", Arrays.asList("user-service", "payment-service"), null);
     KafkaHeaderBasedFilteringConfig headerFilter = new KafkaHeaderBasedFilteringConfig(serviceFilter, null, null);
 
-    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter, "test-datasource");
+    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter);
 
     ConsumerRecord<byte[], byte[]> userServiceRecord = createRecord("topic", 0, 100L,
         headers("service", "user-service"));
@@ -174,9 +232,21 @@ public class KafkaRecordSupplierHeaderFilterTest
     List<OrderedPartitionableRecord<KafkaTopicPartition, Long, KafkaRecordEntity>> results =
         recordSupplier.poll(1000);
 
-    Assert.assertEquals("Should include user-service and payment-service records", 2, results.size());
+    Assert.assertEquals("Should return all records (accepted + filtered markers)", 3, results.size());
+
+    // First record: user-service (accepted - has data)
+    Assert.assertNotNull("User-service record should have data", results.get(0).getData());
+    Assert.assertFalse("User-service record should have data", results.get(0).getData().isEmpty());
     Assert.assertEquals(100L, (long) results.get(0).getSequenceNumber());
+
+    // Second record: payment-service (accepted - has data)
+    Assert.assertNotNull("Payment-service record should have data", results.get(1).getData());
+    Assert.assertFalse("Payment-service record should have data", results.get(1).getData().isEmpty());
     Assert.assertEquals(101L, (long) results.get(1).getSequenceNumber());
+
+    // Third record: order-service (filtered - empty data for offset advancement marker)
+    Assert.assertTrue("Order-service record should have empty data", results.get(2).getData().isEmpty());
+    Assert.assertEquals(102L, (long) results.get(2).getSequenceNumber());
     EasyMock.verify(mockConsumer);
   }
 
@@ -187,7 +257,7 @@ public class KafkaRecordSupplierHeaderFilterTest
     InDimFilter filter = new InDimFilter("environment", Collections.singletonList("production"), null);
     KafkaHeaderBasedFilteringConfig headerFilter = new KafkaHeaderBasedFilteringConfig(filter, null, null);
 
-    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter, "test-datasource");
+    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter);
 
     // First poll
     ConsumerRecord<byte[], byte[]> prodRecord1 = createRecord("topic", 0, 100L,
@@ -210,12 +280,18 @@ public class KafkaRecordSupplierHeaderFilterTest
     List<OrderedPartitionableRecord<KafkaTopicPartition, Long, KafkaRecordEntity>> results1 =
         recordSupplier.poll(1000);
 
-    Assert.assertEquals("First poll should include 1 record", 1, results1.size());
+    Assert.assertEquals("First poll should return 2 records (accepted + filtered marker)", 2, results1.size());
+    Assert.assertNotNull("Production record should have data", results1.get(0).getData());
+    Assert.assertFalse("Production record should have data", results1.get(0).getData().isEmpty());
+    Assert.assertTrue("Staging record should have empty data", results1.get(1).getData().isEmpty());
 
     List<OrderedPartitionableRecord<KafkaTopicPartition, Long, KafkaRecordEntity>> results2 =
         recordSupplier.poll(1000);
 
-    Assert.assertEquals("Second poll should include 1 record", 1, results2.size());
+    Assert.assertEquals("Second poll should return 2 records (accepted + filtered marker)", 2, results2.size());
+    Assert.assertNotNull("Production record should have data", results2.get(0).getData());
+    Assert.assertFalse("Production record should have data", results2.get(0).getData().isEmpty());
+    Assert.assertTrue("Staging record should have empty data", results2.get(1).getData().isEmpty());
     EasyMock.verify(mockConsumer);
   }
 
@@ -226,7 +302,7 @@ public class KafkaRecordSupplierHeaderFilterTest
     InDimFilter filter = new InDimFilter("environment", Collections.singletonList("production"), null);
     KafkaHeaderBasedFilteringConfig headerFilter = new KafkaHeaderBasedFilteringConfig(filter, null, null);
 
-    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter, "test-datasource");
+    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter);
 
     EasyMock.expect(mockConsumer.poll(EasyMock.anyObject(Duration.class)))
         .andReturn(createConsumerRecords(Collections.emptyList()));
@@ -236,6 +312,88 @@ public class KafkaRecordSupplierHeaderFilterTest
         recordSupplier.poll(1000);
 
     Assert.assertEquals("Empty poll should return empty list", 0, results.size());
+    EasyMock.verify(mockConsumer);
+  }
+
+  @Test
+  public void testAllRecordsFilteredStillAdvanceOffsets()
+  {
+    // CRITICAL TEST: Verify that when ALL records are filtered out, we still return
+    // filtered record markers to prevent infinite loop
+    InDimFilter filter = new InDimFilter("environment", Collections.singletonList("production"), null);
+    KafkaHeaderBasedFilteringConfig headerFilter = new KafkaHeaderBasedFilteringConfig(filter, null, null);
+
+    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter);
+
+    // All records have "staging" environment - none should pass the "production" filter
+    ConsumerRecord<byte[], byte[]> stagingRecord1 = createRecord("topic", 0, 100L,
+        headers("environment", "staging"));
+    ConsumerRecord<byte[], byte[]> stagingRecord2 = createRecord("topic", 0, 101L,
+        headers("environment", "staging"));
+    ConsumerRecord<byte[], byte[]> stagingRecord3 = createRecord("topic", 0, 102L,
+        headers("environment", "staging"));
+
+    EasyMock.expect(mockConsumer.poll(EasyMock.anyObject(Duration.class)))
+        .andReturn(createConsumerRecords(Arrays.asList(stagingRecord1, stagingRecord2, stagingRecord3)));
+    EasyMock.replay(mockConsumer);
+
+    List<OrderedPartitionableRecord<KafkaTopicPartition, Long, KafkaRecordEntity>> results =
+        recordSupplier.poll(1000);
+
+    // CRITICAL: Even though all records were filtered, we should still get record markers
+    // to advance offsets and prevent infinite loop
+    Assert.assertEquals("Should return filtered record markers for offset advancement", 3, results.size());
+
+    // Verify that all returned records have filtered record markers
+    for (OrderedPartitionableRecord<KafkaTopicPartition, Long, KafkaRecordEntity> result : results) {
+      Assert.assertTrue("Filtered record should have empty data", result.getData().isEmpty());
+    }
+
+    // Verify offsets are correct
+    Assert.assertEquals(100L, (long) results.get(0).getSequenceNumber());
+    Assert.assertEquals(101L, (long) results.get(1).getSequenceNumber());
+    Assert.assertEquals(102L, (long) results.get(2).getSequenceNumber());
+
+    EasyMock.verify(mockConsumer);
+  }
+
+  @Test
+  public void testMixedFilteredAndAcceptedRecords()
+  {
+    // Test that mix of filtered and accepted records works correctly
+    InDimFilter filter = new InDimFilter("environment", Collections.singletonList("production"), null);
+    KafkaHeaderBasedFilteringConfig headerFilter = new KafkaHeaderBasedFilteringConfig(filter, null, null);
+
+    recordSupplier = new KafkaRecordSupplier(mockConsumer, false, headerFilter);
+
+    ConsumerRecord<byte[], byte[]> prodRecord = createRecord("topic", 0, 100L,
+        headers("environment", "production"));
+    ConsumerRecord<byte[], byte[]> stagingRecord = createRecord("topic", 0, 101L,
+        headers("environment", "staging"));
+    ConsumerRecord<byte[], byte[]> prodRecord2 = createRecord("topic", 0, 102L,
+        headers("environment", "production"));
+
+    EasyMock.expect(mockConsumer.poll(EasyMock.anyObject(Duration.class)))
+        .andReturn(createConsumerRecords(Arrays.asList(prodRecord, stagingRecord, prodRecord2)));
+    EasyMock.replay(mockConsumer);
+
+    List<OrderedPartitionableRecord<KafkaTopicPartition, Long, KafkaRecordEntity>> results =
+        recordSupplier.poll(1000);
+
+    Assert.assertEquals("Should return all records (accepted + filtered markers)", 3, results.size());
+
+    // First record: accepted (has data)
+    Assert.assertNotNull("Accepted record should have data", results.get(0).getData());
+    Assert.assertEquals(100L, (long) results.get(0).getSequenceNumber());
+
+    // Second record: filtered (empty data for offset advancement marker)
+    Assert.assertTrue("Filtered record should have empty data", results.get(1).getData().isEmpty());
+    Assert.assertEquals(101L, (long) results.get(1).getSequenceNumber());
+
+    // Third record: accepted (has data)
+    Assert.assertNotNull("Accepted record should have data", results.get(2).getData());
+    Assert.assertEquals(102L, (long) results.get(2).getSequenceNumber());
+
     EasyMock.verify(mockConsumer);
   }
 
@@ -260,11 +418,19 @@ public class KafkaRecordSupplierHeaderFilterTest
     List<OrderedPartitionableRecord<KafkaTopicPartition, Long, KafkaRecordEntity>> results =
         recordSupplier.poll(1000);
 
-    Assert.assertEquals("Should only include production record", 1, results.size());
-    EasyMock.verify(mockConsumer);
+    Assert.assertEquals("Should return both records (accepted + filtered marker)", 2, results.size());
+
+    // First record: accepted
+    Assert.assertNotNull("Production record should have data", results.get(0).getData());
     Assert.assertEquals("topic1", results.get(0).getStream());
     Assert.assertTrue("Should be multi-topic partition",
         results.get(0).getPartitionId().isMultiTopicPartition());
+
+    // Second record: filtered marker
+    Assert.assertTrue("Staging record should have empty data", results.get(1).getData().isEmpty());
+    Assert.assertEquals("topic2", results.get(1).getStream());
+
+    EasyMock.verify(mockConsumer);
   }
 
   // Helper methods

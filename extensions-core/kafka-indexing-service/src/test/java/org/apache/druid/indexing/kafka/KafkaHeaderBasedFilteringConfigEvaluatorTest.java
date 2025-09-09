@@ -169,19 +169,18 @@ public class KafkaHeaderBasedFilteringConfigEvaluatorTest
   }
 
   @Test
-  public void testMetrics()
+  public void testRepeatedEvaluations()
   {
     InDimFilter filter = new InDimFilter("environment", Collections.singletonList("production"), null);
     evaluator = new KafkaHeaderBasedFilterEvaluator(new KafkaHeaderBasedFilteringConfig(filter, null, null));
 
-    // Test multiple evaluations to generate metrics
-    evaluator.shouldIncludeRecord(record); // should match
-    evaluator.shouldIncludeRecord(record); // should match
+    // Test multiple evaluations to verify consistent behavior
+    boolean result1 = evaluator.shouldIncludeRecord(record); // should match
+    boolean result2 = evaluator.shouldIncludeRecord(record); // should match
 
-    KafkaHeaderBasedFilterEvaluator.KafkaHeaderFilterMetrics metrics = evaluator.getMetrics();
-    Assert.assertTrue("Should have some evaluations", metrics.getTotalEvaluations() > 0);
-    Assert.assertEquals("Should have no filtered records (all matched)", 0, metrics.getFilteredRecords());
-    Assert.assertTrue("Should have some evaluation time", metrics.getAverageEvaluationTimeNanos() > 0);
+    Assert.assertTrue("First evaluation should match", result1);
+    Assert.assertTrue("Second evaluation should match", result2);
+    Assert.assertEquals("Results should be consistent", result1, result2);
   }
 
   @Test
