@@ -31,7 +31,6 @@ import org.apache.druid.metadata.MapStringDynamicConfigProvider;
 import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.Test;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,6 +53,7 @@ public class KafkaEmitterConfigTest
         "alertTest",
         "requestTest",
         "metadataTest",
+        null,
         "clusterNameTest",
         ImmutableMap.of("env", "preProd"),
         ImmutableMap.<String, String>builder()
@@ -77,6 +77,7 @@ public class KafkaEmitterConfigTest
         "alertTest",
         null,
         "metadataTest",
+        null,
         "clusterNameTest",
         null,
         ImmutableMap.<String, String>builder()
@@ -102,6 +103,7 @@ public class KafkaEmitterConfigTest
         null,
         null,
         "metadataTest",
+        null,
         "clusterNameTest",
         null,
         ImmutableMap.<String, String>builder()
@@ -125,6 +127,7 @@ public class KafkaEmitterConfigTest
         "alertTest",
         null,
         "metadataTest",
+        null,
         null,
         ImmutableMap.of("env", "preProd"),
         null,
