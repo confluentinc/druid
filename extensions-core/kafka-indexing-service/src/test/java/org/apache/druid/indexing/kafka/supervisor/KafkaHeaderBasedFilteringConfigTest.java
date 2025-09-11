@@ -20,9 +20,9 @@
 package org.apache.druid.indexing.kafka.supervisor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.error.DruidException;
 import org.apache.druid.jackson.DefaultObjectMapper;
+import org.apache.druid.math.expr.ExpressionProcessing;
 import org.apache.druid.query.filter.AndDimFilter;
 import org.apache.druid.query.filter.InDimFilter;
 import org.apache.druid.query.filter.NotDimFilter;
@@ -41,7 +41,7 @@ public class KafkaHeaderBasedFilteringConfigTest
   @BeforeClass
   public static void setUpStatic()
   {
-    NullHandling.initializeForTests();
+    ExpressionProcessing.initializeForTests();
   }
 
   @Test

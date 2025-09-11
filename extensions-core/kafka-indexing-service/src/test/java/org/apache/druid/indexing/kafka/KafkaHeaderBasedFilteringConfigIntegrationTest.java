@@ -20,9 +20,9 @@
 package org.apache.druid.indexing.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.indexing.kafka.supervisor.KafkaHeaderBasedFilteringConfig;
 import org.apache.druid.jackson.DefaultObjectMapper;
+import org.apache.druid.math.expr.ExpressionProcessing;
 import org.apache.druid.query.filter.InDimFilter;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -45,7 +45,7 @@ public class KafkaHeaderBasedFilteringConfigIntegrationTest
   @BeforeClass
   public static void setUpStatic()
   {
-    NullHandling.initializeForTests();
+    ExpressionProcessing.initializeForTests();
   }
 
   @Before

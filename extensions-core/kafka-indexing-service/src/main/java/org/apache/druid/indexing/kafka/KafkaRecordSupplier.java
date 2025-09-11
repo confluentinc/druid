@@ -210,6 +210,7 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
             kafkaPartition,
             record.offset(),
             Collections.emptyList(), // Empty list for filtered records
+            record.timestamp(),
             true // Mark as filtered
         ));
         continue;
@@ -221,7 +222,8 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
           kafkaPartition,
           record.offset(),
           record.value() == null ? null : ImmutableList.of(new KafkaRecordEntity(record)),
-          record.timestamp()
+          record.timestamp(),
+          false
       ));
     }
 

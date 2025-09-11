@@ -19,8 +19,8 @@
 
 package org.apache.druid.indexing.kafka;
 
-import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.indexing.kafka.supervisor.KafkaHeaderBasedFilteringConfig;
+import org.apache.druid.math.expr.ExpressionProcessing;
 import org.apache.druid.query.filter.InDimFilter;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -43,7 +43,7 @@ public class KafkaHeaderBasedFilteringConfigEvaluatorTest
   @BeforeClass
   public static void setUpStatic()
   {
-    NullHandling.initializeForTests();
+    ExpressionProcessing.initializeForTests();
   }
 
   @Before

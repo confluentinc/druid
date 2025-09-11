@@ -19,11 +19,11 @@
 
 package org.apache.druid.indexing.kafka;
 
-import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.kafka.KafkaRecordEntity;
 import org.apache.druid.data.input.kafka.KafkaTopicPartition;
 import org.apache.druid.indexing.kafka.supervisor.KafkaHeaderBasedFilteringConfig;
 import org.apache.druid.indexing.seekablestream.common.OrderedPartitionableRecord;
+import org.apache.druid.math.expr.ExpressionProcessing;
 import org.apache.druid.query.filter.InDimFilter;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -59,7 +59,7 @@ public class KafkaRecordSupplierHeaderFilterTest
   @BeforeClass
   public static void setUpClass()
   {
-    NullHandling.initializeForTests();
+    ExpressionProcessing.initializeForTests();
   }
 
   @Before
