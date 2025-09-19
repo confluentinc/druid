@@ -54,7 +54,7 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
   private final String topic;
   private final String topicPattern;
   private final boolean emitTimeLagMetrics;
-  private final KafkaHeaderBasedInclusionConfig headerBasedFilteringConfig;
+  private final KafkaHeaderBasedInclusionConfig headerBasedInclusionConfig;
 
   @JsonCreator
   public KafkaSupervisorIOConfig(
@@ -76,7 +76,7 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
       @JsonProperty("earlyMessageRejectionPeriod") Period earlyMessageRejectionPeriod,
       @JsonProperty("lateMessageRejectionStartDateTime") DateTime lateMessageRejectionStartDateTime,
       @JsonProperty("configOverrides") KafkaConfigOverrides configOverrides,
-      @JsonProperty("headerBasedFilteringConfig") KafkaHeaderBasedInclusionConfig headerBasedFilteringConfig,
+      @JsonProperty("headerBasedInclusionConfig") KafkaHeaderBasedInclusionConfig headerBasedInclusionConfig,
       @JsonProperty("idleConfig") IdleConfig idleConfig,
       @JsonProperty("stopTaskCount") Integer stopTaskCount,
       @Nullable @JsonProperty("emitTimeLagMetrics") Boolean emitTimeLagMetrics,
@@ -103,7 +103,7 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
         serverPriorityToReplicas
     );
 
-    this.headerBasedFilteringConfig = headerBasedFilteringConfig;
+    this.headerBasedInclusionConfig = headerBasedInclusionConfig;
     this.consumerProperties = Preconditions.checkNotNull(consumerProperties, "consumerProperties");
     Preconditions.checkNotNull(
         consumerProperties.get(BOOTSTRAP_SERVERS_KEY),
@@ -174,9 +174,9 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
 
   @JsonProperty
   @Nullable
-  public KafkaHeaderBasedInclusionConfig getHeaderBasedFilteringConfig()
+  public KafkaHeaderBasedInclusionConfig getheaderBasedInclusionConfig()
   {
-    return headerBasedFilteringConfig;
+    return headerBasedInclusionConfig;
   }
 
 
@@ -200,7 +200,7 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
            ", lateMessageRejectionPeriod=" + getLateMessageRejectionPeriod() +
            ", lateMessageRejectionStartDateTime=" + getLateMessageRejectionStartDateTime() +
            ", configOverrides=" + getConfigOverrides() +
-           ", headerBasedFilteringConfig=" + headerBasedFilteringConfig +
+           ", headerBasedInclusionConfig=" + headerBasedInclusionConfig +
            ", idleConfig=" + getIdleConfig() +
            ", stopTaskCount=" + getStopTaskCount() +
            '}';
