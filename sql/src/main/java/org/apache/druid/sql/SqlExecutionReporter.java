@@ -24,6 +24,7 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
+import org.apache.druid.query.DruidMetrics;
 import org.apache.druid.query.QueryInterruptedException;
 import org.apache.druid.query.QueryTimeoutException;
 import org.apache.druid.server.QueryStats;
@@ -121,6 +122,7 @@ public class SqlExecutionReporter
       }
       metricBuilder.setDimension("remoteAddress", StringUtils.nullToEmptyNonDruidDataString(remoteAddress));
       metricBuilder.setDimension("success", String.valueOf(success));
+      metricBuilder.setDimension(DruidMetrics.CODE, DruidMetrics.computeStatusCode(e));
       emitter.emit(metricBuilder.setMetric("sqlQuery/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs)));
       if (bytesWritten >= 0) {
         emitter.emit(metricBuilder.setMetric("sqlQuery/bytes", bytesWritten));
@@ -153,6 +155,7 @@ public class SqlExecutionReporter
       statsMap.put("query/rowsScanned", numRowsScanned);
       statsMap.put("query/cpu/time", cpuTimeInMillis);
       statsMap.put("success", success);
+      statsMap.put(DruidMetrics.CODE, DruidMetrics.computeStatusCode(e));
       Map<String, Object> queryContext = stmt.queryContext;
       if (plannerContext != null) {
         statsMap.put("identity", plannerContext.getAuthenticationResult().getIdentity());

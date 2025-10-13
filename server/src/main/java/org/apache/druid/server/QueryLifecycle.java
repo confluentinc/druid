@@ -417,6 +417,7 @@ public class QueryLifecycle
           StringUtils.nullToEmptyNonDruidDataString(remoteAddress)
       );
       queryMetrics.success(success);
+      queryMetrics.code(e);
       queryMetrics.reportQueryTime(queryTimeNs);
 
       if (bytesWritten >= 0) {
