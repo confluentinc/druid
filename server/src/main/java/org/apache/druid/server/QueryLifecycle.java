@@ -439,6 +439,7 @@ public class QueryLifecycle
       statsMap.put("query/rowsScanned", rowsScanned);
       statsMap.put("query/cpu/time", cpuConsumedMillis);
       statsMap.put("success", success);
+      statsMap.put(DruidMetrics.CODE, DruidMetrics.computeStatusCode(e));
 
       if (authenticationResult != null) {
         statsMap.put("identity", authenticationResult.getIdentity());
