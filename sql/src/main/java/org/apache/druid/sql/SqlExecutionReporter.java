@@ -124,7 +124,7 @@ public class SqlExecutionReporter
       metricBuilder.setDimension("success", String.valueOf(success));
 
       final int statusCode = DruidMetrics.computeStatusCode(e);
-      metricBuilder.setDimension(DruidMetrics.CODE, statusCode);
+      metricBuilder.setDimension(DruidMetrics.STATUS_CODE, statusCode);
 
       emitter.emit(metricBuilder.setMetric("sqlQuery/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs)));
       if (bytesWritten >= 0) {
@@ -158,7 +158,7 @@ public class SqlExecutionReporter
       statsMap.put("query/rowsScanned", numRowsScanned);
       statsMap.put("query/cpu/time", cpuTimeInMillis);
       statsMap.put("success", success);
-      statsMap.put(DruidMetrics.CODE, statusCode);
+      statsMap.put(DruidMetrics.STATUS_CODE, statusCode);
       Map<String, Object> queryContext = stmt.queryContext;
       if (plannerContext != null) {
         statsMap.put("identity", plannerContext.getAuthenticationResult().getIdentity());

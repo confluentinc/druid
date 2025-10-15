@@ -405,7 +405,7 @@ public class QueryResourceTest
     final Response response = expectSynchronousRequestFlow(SIMPLE_TIMESERIES_QUERY);
     Assert.assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
     emitter.verifyEmitted("query/time", 1);
-    Assert.assertEquals(500, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(500, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
 
     final ErrorResponse entity = (ErrorResponse) response.getEntity();
     MatcherAssert.assertThat(
@@ -515,7 +515,7 @@ public class QueryResourceTest
     Assert.assertEquals(fields.get(QueryResource.RESPONSE_COMPLETE_TRAILER_HEADER), "false");
 
     emitter.verifyEmitted("query/time", 1);
-    Assert.assertEquals(504, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(504, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test
@@ -597,7 +597,7 @@ public class QueryResourceTest
         actualOutput
     );
     emitter.verifyEmitted("query/time", 1);
-    Assert.assertEquals(400, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(400, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test
@@ -701,7 +701,7 @@ public class QueryResourceTest
     Assert.assertEquals("true", fields.get(QueryResource.RESPONSE_COMPLETE_TRAILER_HEADER));
 
     emitter.verifyEmitted("query/time", 1);
-    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
 
@@ -793,7 +793,7 @@ public class QueryResourceTest
             .expectMessageIs("something")
     );
     emitter.verifyEmitted("query/time", 1);
-    Assert.assertEquals(500, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(500, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test
@@ -855,7 +855,7 @@ public class QueryResourceTest
         testRequestLogger.getNativeQuerylogs().get(0).getQuery().getContext().get(overrideConfigKey)
     );
     emitter.verifyEmitted("query/time", 1);
-    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test
@@ -881,7 +881,7 @@ public class QueryResourceTest
         jsonMapper.readValue(response.baos.toByteArray(), QueryInterruptedException.class).toString()
     );
     emitter.verifyEmitted("query/time", 1);
-    Assert.assertEquals(500, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(500, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test
@@ -899,7 +899,7 @@ public class QueryResourceTest
 
     emitter.verifyEmitted("query/time", 1);
     Assert.assertEquals(1, queryResource.getSuccessfulQueryCount());
-    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test
@@ -915,7 +915,7 @@ public class QueryResourceTest
 
     emitter.verifyEmitted("query/time", 1);
     Assert.assertEquals(1, queryResource.getSuccessfulQueryCount());
-    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test
@@ -932,7 +932,7 @@ public class QueryResourceTest
 
     emitter.verifyEmitted("query/time", 1);
     Assert.assertEquals(1, queryResource.getSuccessfulQueryCount());
-    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test
@@ -951,7 +951,7 @@ public class QueryResourceTest
 
     emitter.verifyEmitted("query/time", 1);
     Assert.assertEquals(1, queryResource.getSuccessfulQueryCount());
-    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test
@@ -975,7 +975,7 @@ public class QueryResourceTest
 
     emitter.verifyEmitted("query/time", 1);
     Assert.assertEquals(1, queryResource.getSuccessfulQueryCount());
-    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test
@@ -998,7 +998,7 @@ public class QueryResourceTest
 
     emitter.verifyEmitted("query/time", 1);
     Assert.assertEquals(1, queryResource.getSuccessfulQueryCount());
-    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(200, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test
@@ -1209,7 +1209,7 @@ public class QueryResourceTest
     Assert.assertEquals(1, timeoutQueryResource.getTimedOutQueryCount());
 
     emitter.verifyEmitted("query/time", 1);
-    Assert.assertEquals(504, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.CODE));
+    Assert.assertEquals(504, emitter.getMetricEvents("query/time").get(0).toMap().get(DruidMetrics.STATUS_CODE));
   }
 
   @Test(timeout = 60_000L)
@@ -1514,7 +1514,7 @@ public class QueryResourceTest
     emitter.verifyEmitted("query/time", 3);
     Map<Integer, Long> codeFrequencies = emitter.getMetricEvents("query/time").stream()
                                                 .map(ServiceMetricEvent::toMap)
-                                                .map(map -> (int) map.get(DruidMetrics.CODE))
+                                                .map(map -> (int) map.get(DruidMetrics.STATUS_CODE))
                                                 .collect(Collectors.groupingBy(
                                                     code -> code,
                                                     Collectors.counting()
@@ -1594,7 +1594,7 @@ public class QueryResourceTest
     emitter.verifyEmitted("query/time", 3);
     Map<Integer, Long> codeFrequencies = emitter.getMetricEvents("query/time").stream()
                                                 .map(ServiceMetricEvent::toMap)
-                                                .map(map -> (int) map.get(DruidMetrics.CODE))
+                                                .map(map -> (int) map.get(DruidMetrics.STATUS_CODE))
                                                 .collect(Collectors.groupingBy(
                                                     code -> code,
                                                     Collectors.counting()
@@ -1671,7 +1671,7 @@ public class QueryResourceTest
     emitter.verifyEmitted("query/time", 3);
     Map<Integer, Long> codeFrequencies = emitter.getMetricEvents("query/time").stream()
                                                 .map(ServiceMetricEvent::toMap)
-                                                .map(map -> (int) map.get(DruidMetrics.CODE))
+                                                .map(map -> (int) map.get(DruidMetrics.STATUS_CODE))
                                                 .collect(Collectors.groupingBy(
                                                     code -> code,
                                                     Collectors.counting()
