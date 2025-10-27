@@ -68,7 +68,7 @@ public class EnrichResourceNameTransformTest
         "schema_registry_resource",
         ImmutableSet.of("fcp-"),
         "fcp_resource",
-        "ResourceNameLookup",
+        "resource_display_name_test_lookup",
         MOCK_LOOKUP_PROVIDER
     );
 
@@ -116,7 +116,7 @@ public class EnrichResourceNameTransformTest
         "schema_registry_resource",
         ImmutableSet.of(),
         "fcp_resource",
-        "ResourceNameLookup",
+        "resource_display_name_test_lookup",
         MOCK_LOOKUP_PROVIDER
     );
 
@@ -151,7 +151,7 @@ public class EnrichResourceNameTransformTest
         "schema_registry_resource",
         ImmutableSet.of(),
         "fcp_resource",
-        "ResourceNameLookup",
+        "resource_display_name_test_lookup",
         MOCK_LOOKUP_PROVIDER
     );
 
@@ -186,7 +186,7 @@ public class EnrichResourceNameTransformTest
         "schema_registry_resource",
         ImmutableSet.of(),
         "fcp_resource",
-        "ResourceNameLookup",
+        "resource_display_name_test_lookup",
         MOCK_LOOKUP_PROVIDER
     );
 
