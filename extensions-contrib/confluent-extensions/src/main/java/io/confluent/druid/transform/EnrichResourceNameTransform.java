@@ -49,8 +49,8 @@ public class EnrichResourceNameTransform implements Transform
       @JsonProperty("connectResourceIdDimension") final String connectResourceIdDimension,
       @JsonProperty("ksqlMetricPrefixes") final Set<String> ksqlMetricPrefixes,
       @JsonProperty("ksqlResourceIdDimension") final String ksqlResourceIdDimension,
-      @JsonProperty("schema_registryMetricPrefixes") final Set<String> schema_registryMetricPrefixes,
-      @JsonProperty("schema_registryResourceIdDimension") final String schema_registryResourceIdDimension,
+      @JsonProperty("schemaRegistryMetricPrefixes") final Set<String> schemaRegistryMetricPrefixes,
+      @JsonProperty("schemaRegistryResourceIdDimension") final String schemaRegistryResourceIdDimension,
       @JsonProperty("fcpMetricPrefixes") final Set<String> fcpMetricPrefixes,
       @JsonProperty("fcpResourceIdDimension") final String fcpResourceIdDimension,
       @JsonProperty("lookupName") final String lookupName,
@@ -67,8 +67,8 @@ public class EnrichResourceNameTransform implements Transform
     this.connectResourceIdDimension = Preconditions.checkNotNull(connectResourceIdDimension, "Specify connector-id column");
     this.ksqlPrefixes = ksqlMetricPrefixes != null ? ksqlMetricPrefixes : new HashSet<>();
     this.ksqlResourceIdDimension = Preconditions.checkNotNull(ksqlResourceIdDimension, "Specify ksql-id column");
-    this.schemaRegistryPrefixes = schema_registryMetricPrefixes != null ? schema_registryMetricPrefixes : new HashSet<>();
-    this.schemaRegistryResourceIdDimension = Preconditions.checkNotNull(schema_registryResourceIdDimension, "Specify sr-id column");
+    this.schemaRegistryPrefixes = schemaRegistryMetricPrefixes != null ? schemaRegistryMetricPrefixes : new HashSet<>();
+    this.schemaRegistryResourceIdDimension = Preconditions.checkNotNull(schemaRegistryResourceIdDimension, "Specify sr-id column");
     this.fcpPrefixes = fcpMetricPrefixes != null ? fcpMetricPrefixes : new HashSet<>();
     this.fcpResourceIdDimension = Preconditions.checkNotNull(fcpResourceIdDimension, "Specify fcp-id column");
     this.lookupName = Preconditions.checkNotNull(lookupName, "name");
@@ -86,6 +86,84 @@ public class EnrichResourceNameTransform implements Transform
   public String getMetricNameDimension()
   {
     return metricNameDimension;
+  }
+
+  @JsonProperty
+  public String getKafkaResourceIdDimension()
+  {
+    return kafkaResourceIdDimension;
+  }
+
+  @JsonProperty
+  public String getTableflowResourceIdDimension()
+  {
+    return tableflowResourceIdDimension;
+  }
+
+  @JsonProperty
+  public String getConnectNameDimension()
+  {
+    return connectResourceIdDimension;
+  }
+
+  @JsonProperty
+  public String getKsqlResourceIdDimension()
+  {
+    return ksqlResourceIdDimension;
+  }
+
+  @JsonProperty
+  public String getSchemaRegistryResourceIdDimension()
+  {
+    return schemaRegistryResourceIdDimension;
+  }
+
+  @JsonProperty
+  public String getFcpResourceIdDimension()
+  {
+    return fcpResourceIdDimension;
+  }
+
+  @JsonProperty
+  public String getLookupName()
+  {
+    return lookupName;
+  }
+
+  @JsonProperty
+  public Set<String> getKafkaPrefixes()
+  {
+    return kafkaPrefixes;
+  }
+
+  @JsonProperty
+  public Set<String> getTableflowPrefixes()
+  {
+    return tableflowPrefixes;
+  }
+
+  @JsonProperty
+  public Set<String> getConnectPrefixes()
+  {
+    return connectPrefixes;
+  }
+
+  @JsonProperty
+  public Set<String> getKsqlPrefixes()
+  {
+    return ksqlPrefixes;
+  }
+
+  @JsonProperty
+  public Set<String> getSchemaRegistryPrefixes()
+  {
+    return schemaRegistryPrefixes;
+  }
+
+  @JsonProperty
+  public Set<String> getFcpPrefixes()
+  {
+    return fcpPrefixes;
   }
 
   @Override
@@ -181,12 +259,12 @@ public class EnrichResourceNameTransform implements Transform
     }
     EnrichResourceNameTransform that = (EnrichResourceNameTransform) o;
     return name.equals(that.name) &&
-           Objects.equals(kafkaPrefixes, that.kafkaPrefixes) &&
-           Objects.equals(tableflowPrefixes, that.tableflowPrefixes) &&
-           Objects.equals(connectPrefixes, that.connectPrefixes) &&
-           Objects.equals(ksqlPrefixes, that.ksqlPrefixes) &&
-           Objects.equals(schemaRegistryPrefixes, that.schemaRegistryPrefixes) &&
-           Objects.equals(fcpPrefixes, that.fcpPrefixes);
+      Objects.equals(kafkaPrefixes, that.kafkaPrefixes) &&
+      Objects.equals(tableflowPrefixes, that.tableflowPrefixes) &&
+      Objects.equals(connectPrefixes, that.connectPrefixes) &&
+      Objects.equals(ksqlPrefixes, that.ksqlPrefixes) &&
+      Objects.equals(schemaRegistryPrefixes, that.schemaRegistryPrefixes) &&
+      Objects.equals(fcpPrefixes, that.fcpPrefixes);
   }
 
   @Override
@@ -200,13 +278,13 @@ public class EnrichResourceNameTransform implements Transform
   public String toString()
   {
     return "EnrichResourceNameTransform{" +
-           "name='" + name + '\'' +
-           ", kafkaMetricPrefixes=" + kafkaPrefixes +
-           ", tableflowMetricPrefixes=" + tableflowPrefixes +
-           ", connectMetricPrefixes=" + connectPrefixes +
-           ", ksqlMetricPrefixes=" + ksqlPrefixes +
-           ", schema_registryMetricPrefixes=" + schemaRegistryPrefixes +
-           ", fcpMetricPrefixes=" + fcpPrefixes +
-           '}';
+      "name='" + name + '\'' +
+      ", kafkaMetricPrefixes=" + kafkaPrefixes +
+      ", tableflowMetricPrefixes=" + tableflowPrefixes +
+      ", connectMetricPrefixes=" + connectPrefixes +
+      ", ksqlMetricPrefixes=" + ksqlPrefixes +
+      ", schemaRegistryMetricPrefixes=" + schemaRegistryPrefixes +
+      ", fcpMetricPrefixes=" + fcpPrefixes +
+      '}';
   }
 }
