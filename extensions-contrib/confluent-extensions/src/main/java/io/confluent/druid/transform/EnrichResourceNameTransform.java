@@ -25,6 +25,7 @@ public class EnrichResourceNameTransform implements Transform
   private final String metricNameDimension;
   private final Set<String> kafkaMetricPrefixes;
   private final String kafkaResourceIdDimension;
+  private final String kafkaResourceIdDerivedDimension;
   private final Set<String> tableflowMetricPrefixes;
   private final String tableflowResourceIdDimension;
   private final Set<String> connectMetricPrefixes;
@@ -43,6 +44,7 @@ public class EnrichResourceNameTransform implements Transform
       @JsonProperty("metricNameDimension") final String metricNameDimension,
       @JsonProperty("kafkaMetricPrefixes") final Set<String> kafkaMetricPrefixes,
       @JsonProperty("kafkaResourceIdDimension") final String kafkaResourceIdDimension,
+      @JsonProperty("kafkaResourceIdDerivedDimension") final String kafkaResourceIdDerivedDimension,
       @JsonProperty("tableflowMetricPrefixes") final Set<String> tableflowMetricPrefixes,
       @JsonProperty("tableflowResourceIdDimension") final String tableflowResourceIdDimension,
       @JsonProperty("connectMetricPrefixes") final Set<String> connectMetricPrefixes,
@@ -61,6 +63,7 @@ public class EnrichResourceNameTransform implements Transform
     this.metricNameDimension = Preconditions.checkNotNull(metricNameDimension, "Specify metric-name column : metricNameDimension");
     this.kafkaMetricPrefixes = kafkaMetricPrefixes != null ? kafkaMetricPrefixes : new HashSet<>();
     this.kafkaResourceIdDimension = Preconditions.checkNotNull(kafkaResourceIdDimension, "Specify kafka-id column : kafkaResourceIdDimension");
+    this.kafkaResourceIdDerivedDimension = Preconditions.checkNotNull(kafkaResourceIdDerivedDimension, "Specify parent kafka-id column : kafkaResourceIdDerivedDimension");
     this.tableflowMetricPrefixes = tableflowMetricPrefixes != null ? tableflowMetricPrefixes : new HashSet<>();
     this.tableflowResourceIdDimension = Preconditions.checkNotNull(tableflowResourceIdDimension, "Specify kafka-id column for tableflow metrics: tableflowResourceIdDimension");
     this.connectMetricPrefixes = connectMetricPrefixes != null ? connectMetricPrefixes : new HashSet<>();
@@ -92,6 +95,12 @@ public class EnrichResourceNameTransform implements Transform
   public String getKafkaResourceIdDimension()
   {
     return kafkaResourceIdDimension;
+  }
+
+  @JsonProperty
+  public String getKafkaResourceIdDerivedDimension()
+  {
+    return kafkaResourceIdDerivedDimension;
   }
 
   @JsonProperty
@@ -181,37 +190,37 @@ public class EnrichResourceNameTransform implements Transform
         // Check if metric name starts with any kafka prefix
         for (String prefix : kafkaMetricPrefixes) {
           if (metricName.startsWith(prefix)) {
-            return enrichNameFromLookup(row, lookup, kafkaResourceIdDimension, true);
+            return enrichNameFromLookup(row, lookup, kafkaResourceIdDimension, kafkaResourceIdDerivedDimension);
           }
         }
         // Check if metric name starts with any connect prefix
         for (String prefix : connectMetricPrefixes) {
           if (metricName.startsWith(prefix)) {
-            return enrichNameFromLookup(row, lookup, connectResourceIdDimension, false);
+            return enrichNameFromLookup(row, lookup, connectResourceIdDimension, null);
           }
         }
         // Check if metric name starts with any ksql prefix
         for (String prefix : ksqlMetricPrefixes) {
           if (metricName.startsWith(prefix)) {
-            return enrichNameFromLookup(row, lookup, ksqlResourceIdDimension, false);
+            return enrichNameFromLookup(row, lookup, ksqlResourceIdDimension, null);
           }
         }
         // Check if metric name starts with any schema registry prefix
         for (String prefix : schemaRegistryMetricPrefixes) {
           if (metricName.startsWith(prefix)) {
-            return enrichNameFromLookup(row, lookup, schemaRegistryResourceIdDimension, false);
+            return enrichNameFromLookup(row, lookup, schemaRegistryResourceIdDimension, null);
           }
         }
         // Check if metric name starts with any flink-compute-pool prefix
         for (String prefix : fcpMetricPrefixes) {
           if (metricName.startsWith(prefix)) {
-            return enrichNameFromLookup(row, lookup, fcpResourceIdDimension, false);
+            return enrichNameFromLookup(row, lookup, fcpResourceIdDimension, null);
           }
         }
         // Check if metric name starts with any tableflow prefix
         for (String prefix : tableflowMetricPrefixes) {
           if (metricName.startsWith(prefix)) {
-            return enrichNameFromLookup(row, lookup, tableflowResourceIdDimension, false);
+            return enrichNameFromLookup(row, lookup, tableflowResourceIdDimension, null);
           }
         }
       }
@@ -220,16 +229,20 @@ public class EnrichResourceNameTransform implements Transform
     };
   }
 
-  private String enrichNameFromLookup(Row row, LookupExtractor lookup, String resourceIdDimension, boolean isKafka)
+  private String enrichNameFromLookup(Row row, LookupExtractor lookup, String resourceIdDimension, String resourceIdDerivedDimension)
   {
     Object resourceIdObject = row.getRaw(resourceIdDimension);
-    if (resourceIdObject == null) {
-      return null;
+
+    String resourceId = resourceIdObject != null ? resourceIdObject.toString() : null;
+    if (resourceId == null) {
+      if (resourceIdDerivedDimension != null) {
+        resourceId = TenantUtils.extractTenant(resourceIdDerivedDimension);
+      }
+      if (resourceId == null) {
+        return null;
+      }
     }
-    String resourceId = resourceIdObject.toString();
-    if (isKafka) {
-      resourceId = TenantUtils.extractTenant(resourceId);
-    }
+
     return lookup.apply(resourceId);
   }
 
