@@ -74,7 +74,6 @@ public class EnrichResourceNameTransformTest
   @Test
   public void testKafkaMetricEnrichment()
   {
-    // Setup the lookup extractor factory for this test
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
@@ -112,10 +111,49 @@ public class EnrichResourceNameTransformTest
     Assert.assertEquals("My Kafka Cluster", kafkaRow.getRaw("resource_name"));
   }
 
+
+  @Test
+  public void testKafkaMetricWithDerivedResource()
+  {
+    when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+
+    EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
+            "resource_name",
+            "metric_name",
+            ImmutableSet.of("kafka-"),
+            "kafka_resource",
+            "kafka_resource_derived",
+            ImmutableSet.of(),
+            "tableflow_resource",
+            ImmutableSet.of(),
+            "connect_resource",
+            ImmutableSet.of(),
+            "ksql_resource",
+            ImmutableSet.of(),
+            "schema_registry_resource",
+            ImmutableSet.of(),
+            "fcp_resource",
+            "resource_display_name_test_lookup",
+            mockLookupProvider
+    );
+
+    TransformSpec transformSpec = new TransformSpec(null, ImmutableList.of(transform));
+    InputRowParser<Map<String, Object>> parser = transformSpec.decorate(PARSER);
+
+    // Test Kafka metric with only derived resource ID (kafka_resource is null)
+    Map<String, Object> kafkaRowData = ImmutableMap.<String, Object>builder()
+            .put("metric_name", "kafka-producer-metrics")
+            .put("kafka_resource_derived", "lkc-abc123_topic1")
+            .build();
+
+    InputRow kafkaRow = parser.parseBatch(kafkaRowData).get(0);
+    Assert.assertNotNull(kafkaRow);
+    Assert.assertEquals("My Kafka Cluster", kafkaRow.getRaw("resource_name"));
+  }
+
   @Test
   public void testConnectMetricEnrichment()
   {
-    // Setup the lookup extractor factory for this test
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
@@ -155,7 +193,6 @@ public class EnrichResourceNameTransformTest
   @Test
   public void testSchemaRegistryMetricEnrichment()
   {
-    // Setup the lookup extractor factory for this test
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
@@ -195,7 +232,6 @@ public class EnrichResourceNameTransformTest
   @Test
   public void testKSQLMetricEnrichment()
   {
-    // Setup the lookup extractor factory for this test
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
@@ -235,7 +271,6 @@ public class EnrichResourceNameTransformTest
   @Test
   public void testFCPMetricEnrichment()
   {
-    // Setup the lookup extractor factory for this test
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
@@ -312,7 +347,6 @@ public class EnrichResourceNameTransformTest
   @Test
   public void testLookupNotFound()
   {
-    // Setup mock to return empty lookup
     when(mockLookupProvider.get("nonexistent_lookup"))
         .thenReturn(Optional.empty());
 
@@ -353,7 +387,6 @@ public class EnrichResourceNameTransformTest
   @Test
   public void testLookupReturnsNull()
   {
-    // Setup the lookup extractor factory for this test
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
@@ -393,7 +426,6 @@ public class EnrichResourceNameTransformTest
   @Test
   public void testMultiplePrefixMatching()
   {
-    // Setup the lookup extractor factory for this test
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(

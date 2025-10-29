@@ -236,7 +236,10 @@ public class EnrichResourceNameTransform implements Transform
     String resourceId = resourceIdObject != null ? resourceIdObject.toString() : null;
     if (resourceId == null) {
       if (resourceIdDerivedDimension != null) {
-        resourceId = TenantUtils.extractTenant(resourceIdDerivedDimension);
+        Object resourceIdDerivedObject = row.getRaw(resourceIdDerivedDimension);
+        if (resourceIdDerivedObject != null) {
+          resourceId = TenantUtils.extractTenant(resourceIdDerivedObject.toString());
+        }
       }
       if (resourceId == null) {
         return null;
