@@ -394,7 +394,7 @@
             <dependency>
                 <groupId>com.ibm.icu</groupId>
                 <artifactId>icu4j</artifactId>
-                <version>54.1.1</version>
+                <version>78.1</version>
             </dependency>
             <dependency>
                 <groupId>org.mozilla</groupId>
