@@ -723,4 +723,277 @@ public class EnrichResourceNameTransformTest
     Assert.assertTrue(toString.contains("schemaRegistryMetricPrefixes"));
     Assert.assertTrue(toString.contains("fcpMetricPrefixes"));
   }
+
+  @Test
+  public void testConstructorWithNullResourceIdDimensions()
+  {
+    // Test that constructor accepts null values for resource ID dimensions (defaults to empty strings)
+    EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of("kafka-"),
+        null,  // kafkaResourceIdDimension
+        null,  // kafkaResourceIdDerivedDimension
+        ImmutableSet.of(),
+        null,  // tableflowResourceIdDimension
+        ImmutableSet.of(),
+        null,  // connectResourceIdDimension
+        ImmutableSet.of(),
+        null,  // clientConnectorResourceIdDimension
+        ImmutableSet.of(),
+        null,  // ksqlResourceIdDimension
+        ImmutableSet.of(),
+        null,  // schemaRegistryResourceIdDimension
+        ImmutableSet.of(),
+        null,  // fcpResourceIdDimension
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+
+    Assert.assertNotNull(transform);
+    Assert.assertEquals("", transform.getKafkaResourceIdDimension());
+    Assert.assertEquals("", transform.getKafkaResourceIdDerivedDimension());
+    Assert.assertEquals("", transform.getTableflowResourceIdDimension());
+    Assert.assertEquals("", transform.getConnectResourceIdDimension());
+    Assert.assertEquals("", transform.getClientConnectorResourceIdDimension());
+    Assert.assertEquals("", transform.getKsqlResourceIdDimension());
+    Assert.assertEquals("", transform.getSchemaRegistryResourceIdDimension());
+    Assert.assertEquals("", transform.getFcpResourceIdDimension());
+  }
+
+  @Test
+  public void testConstructorWithNullMetricPrefixSets()
+  {
+    // Test that constructor accepts null values for metric prefix sets (defaults to empty HashSets)
+    EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        null,  // kafkaMetricPrefixes
+        "kafka_resource",
+        "kafka_resource_derived",
+        null,  // tableflowMetricPrefixes
+        "tableflow_resource",
+        null,  // connectMetricPrefixes
+        "connect_resource",
+        null,  // clientConnectorMetricPrefixes
+        "client_connector_resource",
+        null,  // ksqlMetricPrefixes
+        "ksql_resource",
+        null,  // schemaRegistryMetricPrefixes
+        "schema_registry_resource",
+        null,  // fcpMetricPrefixes
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+
+    Assert.assertNotNull(transform);
+    Assert.assertNotNull(transform.getKafkaMetricPrefixes());
+    Assert.assertTrue(transform.getKafkaMetricPrefixes().isEmpty());
+    Assert.assertNotNull(transform.getTableflowMetricPrefixes());
+    Assert.assertTrue(transform.getTableflowMetricPrefixes().isEmpty());
+    Assert.assertNotNull(transform.getConnectMetricPrefixes());
+    Assert.assertTrue(transform.getConnectMetricPrefixes().isEmpty());
+    Assert.assertNotNull(transform.getClientConnectorMetricPrefixes());
+    Assert.assertTrue(transform.getClientConnectorMetricPrefixes().isEmpty());
+    Assert.assertNotNull(transform.getKsqlMetricPrefixes());
+    Assert.assertTrue(transform.getKsqlMetricPrefixes().isEmpty());
+    Assert.assertNotNull(transform.getSchemaRegistryMetricPrefixes());
+    Assert.assertTrue(transform.getSchemaRegistryMetricPrefixes().isEmpty());
+    Assert.assertNotNull(transform.getFcpMetricPrefixes());
+    Assert.assertTrue(transform.getFcpMetricPrefixes().isEmpty());
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testConstructorWithNullName()
+  {
+    // Test that constructor throws exception when name is null
+    new EnrichResourceNameTransform(
+        null,  // name
+        "metric_name",
+        ImmutableSet.of(),
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of(),
+        "tableflow_resource",
+        ImmutableSet.of(),
+        "connect_resource",
+        ImmutableSet.of(),
+        "client_connector_resource",
+        ImmutableSet.of(),
+        "ksql_resource",
+        ImmutableSet.of(),
+        "schema_registry_resource",
+        ImmutableSet.of(),
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testConstructorWithNullMetricNameDimension()
+  {
+    // Test that constructor throws exception when metricNameDimension is null
+    new EnrichResourceNameTransform(
+        "resource_name",
+        null,  // metricNameDimension
+        ImmutableSet.of(),
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of(),
+        "tableflow_resource",
+        ImmutableSet.of(),
+        "connect_resource",
+        ImmutableSet.of(),
+        "client_connector_resource",
+        ImmutableSet.of(),
+        "ksql_resource",
+        ImmutableSet.of(),
+        "schema_registry_resource",
+        ImmutableSet.of(),
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testConstructorWithNullLookupName()
+  {
+    // Test that constructor throws exception when lookupName is null
+    new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of(),
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of(),
+        "tableflow_resource",
+        ImmutableSet.of(),
+        "connect_resource",
+        ImmutableSet.of(),
+        "client_connector_resource",
+        ImmutableSet.of(),
+        "ksql_resource",
+        ImmutableSet.of(),
+        "schema_registry_resource",
+        ImmutableSet.of(),
+        "fcp_resource",
+        null,  // lookupName
+        mockLookupProvider
+    );
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testConstructorWithNullLookupProvider()
+  {
+    // Test that constructor throws exception when lookupProvider is null
+    new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of(),
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of(),
+        "tableflow_resource",
+        ImmutableSet.of(),
+        "connect_resource",
+        ImmutableSet.of(),
+        "client_connector_resource",
+        ImmutableSet.of(),
+        "ksql_resource",
+        ImmutableSet.of(),
+        "schema_registry_resource",
+        ImmutableSet.of(),
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        null  // lookupProvider
+    );
+  }
+
+  @Test
+  public void testTransformWithEmptyResourceIdDimensions()
+  {
+    // Test that transform works correctly with empty resource ID dimensions
+    when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+
+    EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of("kafka-"),
+        "",  // empty kafkaResourceIdDimension
+        "",  // empty kafkaResourceIdDerivedDimension
+        ImmutableSet.of(),
+        "",  // empty tableflowResourceIdDimension
+        ImmutableSet.of(),
+        "",  // empty connectResourceIdDimension
+        ImmutableSet.of(),
+        "",  // empty clientConnectorResourceIdDimension
+        ImmutableSet.of(),
+        "",  // empty ksqlResourceIdDimension
+        ImmutableSet.of(),
+        "",  // empty schemaRegistryResourceIdDimension
+        ImmutableSet.of(),
+        "",  // empty fcpResourceIdDimension
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+
+    TransformSpec transformSpec = new TransformSpec(null, ImmutableList.of(transform));
+    InputRowParser<Map<String, Object>> parser = transformSpec.decorate(PARSER);
+
+    // Test metric that matches prefix but has empty resource ID dimension
+    Map<String, Object> rowData = ImmutableMap.<String, Object>builder()
+        .put("metric_name", "kafka-producer-metrics")
+        .build();
+
+    InputRow row = parser.parseBatch(rowData).get(0);
+    Assert.assertNotNull(row);
+    // Should return null since resource ID dimension is empty
+    Assert.assertNull(row.getRaw("resource_name"));
+  }
+
+  @Test
+  public void testTransformWithEmptyMetricPrefixSets()
+  {
+    // Test that transform works correctly with empty metric prefix sets
+    when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+
+    EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of(),  // empty kafkaMetricPrefixes
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of(),  // empty tableflowMetricPrefixes
+        "tableflow_resource",
+        ImmutableSet.of(),  // empty connectMetricPrefixes
+        "connect_resource",
+        ImmutableSet.of(),  // empty clientConnectorMetricPrefixes
+        "client_connector_resource",
+        ImmutableSet.of(),  // empty ksqlMetricPrefixes
+        "ksql_resource",
+        ImmutableSet.of(),  // empty schemaRegistryMetricPrefixes
+        "schema_registry_resource",
+        ImmutableSet.of(),  // empty fcpMetricPrefixes
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+
+    TransformSpec transformSpec = new TransformSpec(null, ImmutableList.of(transform));
+    InputRowParser<Map<String, Object>> parser = transformSpec.decorate(PARSER);
+
+    // Test metric that doesn't match any prefix (all prefix sets are empty)
+    Map<String, Object> rowData = ImmutableMap.<String, Object>builder()
+        .put("metric_name", "kafka-producer-metrics")
+        .put("kafka_resource", "lkc-abc123")
+        .build();
+
+    InputRow row = parser.parseBatch(rowData).get(0);
+    Assert.assertNotNull(row);
+    // Should return null since no prefix matches (empty prefix sets)
+    Assert.assertNull(row.getRaw("resource_name"));
+  }
 }

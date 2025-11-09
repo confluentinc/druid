@@ -66,20 +66,20 @@ public class EnrichResourceNameTransform implements Transform
     this.name = Preconditions.checkNotNull(name, "Specify output-column name");
     this.metricNameDimension = Preconditions.checkNotNull(metricNameDimension, "Specify metric-name column : metricNameDimension");
     this.kafkaMetricPrefixes = kafkaMetricPrefixes != null ? kafkaMetricPrefixes : new HashSet<>();
-    this.kafkaResourceIdDimension = Preconditions.checkNotNull(kafkaResourceIdDimension, "Specify kafka-id column : kafkaResourceIdDimension");
-    this.kafkaResourceIdDerivedDimension = Preconditions.checkNotNull(kafkaResourceIdDerivedDimension, "Specify parent kafka-id column : kafkaResourceIdDerivedDimension");
+    this.kafkaResourceIdDimension = kafkaResourceIdDimension != null ? kafkaResourceIdDimension : "";
+    this.kafkaResourceIdDerivedDimension = kafkaResourceIdDerivedDimension != null ? kafkaResourceIdDerivedDimension : "";
     this.tableflowMetricPrefixes = tableflowMetricPrefixes != null ? tableflowMetricPrefixes : new HashSet<>();
-    this.tableflowResourceIdDimension = Preconditions.checkNotNull(tableflowResourceIdDimension, "Specify kafka-id column for tableflow metrics: tableflowResourceIdDimension");
+    this.tableflowResourceIdDimension = tableflowResourceIdDimension != null ? tableflowResourceIdDimension : "";
     this.connectMetricPrefixes = connectMetricPrefixes != null ? connectMetricPrefixes : new HashSet<>();
-    this.connectResourceIdDimension = Preconditions.checkNotNull(connectResourceIdDimension, "Specify connector-id column : connectResourceIdDimension");
+    this.connectResourceIdDimension = connectResourceIdDimension != null ? connectResourceIdDimension : "";
     this.clientConnectorMetricPrefixes = clientConnectorMetricPrefixes != null ? clientConnectorMetricPrefixes : new HashSet<>();
-    this.clientConnectorResourceIdDimension = Preconditions.checkNotNull(clientConnectorResourceIdDimension, "Specify client-connector-id column : clientConnectorResourceIdDimension");
+    this.clientConnectorResourceIdDimension = clientConnectorResourceIdDimension != null ? clientConnectorResourceIdDimension : "";
     this.ksqlMetricPrefixes = ksqlMetricPrefixes != null ? ksqlMetricPrefixes : new HashSet<>();
-    this.ksqlResourceIdDimension = Preconditions.checkNotNull(ksqlResourceIdDimension, "Specify ksql-id column : ksqlResourceIdDimension");
+    this.ksqlResourceIdDimension = ksqlResourceIdDimension != null ? ksqlResourceIdDimension : "";
     this.schemaRegistryMetricPrefixes = schemaRegistryMetricPrefixes != null ? schemaRegistryMetricPrefixes : new HashSet<>();
-    this.schemaRegistryResourceIdDimension = Preconditions.checkNotNull(schemaRegistryResourceIdDimension, "Specify sr-id column : schemaRegistryResourceIdDimension");
+    this.schemaRegistryResourceIdDimension = schemaRegistryResourceIdDimension != null ? schemaRegistryResourceIdDimension : "";
     this.fcpMetricPrefixes = fcpMetricPrefixes != null ? fcpMetricPrefixes : new HashSet<>();
-    this.fcpResourceIdDimension = Preconditions.checkNotNull(fcpResourceIdDimension, "Specify fcp-id column : fcpResourceIdDimension");
+    this.fcpResourceIdDimension = fcpResourceIdDimension != null ? fcpResourceIdDimension : "";
     this.lookupName = Preconditions.checkNotNull(lookupName, "Specify lookup-name");
     this.lookupProvider = Preconditions.checkNotNull(lookupProvider, "Specify lookupProvider");
   }
