@@ -66,6 +66,8 @@ public class EnrichResourceNameTransformTest
     // Setup lookup data
     when(mockLookupExtractor.apply("lkc-abc123")).thenReturn("My Kafka Cluster");
     when(mockLookupExtractor.apply("lcc-xyz789")).thenReturn("My Connect Cluster");
+    when(mockLookupExtractor.apply("lcc-client-connector-123")).thenReturn("My Client Connector");
+    when(mockLookupExtractor.apply("tableflow-123")).thenReturn("My Tableflow");
     when(mockLookupExtractor.apply("lsrc-def456")).thenReturn("My Schema Registry");
     when(mockLookupExtractor.apply("ksql-ghi789")).thenReturn("My KSQL Cluster");
     when(mockLookupExtractor.apply("fcp-jkl012")).thenReturn("My Flink Compute Pool");
@@ -86,6 +88,8 @@ public class EnrichResourceNameTransformTest
         "tableflow_resource",
         ImmutableSet.of(),
         "connect_resource",
+        ImmutableSet.of(),
+        "client_connector_resource",
         ImmutableSet.of(),
         "ksql_resource",
         ImmutableSet.of(),
@@ -128,6 +132,8 @@ public class EnrichResourceNameTransformTest
             ImmutableSet.of(),
             "connect_resource",
             ImmutableSet.of(),
+            "client_connector_resource",
+            ImmutableSet.of(),
             "ksql_resource",
             ImmutableSet.of(),
             "schema_registry_resource",
@@ -166,6 +172,8 @@ public class EnrichResourceNameTransformTest
         "tableflow_resource",
         ImmutableSet.of("connect-", "kafka-connect-"),
         "connect_resource",
+        ImmutableSet.of(),
+        "client_connector_resource",
         ImmutableSet.of(),
         "ksql_resource",
         ImmutableSet.of(),
@@ -206,6 +214,8 @@ public class EnrichResourceNameTransformTest
         ImmutableSet.of(),
         "connect_resource",
         ImmutableSet.of(),
+        "client_connector_resource",
+        ImmutableSet.of(),
         "ksql_resource",
         ImmutableSet.of("schema_registry-"),
         "schema_registry_resource",
@@ -244,6 +254,8 @@ public class EnrichResourceNameTransformTest
         "tableflow_resource",
         ImmutableSet.of(),
         "connect_resource",
+        ImmutableSet.of(),
+        "client_connector_resource",
         ImmutableSet.of("ksql-"),
         "ksql_resource",
         ImmutableSet.of(),
@@ -284,6 +296,8 @@ public class EnrichResourceNameTransformTest
         ImmutableSet.of(),
         "connect_resource",
         ImmutableSet.of(),
+        "client_connector_resource",
+        ImmutableSet.of(),
         "ksql_resource",
         ImmutableSet.of(),
         "schema_registry_resource",
@@ -320,6 +334,8 @@ public class EnrichResourceNameTransformTest
         "tableflow_resource",
         ImmutableSet.of(),
         "connect_resource",
+        ImmutableSet.of(),
+        "client_connector_resource",
         ImmutableSet.of(),
         "ksql_resource",
         ImmutableSet.of(),
@@ -361,6 +377,8 @@ public class EnrichResourceNameTransformTest
         ImmutableSet.of(),
         "connect_resource",
         ImmutableSet.of(),
+        "client_connector_resource",
+        ImmutableSet.of(),
         "ksql_resource",
         ImmutableSet.of(),
         "schema_registry_resource",
@@ -400,6 +418,8 @@ public class EnrichResourceNameTransformTest
         ImmutableSet.of(),
         "connect_resource",
         ImmutableSet.of(),
+        "client_connector_resource",
+        ImmutableSet.of(),
         "ksql_resource",
         ImmutableSet.of(),
         "schema_registry_resource",
@@ -438,6 +458,8 @@ public class EnrichResourceNameTransformTest
         "tableflow_resource",
         ImmutableSet.of(),
         "connect_resource",
+        ImmutableSet.of(),
+        "client_connector_resource",
         ImmutableSet.of(),
         "ksql_resource",
         ImmutableSet.of(),
@@ -485,6 +507,8 @@ public class EnrichResourceNameTransformTest
         ImmutableSet.of(),
         "connect_resource",
         ImmutableSet.of(),
+        "client_connector_resource",
+        ImmutableSet.of(),
         "ksql_resource",
         ImmutableSet.of(),
         "schema_registry_resource",
@@ -500,8 +524,203 @@ public class EnrichResourceNameTransformTest
     Assert.assertTrue(requiredColumns.contains("kafka_resource"));
     Assert.assertTrue(requiredColumns.contains("tableflow_resource"));
     Assert.assertTrue(requiredColumns.contains("connect_resource"));
+    Assert.assertTrue(requiredColumns.contains("client_connector_resource"));
     Assert.assertTrue(requiredColumns.contains("ksql_resource"));
     Assert.assertTrue(requiredColumns.contains("schema_registry_resource"));
     Assert.assertTrue(requiredColumns.contains("fcp_resource"));
+  }
+
+  @Test
+  public void testClientConnectorMetricEnrichment()
+  {
+    when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+
+    EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of(),
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of(),
+        "tableflow_resource",
+        ImmutableSet.of(),
+        "connect_resource",
+        ImmutableSet.of("client-connector-", "client_connector-"),
+        "client_connector_resource",
+        ImmutableSet.of(),
+        "ksql_resource",
+        ImmutableSet.of(),
+        "schema_registry_resource",
+        ImmutableSet.of(),
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+
+    TransformSpec transformSpec = new TransformSpec(null, ImmutableList.of(transform));
+    InputRowParser<Map<String, Object>> parser = transformSpec.decorate(PARSER);
+
+    // Test Client Connector metric with client connector resource ID lookup
+    Map<String, Object> clientConnectorRowData = ImmutableMap.<String, Object>builder()
+        .put("metric_name", "client-connector-metrics")
+        .put("client_connector_resource", "lcc-client-connector-123")
+        .build();
+
+    InputRow clientConnectorRow = parser.parseBatch(clientConnectorRowData).get(0);
+    Assert.assertNotNull(clientConnectorRow);
+    Assert.assertEquals("My Client Connector", clientConnectorRow.getRaw("resource_name"));
+  }
+
+  @Test
+  public void testTableflowMetricEnrichment()
+  {
+    when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+
+    EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of(),
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of("tableflow-"),
+        "tableflow_resource",
+        ImmutableSet.of(),
+        "connect_resource",
+        ImmutableSet.of(),
+        "client_connector_resource",
+        ImmutableSet.of(),
+        "ksql_resource",
+        ImmutableSet.of(),
+        "schema_registry_resource",
+        ImmutableSet.of(),
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+
+    TransformSpec transformSpec = new TransformSpec(null, ImmutableList.of(transform));
+    InputRowParser<Map<String, Object>> parser = transformSpec.decorate(PARSER);
+
+    // Test Tableflow metric with tableflow resource ID lookup
+    Map<String, Object> tableflowRowData = ImmutableMap.<String, Object>builder()
+        .put("metric_name", "tableflow-metrics")
+        .put("tableflow_resource", "tableflow-123")
+        .build();
+
+    InputRow tableflowRow = parser.parseBatch(tableflowRowData).get(0);
+    Assert.assertNotNull(tableflowRow);
+    Assert.assertEquals("My Tableflow", tableflowRow.getRaw("resource_name"));
+  }
+
+  @Test
+  public void testEquals()
+  {
+    EnrichResourceNameTransform transform1 = new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of("kafka-"),
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of("tableflow-"),
+        "tableflow_resource",
+        ImmutableSet.of("connect-"),
+        "connect_resource",
+        ImmutableSet.of("client-connector-"),
+        "client_connector_resource",
+        ImmutableSet.of("ksql-"),
+        "ksql_resource",
+        ImmutableSet.of("schema_registry-"),
+        "schema_registry_resource",
+        ImmutableSet.of("fcp-"),
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+
+    EnrichResourceNameTransform transform2 = new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of("kafka-"),
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of("tableflow-"),
+        "tableflow_resource",
+        ImmutableSet.of("connect-"),
+        "connect_resource",
+        ImmutableSet.of("client-connector-"),
+        "client_connector_resource",
+        ImmutableSet.of("ksql-"),
+        "ksql_resource",
+        ImmutableSet.of("schema_registry-"),
+        "schema_registry_resource",
+        ImmutableSet.of("fcp-"),
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+
+    EnrichResourceNameTransform transform3 = new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of("kafka-", "kafka_"),
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of("tableflow-"),
+        "tableflow_resource",
+        ImmutableSet.of("connect-"),
+        "connect_resource",
+        ImmutableSet.of("client-connector-"),
+        "client_connector_resource",
+        ImmutableSet.of("ksql-"),
+        "ksql_resource",
+        ImmutableSet.of("schema_registry-"),
+        "schema_registry_resource",
+        ImmutableSet.of("fcp-"),
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+
+    Assert.assertEquals(transform1, transform2);
+    Assert.assertNotEquals(transform1, transform3);
+    Assert.assertEquals(transform1.hashCode(), transform2.hashCode());
+  }
+
+  @Test
+  public void testToString()
+  {
+    EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of("kafka-"),
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of("tableflow-"),
+        "tableflow_resource",
+        ImmutableSet.of("connect-"),
+        "connect_resource",
+        ImmutableSet.of("client-connector-"),
+        "client_connector_resource",
+        ImmutableSet.of("ksql-"),
+        "ksql_resource",
+        ImmutableSet.of("schema_registry-"),
+        "schema_registry_resource",
+        ImmutableSet.of("fcp-"),
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+
+    String toString = transform.toString();
+    Assert.assertNotNull(toString);
+    Assert.assertTrue(toString.contains("EnrichResourceNameTransform"));
+    Assert.assertTrue(toString.contains("resource_name"));
+    Assert.assertTrue(toString.contains("kafkaMetricPrefixes"));
+    Assert.assertTrue(toString.contains("tableflowMetricPrefixes"));
+    Assert.assertTrue(toString.contains("connectMetricPrefixes"));
+    Assert.assertTrue(toString.contains("clientConnectorMetricPrefixes"));
+    Assert.assertTrue(toString.contains("ksqlMetricPrefixes"));
+    Assert.assertTrue(toString.contains("schemaRegistryMetricPrefixes"));
+    Assert.assertTrue(toString.contains("fcpMetricPrefixes"));
   }
 }
