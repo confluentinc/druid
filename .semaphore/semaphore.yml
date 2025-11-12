@@ -2,7 +2,7 @@ version: v1.0
 name: Apache Druid
 agent:
   machine:
-    type: s1-prod-ubuntu24-04-amd64-3
+    type: s1-prod-ubuntu24-04-arm64-1
 execution_time_limit:
   hours: 5
 blocks:
