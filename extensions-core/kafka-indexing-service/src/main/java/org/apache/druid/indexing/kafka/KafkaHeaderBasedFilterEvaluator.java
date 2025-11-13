@@ -21,7 +21,7 @@ package org.apache.druid.indexing.kafka;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import org.apache.druid.indexing.kafka.supervisor.KafkaHeaderBasedInclusionConfig;
+import org.apache.druid.indexing.kafka.supervisor.KafkaHeaderBasedFilterConfig;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.filter.Filter;
 import org.apache.druid.query.filter.InDimFilter;
@@ -48,14 +48,14 @@ public class KafkaHeaderBasedFilterEvaluator
   private final Cache<ByteBuffer, String> stringDecodingCache;
   private final Set<String> filterValues;
 
-  public KafkaHeaderBasedFilterEvaluator(KafkaHeaderBasedInclusionConfig headerBasedInclusionConfig)
+  public KafkaHeaderBasedFilterEvaluator(KafkaHeaderBasedFilterConfig headerBasedFilterConfig)
   {
-    this.encoding = Charset.forName(headerBasedInclusionConfig.getEncoding());
+    this.encoding = Charset.forName(headerBasedFilterConfig.getEncoding());
     this.stringDecodingCache = Caffeine.newBuilder()
-        .maximumSize(headerBasedInclusionConfig.getStringDecodingCacheSize())
+        .maximumSize(headerBasedFilterConfig.getStringDecodingCacheSize())
         .build();
 
-    this.filter = headerBasedInclusionConfig.getFilter().toFilter();
+    this.filter = headerBasedFilterConfig.getFilter().toFilter();
     if (!(filter instanceof InDimFilter)) {
       // Only InDimFilter supported
       throw new IllegalStateException("Unsupported filter type: " + filter.getClass().getSimpleName());
@@ -66,9 +66,9 @@ public class KafkaHeaderBasedFilterEvaluator
     this.filterValues = new HashSet<>(inFilter.getValues());
 
     log.info("Initialized Kafka header filter with encoding [%s] - direct evaluation for [%s] with Caffeine string cache (max %d entries) and HashSet lookup (%d filter values)",
-             headerBasedInclusionConfig.getEncoding(),
+             headerBasedFilterConfig.getEncoding(),
              this.filter.getClass().getSimpleName(),
-             headerBasedInclusionConfig.getStringDecodingCacheSize(),
+             headerBasedFilterConfig.getStringDecodingCacheSize(),
              this.filterValues.size());
   }
 
