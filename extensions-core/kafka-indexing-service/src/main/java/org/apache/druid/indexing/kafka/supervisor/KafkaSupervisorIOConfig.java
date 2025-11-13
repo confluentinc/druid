@@ -52,7 +52,7 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
   private final KafkaConfigOverrides configOverrides;
   private final String topic;
   private final String topicPattern;
-  private final KafkaHeaderBasedInclusionConfig headerBasedInclusionConfig;
+  private final KafkaHeaderBasedFilteringConfig headerBasedFilteringConfig;
 
   @JsonCreator
   public KafkaSupervisorIOConfig(
@@ -73,7 +73,7 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
       @JsonProperty("earlyMessageRejectionPeriod") Period earlyMessageRejectionPeriod,
       @JsonProperty("lateMessageRejectionStartDateTime") DateTime lateMessageRejectionStartDateTime,
       @JsonProperty("configOverrides") KafkaConfigOverrides configOverrides,
-      @JsonProperty("headerBasedInclusionConfig") KafkaHeaderBasedInclusionConfig headerBasedInclusionConfig,
+      @JsonProperty("headerBasedFilteringConfig") KafkaHeaderBasedFilteringConfig headerBasedFilteringConfig,
       @JsonProperty("idleConfig") IdleConfig idleConfig,
       @JsonProperty("stopTaskCount") Integer stopTaskCount
   )
@@ -96,7 +96,7 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
         stopTaskCount
     );
 
-    this.headerBasedInclusionConfig = headerBasedInclusionConfig;
+    this.headerBasedFilteringConfig = headerBasedFilteringConfig;
     this.consumerProperties = Preconditions.checkNotNull(consumerProperties, "consumerProperties");
     Preconditions.checkNotNull(
         consumerProperties.get(BOOTSTRAP_SERVERS_KEY),
@@ -157,9 +157,9 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
 
   @JsonProperty
   @Nullable
-  public KafkaHeaderBasedInclusionConfig getheaderBasedInclusionConfig()
+  public KafkaHeaderBasedFilteringConfig getHeaderBasedFilteringConfig()
   {
-    return headerBasedInclusionConfig;
+    return headerBasedFilteringConfig;
   }
 
 
@@ -183,7 +183,7 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
            ", lateMessageRejectionPeriod=" + getLateMessageRejectionPeriod() +
            ", lateMessageRejectionStartDateTime=" + getLateMessageRejectionStartDateTime() +
            ", configOverrides=" + getConfigOverrides() +
-           ", headerBasedInclusionConfig=" + headerBasedInclusionConfig +
+           ", headerBasedFilteringConfig=" + headerBasedFilteringConfig +
            ", idleConfig=" + getIdleConfig() +
            ", stopTaskCount=" + getStopTaskCount() +
            '}';
