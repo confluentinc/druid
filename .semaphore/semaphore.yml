@@ -8,9 +8,6 @@ execution_time_limit:
 blocks:
   - name: "Install"
     task:
-      agent:
-        machine:
-          type: s1-prod-ubuntu24-04-arm64-1
       env_vars: &env_vars
         - name: MVN
           value: "mvn -B"
