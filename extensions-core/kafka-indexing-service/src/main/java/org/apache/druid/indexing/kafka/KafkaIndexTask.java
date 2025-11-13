@@ -121,7 +121,7 @@ public class KafkaIndexTask extends SeekableStreamIndexTask<KafkaTopicPartition,
               configMapper,
               kafkaIndexTaskIOConfig.getConfigOverrides(),
               kafkaIndexTaskIOConfig.isMultiTopic(),
-              kafkaIndexTaskIOConfig.getheaderBasedInclusionConfig()
+              kafkaIndexTaskIOConfig.getheaderBasedFilterConfig()
           );
 
       if (toolbox.getMonitorScheduler() != null) {
