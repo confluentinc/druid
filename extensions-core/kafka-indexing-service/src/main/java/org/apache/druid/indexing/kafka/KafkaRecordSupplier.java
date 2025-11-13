@@ -200,16 +200,16 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
             Collections.emptyList(), // Empty list for filtered records
             true // Mark as filtered
         ));
-        continue;
+      } else {
+        // Create record for accepted records
+        polledRecords.add(new OrderedPartitionableRecord<>(
+                record.topic(),
+                kafkaPartition,
+                record.offset(),
+                record.value() == null ? null : ImmutableList.of(new KafkaRecordEntity(record)),
+                false
+        ));
       }
-
-      // Create record for accepted records
-      polledRecords.add(new OrderedPartitionableRecord<>(
-          record.topic(),
-          kafkaPartition,
-          record.offset(),
-          record.value() == null ? null : ImmutableList.of(new KafkaRecordEntity(record))
-      ));
     }
 
     return polledRecords;
