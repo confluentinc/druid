@@ -7,6 +7,7 @@ execution_time_limit:
   hours: 5
 blocks:
   - name: "Install"
+    dependencies: []
     task:
       agent:
         machine:
@@ -63,6 +64,7 @@ blocks:
             - artifact push workflow cache-post-install.tgz
 
   - name: "Tests"
+    dependencies: ["Install"]
     task:
       env_vars: *env_vars
       prologue:
@@ -153,6 +155,24 @@ blocks:
               value: extensions-core/kafka-indexing-service
           commands: *run_tests
 
+  - name: "Other Tests"
+    dependencies: ["Install"]
+    task:
+      agent:
+        machine:
+          type: s1-prod-ubuntu24-04-arm64-3
+      env_vars: *env_vars
+      prologue:
+        commands:
+          - echo $SEMAPHORE_WORKFLOW_ID
+          - sem-version java 17
+          - checkout
+          - artifact pull workflow cache-post-install.tgz
+          - tar zxf cache-post-install.tgz
+          # This is a change meant to validate semaphore public builds
+          # so thus removing configurations for Confluent's internal CodeArtifact
+          - rm ~/.m2/settings.xml
+      jobs:
         - name: "Other Tests"
           env_vars:
             - name: MAVEN_PROJECTS
