@@ -11,7 +11,7 @@ blocks:
     task:
       agent:
         machine:
-          type: s1-prod-ubuntu24-04-arm64-1
+          type: s1-prod-ubuntu24-04-arm64-2
       env_vars: &env_vars
         - name: MVN
           value: "mvn -B"
