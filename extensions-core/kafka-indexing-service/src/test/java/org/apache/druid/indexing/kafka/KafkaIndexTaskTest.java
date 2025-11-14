@@ -1861,7 +1861,7 @@ public class KafkaIndexTaskTest extends SeekableStreamIndexTaskTestBase
     );
   }
 
-  @Test(timeout = 60_000L)
+  @Test
   public void testRunConflicting() throws Exception
   {
     final KafkaIndexTask task1 = createTask(

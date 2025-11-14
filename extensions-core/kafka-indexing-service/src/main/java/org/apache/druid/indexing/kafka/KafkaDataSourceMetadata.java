@@ -25,9 +25,13 @@ import org.apache.druid.indexing.overlord.DataSourceMetadata;
 import org.apache.druid.indexing.seekablestream.SeekableStreamDataSourceMetadata;
 import org.apache.druid.indexing.seekablestream.SeekableStreamEndSequenceNumbers;
 import org.apache.druid.indexing.seekablestream.SeekableStreamSequenceNumbers;
+import org.apache.druid.java.util.common.IAE;
+import java.util.Comparator;
 
-public class KafkaDataSourceMetadata extends SeekableStreamDataSourceMetadata<Integer, Long>
+
+public class KafkaDataSourceMetadata extends SeekableStreamDataSourceMetadata<Integer, Long> implements Comparable<KafkaDataSourceMetadata>
 {
+
 
   @JsonCreator
   public KafkaDataSourceMetadata(
@@ -56,5 +60,20 @@ public class KafkaDataSourceMetadata extends SeekableStreamDataSourceMetadata<In
   )
   {
     return new KafkaDataSourceMetadata(seekableStreamSequenceNumbers);
+  }
+
+  @Override
+  // This method is to compare KafkaDataSourceMetadata.
+  // It compares this and other SeekableStreamSequenceNumbers using naturalOrder comparator.
+  public int compareTo(KafkaDataSourceMetadata other)
+  {
+    if (!getClass().equals(other.getClass())) {
+      throw new IAE(
+          "Expected instance of %s, got %s",
+          this.getClass().getName(),
+          other.getClass().getName()
+      );
+    }
+    return getSeekableStreamSequenceNumbers().compareTo(other.getSeekableStreamSequenceNumbers(), Comparator.naturalOrder());
   }
 }
