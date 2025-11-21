@@ -1057,7 +1057,7 @@
             <dependency>
                 <groupId>com.maxmind.geoip2</groupId>
                 <artifactId>geoip2</artifactId>
-                <version>0.4.0</version>
+                <version>5.0.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>com.google.http-client</groupId>
