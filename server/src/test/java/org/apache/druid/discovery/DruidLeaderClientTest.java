@@ -289,8 +289,7 @@ public class DruidLeaderClientTest extends BaseJettyTest
       root.addServlet(new ServletHolder(new DefaultServlet()), "/*");
       root.addFilter(GuiceFilter.class, "/*", null);
 
-      final Handler.Sequence handlerList = new Handler.Sequence(root);
-      server.setHandler(handlerList);
+      server.setHandler(root);
     }
   }
 
