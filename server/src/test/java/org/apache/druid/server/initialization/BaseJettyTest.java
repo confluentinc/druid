@@ -22,7 +22,6 @@ package org.apache.druid.server.initialization;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import com.google.inject.servlet.GuiceFilter;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.java.util.common.lifecycle.Lifecycle;
 import org.apache.druid.java.util.emitter.core.NoopEmitter;
@@ -33,12 +32,11 @@ import org.apache.druid.java.util.http.client.HttpClientInit;
 import org.apache.druid.server.DruidNode;
 import org.apache.druid.server.initialization.jetty.JettyServerInitUtils;
 import org.apache.druid.server.initialization.jetty.JettyServerInitializer;
+import org.eclipse.jetty.ee8.servlet.DefaultServlet;
+import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.servlet.DefaultServlet;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
@@ -155,15 +153,14 @@ public abstract class BaseJettyTest
       root.addServlet(new ServletHolder(new DefaultServlet()), "/*");
       JettyServerInitUtils.addQosFilters(root, injector);
       JettyServerInitUtils.addExtensionFilters(root, injector);
-      root.addFilter(GuiceFilter.class, "/*", null);
+      root.addFilter(JettyServerInitUtils.getGuiceFilterHolder(injector), "/*", null);
 
-      final HandlerList handlerList = new HandlerList();
-      handlerList.setHandlers(
-          new Handler[]{JettyServerInitUtils.wrapWithDefaultGzipHandler(
+      final Handler.Sequence handlerList = new Handler.Sequence(
+          JettyServerInitUtils.wrapWithDefaultGzipHandler(
               root,
               ServerConfig.DEFAULT_GZIP_INFLATE_BUFFER_SIZE,
               Deflater.DEFAULT_COMPRESSION
-          )}
+          )
       );
       server.setHandler(handlerList);
     }
