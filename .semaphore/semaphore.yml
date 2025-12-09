@@ -53,6 +53,7 @@ blocks:
         commands:
           - echo $SEMAPHORE_WORKFLOW_ID
           - sem-version java 17
+          - cache clear
           - checkout
           - artifact pull workflow cache-post-install.tgz
           - tar zxf cache-post-install.tgz
