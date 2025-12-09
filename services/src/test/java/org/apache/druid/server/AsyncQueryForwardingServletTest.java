@@ -68,7 +68,6 @@ import org.apache.druid.server.initialization.BaseJettyTest;
 import org.apache.druid.server.initialization.ServerConfig;
 import org.apache.druid.server.initialization.jetty.JettyServerInitUtils;
 import org.apache.druid.server.initialization.jetty.JettyServerInitializer;
-import org.eclipse.jetty.ee8.servlet.FilterHolder;
 import org.apache.druid.server.log.NoopRequestLogger;
 import org.apache.druid.server.metrics.NoopServiceEmitter;
 import org.apache.druid.server.router.QueryHostFinder;
@@ -822,10 +821,9 @@ public class AsyncQueryForwardingServletTest extends BaseJettyTest
       root.addServlet(holder, "/proxy/*");
       root.addServlet(holder, "/druid/v2/*");
       JettyServerInitUtils.addExtensionFilters(root, injector);
-      final FilterHolder guiceFilterHolder = JettyServerInitUtils.getGuiceFilterHolder(injector);
-      root.addFilter(guiceFilterHolder, "/slow/*", null);
-      root.addFilter(guiceFilterHolder, "/default/*", null);
-      root.addFilter(guiceFilterHolder, "/exception/*", null);
+      root.addFilter(GuiceFilter.class, "/slow/*", null);
+      root.addFilter(GuiceFilter.class, "/default/*", null);
+      root.addFilter(GuiceFilter.class, "/exception/*", null);
 
       final Handler.Sequence handlerList = new Handler.Sequence();
       handlerList.setHandlers(
