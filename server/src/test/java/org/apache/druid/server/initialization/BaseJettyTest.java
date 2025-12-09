@@ -22,7 +22,6 @@ package org.apache.druid.server.initialization;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import com.google.inject.servlet.GuiceFilter;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.java.util.common.lifecycle.Lifecycle;
 import org.apache.druid.java.util.emitter.core.NoopEmitter;
@@ -154,7 +153,7 @@ public abstract class BaseJettyTest
       root.addServlet(new ServletHolder(new DefaultServlet()), "/*");
       JettyServerInitUtils.addQosFilters(root, injector);
       JettyServerInitUtils.addExtensionFilters(root, injector);
-      root.addFilter(GuiceFilter.class, "/*", null);
+      root.addFilter(JettyServerInitUtils.getGuiceFilterHolder(injector), "/*", null);
 
       final Handler.Sequence handlerList = new Handler.Sequence(
           JettyServerInitUtils.wrapWithDefaultGzipHandler(

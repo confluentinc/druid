@@ -110,7 +110,7 @@ class CoordinatorJettyServerInitializer implements JettyServerInitializer
 
     // add some paths not to be redirected to leader.
     final FilterHolder guiceFilterHolder = JettyServerInitUtils.getGuiceFilterHolder(injector);
-    root.addFilter(GuiceFilter.class, "/status/*", null);
+    root.addFilter(guiceFilterHolder, "/status/*", null);
     root.addFilter(guiceFilterHolder, "/druid-internal/*", null);
 
     // redirect anything other than status to the current lead

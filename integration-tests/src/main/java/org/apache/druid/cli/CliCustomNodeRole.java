@@ -144,7 +144,7 @@ public class CliCustomNodeRole extends ServerRunnable
           jsonMapper
       );
 
-      root.addFilter(GuiceFilter.class, "/*", null);
+      root.addFilter(JettyServerInitUtils.getGuiceFilterHolder(injector), "/*", null);
 
       final Handler.Sequence handlerList = new Handler.Sequence();
       // Do not change the order of the handlers that have already been added
