@@ -42,6 +42,7 @@ import org.apache.druid.server.initialization.jetty.JettyServerInitUtils;
 import org.apache.druid.server.initialization.jetty.JettyServerInitializer;
 import org.apache.druid.server.security.AuthenticationUtils;
 import org.apache.druid.server.security.Authenticator;
+import org.apache.druid.server.initialization.jetty.JettyRequestLog;
 import org.apache.druid.server.security.AuthenticatorMapper;
 import org.eclipse.jetty.ee8.servlet.DefaultServlet;
 import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
@@ -152,8 +153,6 @@ public class CliCustomNodeRole extends ServerRunnable
         handlerList.addHandler(handler);
       }
 
-      handlerList.addHandler(JettyServerInitUtils.getJettyRequestLogHandler());
-
       // Add Gzip handler at the very end
       handlerList.addHandler(
           JettyServerInitUtils.wrapWithDefaultGzipHandler(
@@ -167,6 +166,7 @@ public class CliCustomNodeRole extends ServerRunnable
       statisticsHandler.setHandler(handlerList);
 
       server.setHandler(statisticsHandler);
+      server.setRequestLog(new JettyRequestLog());
     }
   }
 }
