@@ -762,6 +762,10 @@
                         <groupId>org.eclipse.jetty.toolchain</groupId>
                         <artifactId>jetty-servlet-api</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>org.eclipse.jetty</groupId>
+                        <artifactId>jetty-servlet</artifactId>
+                    </exclusion>
                 </exclusions>
             </dependency>
             <dependency>
@@ -793,6 +797,10 @@
                     <exclusion>
                         <groupId>org.eclipse.jetty.toolchain</groupId>
                         <artifactId>jetty-servlet-api</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.eclipse.jetty</groupId>
+                        <artifactId>jetty-servlet</artifactId>
                     </exclusion>
                 </exclusions>
             </dependency>
