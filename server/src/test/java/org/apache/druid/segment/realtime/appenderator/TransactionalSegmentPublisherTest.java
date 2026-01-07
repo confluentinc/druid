@@ -50,17 +50,18 @@ public class TransactionalSegmentPublisherTest
               Mockito.anyBoolean()
       )).thenAnswer(invocation -> null);
 
-    final AtomicInteger attemptCount = new AtomicInteger(0);
-    final TransactionalSegmentPublisher publisher = createPublisher(
-        SegmentPublishResult.retryableFailure("this error is retryable"),
-        attemptCount
-    );
+      final AtomicInteger attemptCount = new AtomicInteger(0);
+      final TransactionalSegmentPublisher publisher = createPublisher(
+              SegmentPublishResult.retryableFailure("this error is retryable"),
+              attemptCount
+      );
 
-    Assert.assertEquals(
-        SegmentPublishResult.retryableFailure("this error is retryable"),
-        publisher.publishSegments(null, Set.of(), Function.identity(), null, null)
-    );
-    Assert.assertEquals(12, attemptCount.get());
+      Assert.assertEquals(
+              SegmentPublishResult.retryableFailure("this error is retryable"),
+              publisher.publishSegments(null, Set.of(), Function.identity(), null, null)
+      );
+      Assert.assertEquals(13, attemptCount.get());
+    }
   }
 
   @Test
