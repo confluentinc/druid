@@ -135,6 +135,12 @@
       <groupId>io.fabric8</groupId>
       <artifactId>kubernetes-client</artifactId>
       <version>6.8.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.squareup.okhttp3</groupId>
+          <artifactId>okhttp</artifactId>
+        </exclusion>
+      </exclusions>
       <scope>runtime</scope>
     </dependency>
 
@@ -159,6 +165,12 @@
       <groupId>io.fabric8</groupId>
       <artifactId>mockwebserver</artifactId>
       <version>0.2.2</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.squareup.okhttp3</groupId>
+          <artifactId>okhttp</artifactId>
+        </exclusion>
+      </exclusions>
       <scope>test</scope>
     </dependency>
     <dependency>
