@@ -299,6 +299,17 @@
           <skip>true</skip>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <configuration>
+          <!-- transitive dependency of io.fabric8:kubernetes-client; override version to fix security vulnerabilities -->
+          <ignoredUnusedDeclaredDependencies>
+            <ignoredUnusedDeclaredDependency>com.squareup.okhttp3:okhttp:jar:4.12.0:runtime</ignoredUnusedDeclaredDependency>
+            <ignoredUnusedDeclaredDependency>com.squareup.okhttp3:logging-interceptor:jar:4.12.0:runtime</ignoredUnusedDeclaredDependency>
+          </ignoredUnusedDeclaredDependencies>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 </project>
