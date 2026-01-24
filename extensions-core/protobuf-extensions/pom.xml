@@ -93,7 +93,15 @@
           <artifactId>jakarta.ws.rs-api</artifactId>
           <groupId>jakarta.ws.rs</groupId>
         </exclusion>
+        <exclusion>
+          <groupId>org.lz4</groupId>
+          <artifactId>lz4-java</artifactId>
+        </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>at.yawk.lz4</groupId>
+      <artifactId>lz4-java</artifactId>
     </dependency>
     <dependency>
       <groupId>io.confluent</groupId>
