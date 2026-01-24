@@ -201,9 +201,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <configuration>
-                    <!-- Replacement for excluded org.lz4:lz4-java from kafka-clients -->
+                    <!-- Runtime dependency used for AWS Kinesis streaming -->
                     <ignoredUnusedDeclaredDependencies>
-                        <ignoredUnusedDeclaredDependency>at.yawk.lz4:lz4-java:jar:1.10.1</ignoredUnusedDeclaredDependency>
+                        <ignoredUnusedDeclaredDependency>com.amazonaws:amazon-kinesis-client:jar:1.14.4</ignoredUnusedDeclaredDependency>
                     </ignoredUnusedDeclaredDependencies>
                 </configuration>
             </plugin>
