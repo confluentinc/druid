@@ -77,6 +77,7 @@ public class EnrichResourceNameTransformTest
   public void testKafkaMetricEnrichment()
   {
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+    when(mockLookupExtractorFactory.isInitialized()).thenReturn(true);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
         "resource_name",
@@ -120,6 +121,7 @@ public class EnrichResourceNameTransformTest
   public void testKafkaMetricWithDerivedResource()
   {
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+    when(mockLookupExtractorFactory.isInitialized()).thenReturn(true);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
             "resource_name",
@@ -161,6 +163,7 @@ public class EnrichResourceNameTransformTest
   public void testConnectMetricEnrichment()
   {
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+    when(mockLookupExtractorFactory.isInitialized()).thenReturn(true);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
         "resource_name",
@@ -202,6 +205,7 @@ public class EnrichResourceNameTransformTest
   public void testSchemaRegistryMetricEnrichment()
   {
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+    when(mockLookupExtractorFactory.isInitialized()).thenReturn(true);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
         "resource_name",
@@ -243,6 +247,7 @@ public class EnrichResourceNameTransformTest
   public void testKSQLMetricEnrichment()
   {
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+    when(mockLookupExtractorFactory.isInitialized()).thenReturn(true);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
         "resource_name",
@@ -284,6 +289,7 @@ public class EnrichResourceNameTransformTest
   public void testFCPMetricEnrichment()
   {
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+    when(mockLookupExtractorFactory.isInitialized()).thenReturn(true);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
         "resource_name",
@@ -453,6 +459,7 @@ public class EnrichResourceNameTransformTest
   public void testLookupReturnsNull()
   {
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+    when(mockLookupExtractorFactory.isInitialized()).thenReturn(true);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
         "resource_name",
@@ -494,6 +501,7 @@ public class EnrichResourceNameTransformTest
   public void testMultiplePrefixMatching()
   {
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+    when(mockLookupExtractorFactory.isInitialized()).thenReturn(true);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
         "resource_name",
@@ -581,6 +589,7 @@ public class EnrichResourceNameTransformTest
   public void testClientConnectorMetricEnrichment()
   {
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+    when(mockLookupExtractorFactory.isInitialized()).thenReturn(true);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
         "resource_name",
@@ -622,6 +631,7 @@ public class EnrichResourceNameTransformTest
   public void testTableflowMetricEnrichment()
   {
     when(mockLookupExtractorFactory.get()).thenReturn(mockLookupExtractor);
+    when(mockLookupExtractorFactory.isInitialized()).thenReturn(true);
 
     EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
         "resource_name",

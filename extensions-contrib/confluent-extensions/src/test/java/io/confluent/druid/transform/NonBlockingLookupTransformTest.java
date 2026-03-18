@@ -41,7 +41,7 @@ public class NonBlockingLookupTransformTest
         ImmutableMap.of("input", "key1")
     );
 
-    String result = (String) fn.apply(row);
+    String result = (String) fn.eval(row);
     Assert.assertNull(result);
   }
 
@@ -71,7 +71,7 @@ public class NonBlockingLookupTransformTest
         ImmutableMap.of("input", "key1")
     );
 
-    String result = (String) fn.apply(row);
+    String result = (String) fn.eval(row);
     Assert.assertNull(result);
   }
 
@@ -105,7 +105,7 @@ public class NonBlockingLookupTransformTest
         ImmutableMap.of("input", "key1")
     );
 
-    String result = (String) fn.apply(row);
+    String result = (String) fn.eval(row);
     Assert.assertEquals("value1", result);
   }
 
@@ -139,7 +139,7 @@ public class NonBlockingLookupTransformTest
         ImmutableMap.of("input", "key1")
     );
 
-    String result = (String) fn.apply(row);
+    String result = (String) fn.eval(row);
     Assert.assertNull(result);
   }
 
@@ -162,7 +162,7 @@ public class NonBlockingLookupTransformTest
         ImmutableMap.of("other_column", "value")
     );
 
-    String result = (String) fn.apply(row);
+    String result = (String) fn.eval(row);
     Assert.assertNull(result);
   }
 }
