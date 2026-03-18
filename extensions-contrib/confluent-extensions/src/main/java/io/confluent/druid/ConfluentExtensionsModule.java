@@ -11,6 +11,7 @@ import com.google.inject.Binder;
 import io.confluent.druid.transform.EnrichResourceNameTransform;
 import io.confluent.druid.transform.ExtractTenantTopicTransform;
 import io.confluent.druid.transform.ExtractTenantTransform;
+import io.confluent.druid.transform.NonBlockingLookupTransform;
 import org.apache.druid.initialization.DruidModule;
 
 import java.util.Collections;
@@ -26,7 +27,8 @@ public class ConfluentExtensionsModule implements DruidModule
             .registerSubtypes(
                 new NamedType(ExtractTenantTransform.class, "extractTenant"),
                 new NamedType(ExtractTenantTopicTransform.class, "extractTenantTopic"),
-                new NamedType(EnrichResourceNameTransform.class, "enrichResourceName")
+                new NamedType(EnrichResourceNameTransform.class, "enrichResourceName"),
+                new NamedType(NonBlockingLookupTransform.class, "nonBlockingLookup")
             )
     );
   }

@@ -361,7 +361,7 @@ public class EnrichResourceNameTransformTest
   }
 
   @Test
-  public void testLookupNotFound()
+  public void testLookupNotAvailable()
   {
     when(mockLookupProvider.get("nonexistent_lookup"))
         .thenReturn(Optional.empty());
@@ -391,7 +391,54 @@ public class EnrichResourceNameTransformTest
     TransformSpec transformSpec = new TransformSpec(null, ImmutableList.of(transform));
     InputRowParser<Map<String, Object>> parser = transformSpec.decorate(PARSER);
 
-    // Test with nonexistent lookup
+    // Test with nonexistent lookup - should return null gracefully
+    Map<String, Object> rowData = ImmutableMap.<String, Object>builder()
+        .put("metric_name", "kafka-metrics")
+        .put("kafka_resource", "lkc-abc123")
+        .build();
+
+    InputRow row = parser.parseBatch(rowData).get(0);
+    Assert.assertNotNull(row);
+    Assert.assertNull(row.getRaw("resource_name"));
+  }
+
+  @Test
+  public void testLookupNotInitialized()
+  {
+    // Mock lookup that exists but is not initialized yet (e.g., Kafka lookup still loading)
+    when(mockLookupProvider.get("resource_display_name_test_lookup"))
+        .thenReturn(Optional.of(mockLookupContainer));
+    when(mockLookupContainer.getLookupExtractorFactory())
+        .thenReturn(mockLookupExtractorFactory);
+    when(mockLookupExtractorFactory.isInitialized())
+        .thenReturn(false);  // Lookup not initialized yet
+
+    EnrichResourceNameTransform transform = new EnrichResourceNameTransform(
+        "resource_name",
+        "metric_name",
+        ImmutableSet.of("kafka-"),
+        "kafka_resource",
+        "kafka_resource_derived",
+        ImmutableSet.of(),
+        "tableflow_resource",
+        ImmutableSet.of(),
+        "connect_resource",
+        ImmutableSet.of(),
+        "client_connector_resource",
+        ImmutableSet.of(),
+        "ksql_resource",
+        ImmutableSet.of(),
+        "schema_registry_resource",
+        ImmutableSet.of(),
+        "fcp_resource",
+        "resource_display_name_test_lookup",
+        mockLookupProvider
+    );
+
+    TransformSpec transformSpec = new TransformSpec(null, ImmutableList.of(transform));
+    InputRowParser<Map<String, Object>> parser = transformSpec.decorate(PARSER);
+
+    // Test with lookup that is not initialized - should return null gracefully
     Map<String, Object> rowData = ImmutableMap.<String, Object>builder()
         .put("metric_name", "kafka-metrics")
         .put("kafka_resource", "lkc-abc123")

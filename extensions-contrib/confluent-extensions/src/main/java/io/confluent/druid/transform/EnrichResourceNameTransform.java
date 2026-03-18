@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class EnrichResourceNameTransform implements Transform
 {
@@ -43,6 +44,9 @@ public class EnrichResourceNameTransform implements Transform
   private final LookupExtractorFactoryContainerProvider lookupProvider;
 
   private static final EmittingLogger log = new EmittingLogger(EnrichResourceNameTransform.class);
+
+  // Track state changes for minimal logging (only log once per state transition)
+  private final AtomicBoolean notReadyLogged = new AtomicBoolean(false);
 
   public EnrichResourceNameTransform(
       @JsonProperty("name") final String name,
@@ -203,8 +207,22 @@ public class EnrichResourceNameTransform implements Transform
       try {
         Optional<LookupExtractorFactoryContainer> container = lookupProvider.get(lookupName);
         if (!container.isPresent()) {
+          // Log only once when first detected as not ready
+          if (notReadyLogged.compareAndSet(false, true)) {
+            log.info("Lookup [%s] not available yet, will return null until ready", lookupName);
+          }
           return null;
         }
+        if (!container.get().getLookupExtractorFactory().isInitialized()) {
+          if (notReadyLogged.compareAndSet(false, true)) {
+            log.info("Lookup [%s] not initialized yet, will return null until ready", lookupName);
+          }
+          return null;
+        }
+        if (notReadyLogged.compareAndSet(true, false)) {
+          log.info("Lookup [%s] is now ready", lookupName);
+        }
+
         LookupExtractor lookup = container.get().getLookupExtractorFactory().get();
         String metricName = row.getRaw(metricNameDimension).toString();
 
