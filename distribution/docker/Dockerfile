@@ -119,8 +119,8 @@ RUN if [ ! -x "$(command -v ip)" ]; then \
 # OBSDATA-13070: Bake AWS CLI v2 and async-profiler into the image.
 # Shoreline notebooks previously downloaded these at runtime from the public internet
 # without integrity verification. Installing at build time eliminates supply chain risk.
-ARG AWS_CLI_VERSION=2.24.21
-ARG ASYNC_PROFILER_VERSION=3.0
+ARG AWS_CLI_VERSION=2.34.11
+ARG ASYNC_PROFILER_VERSION=4.3
 RUN set -e \
     && if [ "$TARGETARCH" = "arm64" ]; then ARCH=aarch64; AP_ARCH=aarch64; else ARCH=x86_64; AP_ARCH=x64; fi \
     && if [ -x "$(command -v apt)" ]; then \
