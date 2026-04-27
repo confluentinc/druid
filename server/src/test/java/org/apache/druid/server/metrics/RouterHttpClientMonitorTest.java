@@ -21,9 +21,9 @@ package org.apache.druid.server.metrics;
 
 import com.google.inject.Provider;
 import org.apache.druid.java.util.metrics.StubServiceEmitter;
+import org.eclipse.jetty.client.Destination;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.HttpDestination;
-import org.eclipse.jetty.client.api.Destination;
+import org.eclipse.jetty.client.transport.HttpDestination;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
