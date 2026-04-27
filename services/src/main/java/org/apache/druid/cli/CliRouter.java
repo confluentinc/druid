@@ -46,7 +46,9 @@ import org.apache.druid.server.NoopQuerySegmentWalker;
 import org.apache.druid.server.http.RouterResource;
 import org.apache.druid.server.http.SelfDiscoveryResource;
 import org.apache.druid.server.initialization.jetty.JettyServerInitializer;
+import org.apache.druid.server.metrics.MetricsModule;
 import org.apache.druid.server.metrics.QueryCountStatsProvider;
+import org.apache.druid.server.metrics.RouterHttpClientMonitor;
 import org.apache.druid.server.router.AvaticaConnectionBalancer;
 import org.apache.druid.server.router.CoordinatorRuleManager;
 import org.apache.druid.server.router.ManagementProxyConfig;
@@ -56,7 +58,6 @@ import org.apache.druid.server.router.TieredBrokerConfig;
 import org.apache.druid.server.router.TieredBrokerHostSelector;
 import org.apache.druid.server.router.TieredBrokerSelectorStrategiesProvider;
 import org.apache.druid.server.router.TieredBrokerSelectorStrategy;
-import org.apache.druid.storage.local.LocalTmpStorageConfig;
 import org.eclipse.jetty.server.Server;
 
 import java.util.List;
@@ -115,6 +116,7 @@ public class CliRouter extends ServerRunnable
                 .in(LazySingleton.class);
 
           binder.bind(QueryCountStatsProvider.class).to(AsyncQueryForwardingServlet.class).in(LazySingleton.class);
+          MetricsModule.register(binder, RouterHttpClientMonitor.class);
           binder.bind(JettyServerInitializer.class).to(RouterJettyServerInitializer.class).in(LazySingleton.class);
 
           Jerseys.addResource(binder, RouterResource.class);
@@ -127,10 +129,6 @@ public class CliRouter extends ServerRunnable
 
           Jerseys.addResource(binder, SelfDiscoveryResource.class);
           LifecycleModule.registerKey(binder, Key.get(SelfDiscoveryResource.class));
-
-          binder.bind(LocalTmpStorageConfig.class)
-                .toProvider(new LocalTmpStorageConfig.DefaultLocalTmpStorageConfigProvider("router"))
-                .in(LazySingleton.class);
         },
         new LookupSerdeModule()
     );
