@@ -25,9 +25,9 @@ import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
 import org.apache.druid.java.util.metrics.AbstractMonitor;
 import org.apache.druid.server.router.Router;
+import org.eclipse.jetty.client.Destination;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.HttpDestination;
-import org.eclipse.jetty.client.api.Destination;
+import org.eclipse.jetty.client.transport.HttpDestination;
 
 /**
  * Monitor that emits the total number of outbound HTTP requests currently queued
