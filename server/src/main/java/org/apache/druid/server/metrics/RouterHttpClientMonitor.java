@@ -21,6 +21,7 @@ package org.apache.druid.server.metrics;
 
 import com.google.inject.Inject;
 import com.google.inject.Provider;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
 import org.apache.druid.java.util.metrics.AbstractMonitor;
@@ -38,6 +39,8 @@ import org.eclipse.jetty.client.transport.HttpDestination;
  */
 public class RouterHttpClientMonitor extends AbstractMonitor
 {
+  private static final Logger log = new Logger(RouterHttpClientMonitor.class);
+
   private final Provider<HttpClient> httpClientProvider;
 
   @Inject
@@ -61,6 +64,7 @@ public class RouterHttpClientMonitor extends AbstractMonitor
         emitter.emit(builder.setMetric("router/http/numRequestsQueued", httpDest.getQueuedRequestCount()));
 
         final ConnectionPool pool = httpDest.getConnectionPool();
+        log.debug("destination[%s] pool type[%s]", dest, pool == null ? "null" : pool.getClass().getName());
         if (pool instanceof AbstractConnectionPool) {
           emitter.emit(builder.setMetric("router/http/numActiveConnections", ((AbstractConnectionPool) pool).getActiveConnectionCount()));
         }

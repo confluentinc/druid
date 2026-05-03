@@ -143,19 +143,19 @@ public class RouterHttpClientMonitorTest
     Assert.assertEquals("router/http/numRequestsQueued", emitter.getEvents().get(0).toMap().get("metric"));
   }
 
-  private static HttpDestination mockDest(String destinationStr, int queuedCount, int activeCount)
+  private static HttpDestination mockDest(String originStr, int queuedCount, int activeCount)
   {
     AbstractConnectionPool pool = Mockito.mock(AbstractConnectionPool.class);
     Mockito.when(pool.getActiveConnectionCount()).thenReturn(activeCount);
-    return mockDest(destinationStr, queuedCount, pool);
+    return mockDest(originStr, queuedCount, pool);
   }
 
-  private static HttpDestination mockDest(String destinationStr, int queuedCount, ConnectionPool pool)
+  private static HttpDestination mockDest(String originStr, int queuedCount, ConnectionPool pool)
   {
     HttpDestination dest = Mockito.mock(HttpDestination.class);
     Mockito.when(dest.getQueuedRequestCount()).thenReturn(queuedCount);
     Origin origin = Mockito.mock(Origin.class);
-    Mockito.when(origin.asString()).thenReturn(destinationStr);
+    Mockito.when(origin.asString()).thenReturn(originStr);
     Mockito.when(dest.getOrigin()).thenReturn(origin);
     Mockito.when(dest.getConnectionPool()).thenReturn(pool);
     return dest;
