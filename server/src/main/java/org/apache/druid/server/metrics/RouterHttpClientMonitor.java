@@ -64,7 +64,6 @@ public class RouterHttpClientMonitor extends AbstractMonitor
         emitter.emit(builder.setMetric("router/http/numRequestsQueued", httpDest.getQueuedRequestCount()));
 
         final ConnectionPool pool = httpDest.getConnectionPool();
-        log.debug("destination[%s] pool type[%s]", dest, pool == null ? "null" : pool.getClass().getName());
         if (pool instanceof AbstractConnectionPool) {
           emitter.emit(builder.setMetric("router/http/numActiveConnections", ((AbstractConnectionPool) pool).getActiveConnectionCount()));
         }
