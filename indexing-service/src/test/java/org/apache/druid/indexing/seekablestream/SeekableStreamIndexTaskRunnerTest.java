@@ -206,6 +206,42 @@ public class SeekableStreamIndexTaskRunnerTest
     TestasbleSeekableStreamIndexTaskRunner runner = new TestasbleSeekableStreamIndexTaskRunner(task, null,
                                                                                                LockGranularity.TIME_CHUNK);
     Assert.assertEquals("supervisorId", runner.getSupervisorId());
+
+    // Setup the task to return a RecordSupplier, StreamAppenderatorDriver, Appenderator
+    final RecordSupplier<?, ?, ?> recordSupplier = Mockito.mock(RecordSupplier.class);
+    Mockito.when(task.newTaskRecordSupplier(any()))
+           .thenReturn(recordSupplier);
+
+    final StreamAppenderator appenderator = Mockito.mock(StreamAppenderator.class);
+    Mockito.when(task.newAppenderator(any(), any(), any(), any()))
+           .thenReturn(appenderator);
+
+    final List<DataSegment> segment = CreateDataSegments
+        .ofDatasource(schema.getDataSource())
+        .withNumPartitions(10)
+        .withNumRows(1_000)
+        .eachOfSizeInMb(500);
+    final SegmentsAndCommitMetadata commitMetadata =
+        new SegmentsAndCommitMetadata(segment, "offset-100").withWasPublished(true);
+
+    final StreamAppenderatorDriver driver = Mockito.mock(StreamAppenderatorDriver.class);
+    Mockito.when(task.newDriver(any(), any(), any()))
+           .thenReturn(driver);
+    Mockito.when(driver.publish(any(), any(), any()))
+           .thenReturn(Futures.immediateFuture(commitMetadata));
+    Mockito.when(driver.registerHandoff(any()))
+           .thenReturn(Futures.immediateFuture(commitMetadata));
+
+    Mockito.doAnswer(invocation -> {
+      final String metricName = invocation.getArgument(1);
+      final Number value = invocation.getArgument(2);
+      emitter.emit(ServiceMetricEvent.builder().setMetric(metricName, value).build("test", "localhost"));
+      return null;
+    }).when(task).emitMetric(any(), any(), any());
+
+    runner.run(createTaskToolbox());
+    emitter.verifyValue("ingest/segments/count", 10);
+    emitter.verifyValue("ingest/rows/published", 10_000L);
   }
 
   static class TestasbleSeekableStreamIndexTaskRunner extends SeekableStreamIndexTaskRunner

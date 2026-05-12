@@ -67,6 +67,7 @@ import org.apache.druid.indexing.common.actions.SegmentLockAcquireAction;
 import org.apache.druid.indexing.common.actions.TaskLocks;
 import org.apache.druid.indexing.common.actions.TimeChunkLockAcquireAction;
 import org.apache.druid.indexing.common.stats.TaskRealtimeMetricsMonitor;
+import org.apache.druid.indexing.common.task.IndexTaskUtils;
 import org.apache.druid.indexing.input.InputRowSchemas;
 import org.apache.druid.indexing.seekablestream.common.OrderedPartitionableRecord;
 import org.apache.druid.indexing.seekablestream.common.OrderedSequenceNumber;
@@ -1090,17 +1091,15 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
                 },
                 MoreExecutors.directExecutor()
             );
-            // emit segment count metric:
-            int segmentCount = 0;
-            if (publishedSegmentsAndCommitMetadata != null
-                && publishedSegmentsAndCommitMetadata.getSegments() != null) {
-              segmentCount = publishedSegmentsAndCommitMetadata.getSegments().size();
+
+            // Emit publish metrics only when this task actually committed the segments.
+            if (publishedSegmentsAndCommitMetadata.wasPublished()) {
+              final int segmentCount = publishedSegmentsAndCommitMetadata.getSegments().size();
+              final long totalRowCount =
+                  IndexTaskUtils.getTotalRowCount(publishedSegmentsAndCommitMetadata.getSegments());
+              task.emitMetric(toolbox.getEmitter(), "ingest/segments/count", segmentCount);
+              task.emitMetric(toolbox.getEmitter(), "ingest/rows/published", totalRowCount);
             }
-            task.emitMetric(
-                toolbox.getEmitter(),
-                "ingest/segments/count",
-                segmentCount
-            );
           }
 
           @Override
