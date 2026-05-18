@@ -44,9 +44,7 @@ RUN --mount=type=cache,target=/root/.m2 if [ "$BUILD_FROM_SOURCE" = "true" ]; th
       -Dmaven.javadoc.skip=true -T1C \
       ; fi
 
-RUN --mount=type=cache,target=/root/.m2 VERSION=$(mvn -B -q org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate \
-      -Dexpression=project.version -DforceStdout=true \
-    ) \
+RUN --mount=type=cache,target=/root/.m2 VERSION=$(ls distribution/target/apache-druid-*-bin.tar.gz | sed -E 's|.*/apache-druid-(.*)-bin\.tar\.gz|\1|') \
  && tar -zxf ./distribution/target/apache-druid-${VERSION}-bin.tar.gz -C /opt \
  && mv /opt/apache-druid-${VERSION} /opt/druid
 
@@ -127,7 +125,7 @@ RUN set -e \
          apt-get update && apt-get install -y --no-install-recommends curl htop strace bind-tools netcat unzip \
          && CLEANUP="apt-get purge -y unzip && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*"; \
        else \
-         apk add --no-cache curl htop strace bind-tools netcat-openbsd unzip \
+         apk add --no-cache --upgrade libssl3 libcrypto3 curl htop strace bind-tools netcat-openbsd unzip \
          && CLEANUP="apk del unzip"; \
        fi \
     && curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}-${AWS_CLI_VERSION}.zip" -o /tmp/awscli.zip \
