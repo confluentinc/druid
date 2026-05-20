@@ -24,6 +24,7 @@ import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
 
 import java.io.IOException;
+import java.util.Map;
 
 public class MetricsEmittingResourcePoolImpl<K, V> implements ResourcePool<K, V>
 {
@@ -45,6 +46,12 @@ public class MetricsEmittingResourcePoolImpl<K, V> implements ResourcePool<K, V>
     long totalduration = System.nanoTime() - startTime;
     emitter.emit(ServiceMetricEvent.builder().setDimension("server", key.toString()).setMetric("httpClient/channelAcquire/timeNs", totalduration));
     return retVal;
+  }
+
+  @Override
+  public Map<K, PoolStats> getStats()
+  {
+    return resourcePool.getStats();
   }
 
   @Override
