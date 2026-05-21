@@ -74,6 +74,8 @@ Most metric values reset each emission period, as specified in `druid.monitoring
 |`sqlQuery/planningTimeMs`|Milliseconds taken to plan a SQL to native query.|`id`, `nativeQueryIds`, `dataSource`, `remoteAddress`, `success`| |
 |`sqlQuery/bytes`|Number of bytes returned in the SQL query response.|`id`, `nativeQueryIds`, `dataSource`, `remoteAddress`, `success`| |
 |`httpClient/channelAcquire/timeNs`|Time in nanoseconds spent by the httpclient to acquire the channel.| |
+|`broker/http/numActiveConnections`|Number of outbound HTTP connections currently checked out from the Broker's HTTP client pool and carrying a request to a destination (typically a Historical or Indexer).|`destination`|Varies with load; approaching `druid.broker.http.numConnections` indicates the per-destination pool is near saturation.|
+|`broker/http/numRequestsQueued`|Number of threads on the Broker currently blocked waiting to acquire a connection from the HTTP client pool for a destination.|`destination`|0; sustained non-zero values indicate the per-destination pool size is too small or downstream nodes are saturated.|
 |`sqlQuery/time`|Milliseconds taken to complete a SQL query.|`id`, `nativeQueryIds`, `dataSource`, `remoteAddress`, `success`, `engine`|< 1s|
 |`sqlQuery/planningTimeMs`|Milliseconds taken to plan a SQL to native query.|`id`, `nativeQueryIds`, `dataSource`, `remoteAddress`, `success`, `engine`| |
 |`sqlQuery/bytes`|Number of bytes returned in the SQL query response.|`id`, `nativeQueryIds`, `dataSource`, `remoteAddress`, `success`, `engine`| |
