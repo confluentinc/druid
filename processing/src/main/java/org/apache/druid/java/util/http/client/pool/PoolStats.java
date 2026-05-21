@@ -19,19 +19,33 @@
 
 package org.apache.druid.java.util.http.client.pool;
 
-import java.io.Closeable;
-import java.util.Collections;
-import java.util.Map;
-
-public interface ResourcePool<K, V> extends Closeable
+/**
+ * Snapshot of per-key {@link ResourcePool} state.
+ */
+public class PoolStats
 {
-  ResourceContainer<V> take(K key);
+  private final int numActive;
+  private final int numQueued;
+
+  public PoolStats(int numActive, int numQueued)
+  {
+    this.numActive = numActive;
+    this.numQueued = numQueued;
+  }
 
   /**
-   * Snapshot of per-key pool state. Implementations that do not track stats return an empty map.
+   * Number of resources currently checked out from the pool (in active use).
    */
-  default Map<K, PoolStats> getStats()
+  public int getNumActive()
   {
-    return Collections.emptyMap();
+    return numActive;
+  }
+
+  /**
+   * Number of threads blocked waiting to acquire a resource because the pool is at its per-key max.
+   */
+  public int getNumQueued()
+  {
+    return numQueued;
   }
 }
