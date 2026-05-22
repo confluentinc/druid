@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
@@ -148,6 +149,17 @@ public class DefaultResourcePoolImpl<K, V> implements ResourcePool<K, V>
   }
 
   @Override
+  public Map<K, PoolStats> getStats()
+  {
+    final Map<K, PoolStats> snapshot = new HashMap<>();
+    for (Map.Entry<K, ResourceHolderPerKey<K, V>> entry : pool.asMap().entrySet()) {
+      final ResourceHolderPerKey<K, V> holder = entry.getValue();
+      snapshot.put(entry.getKey(), new PoolStats(holder.getNumLent(), holder.getNumWaiting()));
+    }
+    return snapshot;
+  }
+
+  @Override
   public void close()
   {
     closed.set(true);
@@ -215,6 +227,8 @@ public class DefaultResourcePoolImpl<K, V> implements ResourcePool<K, V>
     protected final ArrayDeque<ResourceHolder<V>> resourceHolderList;
     // To keep track of resources that have been successfully returned to caller.
     private int numLentResources = 0;
+    // Number of threads currently blocked in get() waiting for a resource slot to free up.
+    private int numWaitingThreads = 0;
     private boolean closed = false;
 
     protected ResourceHolderPerKey(
@@ -246,7 +260,13 @@ public class DefaultResourcePoolImpl<K, V> implements ResourcePool<K, V>
         while (!closed && (numLentResources == maxSize)) {
           try {
             log.debug("Thread [%s] is blocked waiting for resource for key [%s]", Thread.currentThread().getName(), key);
-            this.wait();
+            numWaitingThreads++;
+            try {
+              this.wait();
+            }
+            finally {
+              numWaitingThreads--;
+            }
           }
           catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -342,6 +362,16 @@ public class DefaultResourcePoolImpl<K, V> implements ResourcePool<K, V>
     private boolean holderListContains(V object)
     {
       return resourceHolderList.stream().anyMatch(a -> a.getResource().equals(object));
+    }
+
+    synchronized int getNumLent()
+    {
+      return numLentResources;
+    }
+
+    synchronized int getNumWaiting()
+    {
+      return numWaitingThreads;
     }
 
     @Override
