@@ -70,6 +70,8 @@ import org.apache.druid.server.http.HistoricalResource;
 import org.apache.druid.server.http.SegmentListerResource;
 import org.apache.druid.server.http.SelfDiscoveryResource;
 import org.apache.druid.server.initialization.jetty.JettyServerInitializer;
+import org.apache.druid.server.metrics.BrokerHttpClientMonitor;
+import org.apache.druid.server.metrics.MetricsModule;
 import org.apache.druid.server.metrics.QueryCountStatsProvider;
 import org.apache.druid.server.metrics.SubqueryCountStatsProvider;
 import org.apache.druid.server.router.TieredBrokerConfig;
@@ -149,6 +151,7 @@ public class CliBroker extends ServerRunnable
           binder.bind(QuerySegmentWalker.class).to(ClientQuerySegmentWalker.class).in(LazySingleton.class);
 
           binder.bind(JettyServerInitializer.class).to(QueryJettyServerInitializer.class).in(LazySingleton.class);
+          MetricsModule.register(binder, BrokerHttpClientMonitor.class);
 
           binder.bind(BrokerQueryResource.class).in(LazySingleton.class);
           Jerseys.addResource(binder, BrokerQueryResource.class);

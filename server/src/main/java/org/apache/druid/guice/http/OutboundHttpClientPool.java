@@ -17,22 +17,34 @@
  * under the License.
  */
 
-package org.apache.druid.java.util.http.client.pool;
+package org.apache.druid.guice.http;
 
-import java.io.Closeable;
+import org.apache.druid.java.util.http.client.pool.PoolStats;
+import org.apache.druid.java.util.http.client.pool.ResourcePool;
+
 import java.util.Collections;
 import java.util.Map;
 
-public interface ResourcePool<K, V> extends Closeable
+/**
+ * Guice-bindable handle to the underlying {@link ResourcePool} of an outbound Netty HTTP client.
+ * Populated by {@link HttpClientModule.HttpClientProvider} when the client is constructed, then
+ * read by monitors that emit per-destination pool stats.
+ */
+public class OutboundHttpClientPool
 {
+  private volatile ResourcePool<String, ?> pool;
 
-  ResourceContainer<V> take(K key);
+  public void register(ResourcePool<String, ?> pool)
+  {
+    this.pool = pool;
+  }
 
   /**
-   * Snapshot of per-key pool state. Implementations that do not track stats return an empty map.
+   * Returns a snapshot of per-destination pool state, or an empty map if no pool has been registered yet.
    */
-  default Map<K, PoolStats> getStats()
+  public Map<String, PoolStats> getStats()
   {
-    return Collections.emptyMap();
+    final ResourcePool<String, ?> p = pool;
+    return p == null ? Collections.emptyMap() : p.getStats();
   }
 }

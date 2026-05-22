@@ -106,6 +106,11 @@ public class NettyHttpClient extends AbstractHttpClient
     pool.close();
   }
 
+  public ResourcePool<String, ChannelFuture> getPool()
+  {
+    return pool;
+  }
+
   @Override
   public <Intermediate, Final> ListenableFuture<Final> go(
       final Request request,
