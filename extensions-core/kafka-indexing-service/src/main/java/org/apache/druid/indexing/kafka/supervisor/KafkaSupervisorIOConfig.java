@@ -56,6 +56,62 @@ public class KafkaSupervisorIOConfig extends SeekableStreamSupervisorIOConfig
   private final boolean emitTimeLagMetrics;
   private final KafkaHeaderBasedFilterConfig headerBasedFilterConfig;
 
+  /**
+   * Confluent: backward-compat overload for callers that predate the header-based filter config
+   * (upstream tests/internal callers). Delegates with a null headerBasedFilterConfig (filtering disabled).
+   */
+  public KafkaSupervisorIOConfig(
+      String topic,
+      String topicPattern,
+      InputFormat inputFormat,
+      Integer replicas,
+      Integer taskCount,
+      Period taskDuration,
+      Map<String, Object> consumerProperties,
+      AutoScalerConfig autoScalerConfig,
+      LagAggregator lagAggregator,
+      Long pollTimeout,
+      Period startDelay,
+      Period period,
+      Boolean useEarliestOffset,
+      Period completionTimeout,
+      Period lateMessageRejectionPeriod,
+      Period earlyMessageRejectionPeriod,
+      DateTime lateMessageRejectionStartDateTime,
+      KafkaConfigOverrides configOverrides,
+      IdleConfig idleConfig,
+      Integer stopTaskCount,
+      Boolean emitTimeLagMetrics,
+      Map<Integer, Integer> serverPriorityToReplicas
+  )
+  {
+    this(
+        topic,
+        topicPattern,
+        inputFormat,
+        replicas,
+        taskCount,
+        taskDuration,
+        consumerProperties,
+        autoScalerConfig,
+        lagAggregator,
+        pollTimeout,
+        startDelay,
+        period,
+        useEarliestOffset,
+        completionTimeout,
+        lateMessageRejectionPeriod,
+        earlyMessageRejectionPeriod,
+        lateMessageRejectionStartDateTime,
+        configOverrides,
+        null,
+        idleConfig,
+        stopTaskCount,
+        emitTimeLagMetrics,
+        serverPriorityToReplicas
+    );
+  }
+
   @JsonCreator
   public KafkaSupervisorIOConfig(
       @JsonProperty("topic") String topic,
