@@ -9,28 +9,28 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.confluent.druid.ConfluentExtensionsModule;
 import org.apache.druid.data.input.InputRow;
-import org.apache.druid.data.input.impl.DimensionsSpec;
-import org.apache.druid.data.input.impl.InputRowParser;
-import org.apache.druid.data.input.impl.MapInputRowParser;
-import org.apache.druid.data.input.impl.TimeAndDimsParseSpec;
-import org.apache.druid.data.input.impl.TimestampSpec;
+import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.transform.TransformSpec;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Map;
 
 public class ExtractTransformTest
 {
 
-  private static final MapInputRowParser PARSER = new MapInputRowParser(
-      new TimeAndDimsParseSpec(
-          new TimestampSpec("t", "auto", DateTimes.of("2020-01-01")),
-          new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("topic", "tenant")))
-      )
-  );
+  // druid-37 removed InputRowParser/TimeAndDimsParseSpec; build rows directly and apply the transformer.
+  private static final List<String> DIMENSIONS = ImmutableList.of("topic", "tenant");
+
+  private static InputRow transform(TransformSpec transformSpec, Map<String, Object> raw)
+  {
+    return transformSpec.toTransformer().transform(
+        new MapBasedInputRow(DateTimes.of("2020-01-01"), DIMENSIONS, raw)
+    );
+  }
 
   private static final Map<String, Object> ROW1 = ImmutableMap.<String, Object>builder()
       .put("topic", "lkc-abc123_mytopic")
@@ -61,8 +61,7 @@ public class ExtractTransformTest
         )
     );
 
-    final InputRowParser<Map<String, Object>> parser = transformSpec.decorate(PARSER);
-    final InputRow row = parser.parseBatch(ROW1).get(0);
+    final InputRow row = transform(transformSpec, ROW1);
 
     Assert.assertNotNull(row);
     Assert.assertEquals(ImmutableList.of("topic", "tenant"), row.getDimensions());
@@ -90,8 +89,7 @@ public class ExtractTransformTest
         )
     );
 
-    final InputRowParser<Map<String, Object>> parser = transformSpec.decorate(PARSER);
-    final InputRow row = parser.parseBatch(ROW2).get(0);
+    final InputRow row = transform(transformSpec, ROW2);
 
     Assert.assertNotNull(row);
     Assert.assertEquals(ImmutableList.of("topic", "tenant"), row.getDimensions());
@@ -110,8 +108,7 @@ public class ExtractTransformTest
         )
     );
 
-    final InputRowParser<Map<String, Object>> parser = transformSpec.decorate(PARSER);
-    final InputRow row = parser.parseBatch(ROW3).get(0);
+    final InputRow row = transform(transformSpec, ROW3);
 
     Assert.assertNotNull(row);
     Assert.assertEquals(ImmutableList.of("topic", "tenant"), row.getDimensions());
@@ -130,8 +127,7 @@ public class ExtractTransformTest
         )
     );
 
-    final InputRowParser<Map<String, Object>> parser = transformSpec.decorate(PARSER);
-    final InputRow row = parser.parseBatch(ROW4).get(0);
+    final InputRow row = transform(transformSpec, ROW4);
 
     Assert.assertNotNull(row);
     Assert.assertEquals(ImmutableList.of("topic", "tenant"), row.getDimensions());
