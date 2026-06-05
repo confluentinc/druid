@@ -105,6 +105,40 @@ public class KafkaEmitterConfig
   @JsonProperty("producer.shutdownTimeout")
   private final Long shutdownTimeout;
 
+  /**
+   * Confluent: backward-compat overload for callers that predate segmentMetadataTopicFormat
+   * (upstream tests/internal callers). Delegates with null (defaults to JSON).
+   */
+  public KafkaEmitterConfig(
+      String bootstrapServers,
+      Set<EventType> eventTypes,
+      String metricTopic,
+      String alertTopic,
+      String requestTopic,
+      String segmentMetadataTopic,
+      String clusterName,
+      Map<String, String> extraDimensions,
+      Map<String, String> kafkaProducerConfig,
+      DynamicConfigProvider<String> kafkaProducerSecrets,
+      Long shutdownTimeout
+  )
+  {
+    this(
+        bootstrapServers,
+        eventTypes,
+        metricTopic,
+        alertTopic,
+        requestTopic,
+        segmentMetadataTopic,
+        null,
+        clusterName,
+        extraDimensions,
+        kafkaProducerConfig,
+        kafkaProducerSecrets,
+        shutdownTimeout
+    );
+  }
+
   @JsonCreator
   public KafkaEmitterConfig(
       @JsonProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) String bootstrapServers,
