@@ -37,7 +37,8 @@ public class OpenCensusProtobufExtensionsModule implements DruidModule
     return Collections.singletonList(
         new SimpleModule("OpenCensusProtobufInputRowParserModule")
             .registerSubtypes(
-                new NamedType(OpenCensusProtobufInputRowParser.class, "opencensus-protobuf"),
+                // Confluent: legacy OpenCensusProtobufInputRowParser removed for druid-37
+                // (upstream removed InputRowParser/ParseSpec); use the InputFormat path instead.
                 new NamedType(OpenCensusProtobufInputFormat.class, "opencensus-protobuf")
             )
     );

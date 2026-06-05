@@ -24,7 +24,6 @@ import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.Metric;
 import io.opentelemetry.proto.metrics.v1.MetricsData;
-import org.apache.curator.shaded.com.google.common.base.Predicate;
 import org.apache.druid.data.input.ColumnsFilter;
 import org.apache.druid.data.input.InputEntityReader;
 import org.apache.druid.data.input.InputRow;
@@ -35,6 +34,7 @@ import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.data.input.kafka.KafkaRecordEntity;
 import org.apache.druid.indexing.common.task.FilteringCloseableInputRowIterator;
+import org.apache.druid.indexing.common.task.InputRowFilter;
 import org.apache.druid.indexing.seekablestream.SettableByteEntity;
 import org.apache.druid.indexing.seekablestream.common.OrderedPartitionableRecord;
 import org.apache.druid.java.util.common.parsers.CloseableIterator;
@@ -423,7 +423,7 @@ public class OpenCensusProtobufReaderTest
         entity.setEntity(byteEntity);
         try (FilteringCloseableInputRowIterator rowIterator = new FilteringCloseableInputRowIterator(
                 readR.read(),
-                mock(Predicate.class),
+                mock(InputRowFilter.class),
                 mock(RowIngestionMeters.class),
                 mock(ParseExceptionHandler.class)
         )) {
