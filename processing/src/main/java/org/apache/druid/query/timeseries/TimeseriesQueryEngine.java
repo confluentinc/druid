@@ -88,6 +88,20 @@ public class TimeseriesQueryEngine
    * Run a single-segment, single-interval timeseries query on a particular adapter. The query must have been
    * scoped down to a single interval before calling this method.
    */
+  /**
+   * Confluent: backward-compat overload for callers that do not track the querySegmentCount metric
+   * (upstream tests and internal callers). Delegates with an empty ResponseContext.
+   */
+  public Sequence<Result<TimeseriesResultValue>> process(
+      TimeseriesQuery query,
+      CursorFactory cursorFactory,
+      @Nullable TimeBoundaryInspector timeBoundaryInspector,
+      @Nullable TimeseriesQueryMetrics timeseriesQueryMetrics
+  )
+  {
+    return process(query, cursorFactory, timeBoundaryInspector, timeseriesQueryMetrics, ResponseContext.createEmpty());
+  }
+
   public Sequence<Result<TimeseriesResultValue>> process(
       TimeseriesQuery query,
       final CursorFactory cursorFactory,

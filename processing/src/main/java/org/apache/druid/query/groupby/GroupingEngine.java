@@ -474,6 +474,21 @@ public class GroupingEngine
    *
    * @return result sequence for the cursor factory
    */
+  /**
+   * Confluent: backward-compat overload for callers that do not track the querySegmentCount metric
+   * (upstream tests and internal callers). Delegates with an empty ResponseContext.
+   */
+  public Sequence<ResultRow> process(
+      GroupByQuery query,
+      CursorFactory cursorFactory,
+      @Nullable TimeBoundaryInspector timeBoundaryInspector,
+      NonBlockingPool<ByteBuffer> bufferPool,
+      @Nullable GroupByQueryMetrics groupByQueryMetrics
+  )
+  {
+    return process(query, cursorFactory, timeBoundaryInspector, bufferPool, groupByQueryMetrics, ResponseContext.createEmpty());
+  }
+
   public Sequence<ResultRow> process(
       GroupByQuery query,
       CursorFactory cursorFactory,
