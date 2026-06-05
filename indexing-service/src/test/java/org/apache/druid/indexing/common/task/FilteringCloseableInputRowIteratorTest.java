@@ -366,24 +366,24 @@ public class FilteringCloseableInputRowIteratorTest
     // This iterator throws ParseException always in hasNext().
     final FilteringCloseableInputRowIterator rowIterator = new FilteringCloseableInputRowIterator(
         new CloseableIterator<InputRow>() {
-            @Override
-            public void close() 
-            {
-            }
+          @Override
+          public void close()
+          {
+          }
 
-            @Override
-            public boolean hasNext() 
-            {
-              throw new ParseException("test", "abcd", "");
-            }
+          @Override
+          public boolean hasNext()
+          {
+            throw new ParseException("test", "abcd", "");
+          }
 
-            @Override
-            public InputRow next() 
-            {
-              return null;
-            }
+          @Override
+          public InputRow next()
+          {
+            return null;
+          }
         },
-        row -> true,
+        row -> InputRowFilterResult.ACCEPTED,
         rowIngestionMeters, mockedExceptionHandler
     );
 
