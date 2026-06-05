@@ -139,6 +139,42 @@ public class KafkaIndexTaskIOConfig extends SeekableStreamIndexTaskIOConfig<Kafk
   }
 
   /**
+   * Confluent: backward-compat overload for callers that predate the header-based filter config
+   * (upstream tests/internal callers). Delegates with a null headerBasedFilterConfig (filtering disabled).
+   */
+  public KafkaIndexTaskIOConfig(
+      int taskGroupId,
+      String baseSequenceName,
+      SeekableStreamStartSequenceNumbers<KafkaTopicPartition, Long> startSequenceNumbers,
+      SeekableStreamEndSequenceNumbers<KafkaTopicPartition, Long> endSequenceNumbers,
+      Map<String, Object> consumerProperties,
+      Long pollTimeout,
+      Boolean useTransaction,
+      DateTime minimumMessageTime,
+      DateTime maximumMessageTime,
+      InputFormat inputFormat,
+      KafkaConfigOverrides configOverrides,
+      Long refreshRejectionPeriodsInMinutes
+  )
+  {
+    this(
+        taskGroupId,
+        baseSequenceName,
+        startSequenceNumbers,
+        endSequenceNumbers,
+        consumerProperties,
+        pollTimeout,
+        useTransaction,
+        minimumMessageTime,
+        maximumMessageTime,
+        inputFormat,
+        configOverrides,
+        refreshRejectionPeriodsInMinutes,
+        null
+    );
+  }
+
+  /**
    * This method is for compatibilty so that newer version of KafkaIndexTaskIOConfig can be read by
    * old version of Druid. Note that this method returns end sequence numbers instead of start. This is because
    * {@link SeekableStreamStartSequenceNumbers} didn't exist before.

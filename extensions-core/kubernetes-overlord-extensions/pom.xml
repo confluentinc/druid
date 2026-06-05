@@ -36,17 +36,11 @@
   <properties>
     <vertx.version>4.5.24</vertx.version>
   </properties>
-  <dependencyManagement>
-    <dependencies>
-      <!-- This is an indirect dependency of io.fabric8:kubernetes-client
-      update to address vulnerability in transitive dependency okio -->
-      <dependency>
-        <groupId>com.squareup.okio</groupId>
-        <artifactId>okio</artifactId>
-        <version>1.17.6</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
+  <!--
+    Confluent's okio:1.17.6 pin (okhttp-4.x era CVE fix) was removed during the druid-37 merge:
+    upstream-37 uses okhttp 5.3.2 and manages okio to 3.16.4 in the root pom, which supersedes the
+    stale pin and satisfies dependency convergence (RequireUpperBoundDeps).
+  -->
 
   <dependencies>
     <dependency>
