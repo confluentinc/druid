@@ -453,6 +453,19 @@ public class QueryLifecycle
   }
 
   /**
+   * Confluent: backward-compat overload (upstream's 3-arg signature) for callers that do not track
+   * rowsScanned/cpuConsumedMillis (e.g. grpc-query and other upstream extensions). Delegates with -1, -1.
+   */
+  public void emitLogsAndMetrics(
+      @Nullable final Throwable e,
+      @Nullable final String remoteAddress,
+      final long bytesWritten
+  )
+  {
+    this.emitLogsAndMetrics(e, remoteAddress, bytesWritten, -1, -1);
+  }
+
+  /**
    * Emit logs and metrics for this query.
    *
    * @param e             exception that occurred while processing this query
