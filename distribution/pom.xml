@@ -545,13 +545,12 @@
                                         <argument>${project.parent.version}</argument>
                                         <argument>-l</argument>
                                         <argument>${settings.localRepository}</argument>
-                                        <argument>--no-default-hadoop</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-datasketches</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-kafka-indexing-service</argument>
                                         <argument>-c</argument>
-                                        <argument>org.apache.druid.extensions:druid-multi-stage-query</argument>
+                                        <argument>org.apache.druid:druid-multi-stage-query</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-catalog</argument>
                                         <argument>-c</argument>
@@ -571,7 +570,7 @@
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-kubernetes-extensions</argument>
                                         <argument>-c</argument>
-                                        <argument>org.apache.druid.extensions.contrib:druid-kubernetes-overlord-extensions</argument>
+                                        <argument>org.apache.druid.extensions:druid-kubernetes-overlord-extensions</argument>
                                         <argument>--clean</argument>
                                     </arguments>
                                 </configuration>
@@ -647,7 +646,6 @@
                                         <argument>${project.parent.version}</argument>
                                         <argument>-l</argument>
                                         <argument>${settings.localRepository}</argument>
-                                        <argument>--no-default-hadoop</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions.contrib:kafka-emitter</argument>
                                         <argument>-c</argument>
