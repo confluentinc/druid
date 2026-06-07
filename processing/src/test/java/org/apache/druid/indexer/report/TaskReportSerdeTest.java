@@ -355,7 +355,8 @@ public class TaskReportSerdeTest
             "processedWithError", (int) determinePartitionTotalStats.getProcessedWithError(),
             "thrownAway", (int) determinePartitionTotalStats.getThrownAway(),
             "thrownAwayByReason", CollectionUtils.mapValues(determinePartitionTotalStats.getThrownAwayByReason(), Long::intValue),
-            "unparseable", (int) determinePartitionTotalStats.getUnparseable()
+            "unparseable", (int) determinePartitionTotalStats.getUnparseable(),
+            "filtered", (int) determinePartitionTotalStats.getFiltered()
         ),
         observedTotals.get("determinePartitions")
     );
@@ -366,7 +367,8 @@ public class TaskReportSerdeTest
             "processedWithError", (int) buildSegmentTotalStats.getProcessedWithError(),
             "thrownAway", (int) buildSegmentTotalStats.getThrownAway(),
             "thrownAwayByReason", CollectionUtils.mapValues(buildSegmentTotalStats.getThrownAwayByReason(), Long::intValue),
-            "unparseable", (int) buildSegmentTotalStats.getUnparseable()
+            "unparseable", (int) buildSegmentTotalStats.getUnparseable(),
+            "filtered", (int) buildSegmentTotalStats.getFiltered()
         ),
         observedTotals.get("buildSegments")
     );

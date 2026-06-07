@@ -153,10 +153,14 @@ public class BatchAppenderatorTest extends InitializedNullHandlingTest
       SegmentGenerationMetrics segmentGenerationMetrics = tester.getMetrics();
       Assert.assertEquals(2, segmentGenerationMetrics.numPersists());
       Assert.assertEquals(4, segmentGenerationMetrics.rowOutput());
-      Assert.assertTrue(segmentGenerationMetrics.persistTimeMillis() > 0);
+      // Wall-clock millisecond timings can legitimately round to 0 for sub-millisecond
+      // in-memory operations on fast CI hardware, so assert they are non-negative. The
+      // CPU-time (nanosecond) metrics are asserted strictly positive to confirm the
+      // timing metrics are actually emitted (see apache/druid #18866).
+      Assert.assertTrue(segmentGenerationMetrics.persistTimeMillis() >= 0);
       Assert.assertTrue(segmentGenerationMetrics.persistCpuTime() > 0);
 
-      Assert.assertTrue(segmentGenerationMetrics.mergeTimeMillis() > 0);
+      Assert.assertTrue(segmentGenerationMetrics.mergeTimeMillis() >= 0);
       Assert.assertTrue(segmentGenerationMetrics.mergeCpuTime() > 0);
 
       appenderator.close();
@@ -754,10 +758,14 @@ public class BatchAppenderatorTest extends InitializedNullHandlingTest
       SegmentGenerationMetrics segmentGenerationMetrics = tester.getMetrics();
       Assert.assertEquals(4, segmentGenerationMetrics.numPersists());
       Assert.assertEquals(3, segmentGenerationMetrics.rowOutput());
-      Assert.assertTrue(segmentGenerationMetrics.persistTimeMillis() > 0);
+      // Wall-clock millisecond timings can legitimately round to 0 for sub-millisecond
+      // in-memory operations on fast CI hardware, so assert they are non-negative. The
+      // CPU-time (nanosecond) metrics are asserted strictly positive to confirm the
+      // timing metrics are actually emitted (see apache/druid #18866).
+      Assert.assertTrue(segmentGenerationMetrics.persistTimeMillis() >= 0);
       Assert.assertTrue(segmentGenerationMetrics.persistCpuTime() > 0);
 
-      Assert.assertTrue(segmentGenerationMetrics.mergeTimeMillis() > 0);
+      Assert.assertTrue(segmentGenerationMetrics.mergeTimeMillis() >= 0);
       Assert.assertTrue(segmentGenerationMetrics.mergeCpuTime() > 0);
       appenderator.close();
     }

@@ -41,6 +41,7 @@ public interface RowIngestionMeters extends InputStats
   String UNPARSEABLE = "unparseable";
   String THROWN_AWAY = "thrownAway";
   String THROWN_AWAY_BY_REASON = "thrownAwayByReason";
+  String FILTERED = "filtered";
 
   /**
    * Number of bytes read by an ingestion task.
@@ -85,6 +86,9 @@ public interface RowIngestionMeters extends InputStats
    * Keyed by {@link InputRowFilterResult#getReason()}.
    */
   Map<String, Long> getThrownAwayByReason();
+
+  long getFiltered();
+  void incrementFiltered();
 
   RowIngestionMetersTotals getTotals();
 

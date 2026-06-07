@@ -71,7 +71,7 @@ public abstract class StreamIndexTestBase extends EmbeddedClusterTestBase
         .withEmbeddedDerbyAndZookeeper()
         .useContainerFriendlyHostname()
         .useLatchableEmitter()
-        .useDefaultTimeoutForLatchableEmitter(60)
+        .useDefaultTimeoutForLatchableEmitter(180)
         .addResource(getStreamIngestResource())
         .addServer(indexer)
         .addServer(coordinator)

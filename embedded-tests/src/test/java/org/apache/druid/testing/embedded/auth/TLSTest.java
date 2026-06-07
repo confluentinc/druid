@@ -25,6 +25,8 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.RetryUtils;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.lifecycle.Lifecycle;
+import org.apache.druid.java.util.emitter.core.NoopEmitter;
+import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.http.client.CredentialedHttpClient;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.HttpClientConfig;
@@ -363,7 +365,8 @@ public class TLSTest extends EmbeddedClusterTestBase
 
     HttpClient client = HttpClientInit.createClient(
         builder.build(),
-        new Lifecycle()
+        new Lifecycle(),
+        new ServiceEmitter("", "", new NoopEmitter())
     );
 
     return new CredentialedHttpClient(
@@ -387,7 +390,8 @@ public class TLSTest extends EmbeddedClusterTestBase
 
     HttpClient client = HttpClientInit.createClient(
         builder.build(),
-        new Lifecycle()
+        new Lifecycle(),
+        new ServiceEmitter("", "", new NoopEmitter())
     );
 
     return new CredentialedHttpClient(
