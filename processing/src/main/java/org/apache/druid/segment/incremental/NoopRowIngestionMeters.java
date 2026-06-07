@@ -29,7 +29,7 @@ import java.util.Map;
  */
 public class NoopRowIngestionMeters implements RowIngestionMeters
 {
-  private static final RowIngestionMetersTotals EMPTY_TOTALS = new RowIngestionMetersTotals(0, 0, 0, Map.of(), 0);
+  private static final RowIngestionMetersTotals EMPTY_TOTALS = new RowIngestionMetersTotals(0, 0, 0, Map.of(), 0, 0);
 
   @Override
   public long getProcessed()
@@ -83,6 +83,18 @@ public class NoopRowIngestionMeters implements RowIngestionMeters
   public Map<String, Long> getThrownAwayByReason()
   {
     return Map.of();
+  }
+
+  @Override
+  public long getFiltered()
+  {
+    return 0;
+  }
+
+  @Override
+  public void incrementFiltered()
+  {
+
   }
 
   @Override

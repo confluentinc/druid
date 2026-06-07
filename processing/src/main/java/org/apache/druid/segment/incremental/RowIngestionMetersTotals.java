@@ -36,6 +36,7 @@ public class RowIngestionMetersTotals
   private final long thrownAway;
   private final Map<String, Long> thrownAwayByReason;
   private final long unparseable;
+  private final long filtered;
 
   @JsonCreator
   public RowIngestionMetersTotals(
@@ -44,7 +45,8 @@ public class RowIngestionMetersTotals
       @JsonProperty("processedWithError") long processedWithError,
       @JsonProperty("thrownAway") long thrownAway,
       @JsonProperty("thrownAwayByReason") @Nullable Map<String, Long> thrownAwayByReason,
-      @JsonProperty("unparseable") long unparseable
+      @JsonProperty("unparseable") long unparseable,
+      @JsonProperty("filtered") long filtered
   )
   {
     this(
@@ -52,10 +54,12 @@ public class RowIngestionMetersTotals
         processedBytes,
         processedWithError,
         Configs.valueOrDefault(thrownAwayByReason, getBackwardsCompatibleThrownAwayByReason(thrownAway)),
-        unparseable
+        unparseable,
+        filtered
     );
   }
 
+  // Upstream backwards-compat (thrownAway scalar, no filtered)
   public RowIngestionMetersTotals(
       long processed,
       long processedBytes,
@@ -69,10 +73,32 @@ public class RowIngestionMetersTotals
         processedBytes,
         processedWithError,
         getBackwardsCompatibleThrownAwayByReason(thrownAway),
-        unparseable
+        unparseable,
+        0
     );
   }
 
+  // Confluent: thrownAway scalar + filtered (header-based pre-ingestion filtering)
+  public RowIngestionMetersTotals(
+      long processed,
+      long processedBytes,
+      long processedWithError,
+      long thrownAway,
+      long unparseable,
+      long filtered
+  )
+  {
+    this(
+        processed,
+        processedBytes,
+        processedWithError,
+        getBackwardsCompatibleThrownAwayByReason(thrownAway),
+        unparseable,
+        filtered
+    );
+  }
+
+  // Upstream (thrownAwayByReason map, no filtered)
   public RowIngestionMetersTotals(
       long processed,
       long processedBytes,
@@ -81,12 +107,26 @@ public class RowIngestionMetersTotals
       long unparseable
   )
   {
+    this(processed, processedBytes, processedWithError, thrownAwayByReason, unparseable, 0);
+  }
+
+  // Canonical: thrownAwayByReason map + filtered
+  public RowIngestionMetersTotals(
+      long processed,
+      long processedBytes,
+      long processedWithError,
+      Map<String, Long> thrownAwayByReason,
+      long unparseable,
+      long filtered
+  )
+  {
     this.processed = processed;
     this.processedBytes = processedBytes;
     this.processedWithError = processedWithError;
     this.thrownAway = thrownAwayByReason.values().stream().reduce(0L, Long::sum);
     this.thrownAwayByReason = thrownAwayByReason;
     this.unparseable = unparseable;
+    this.filtered = filtered;
   }
 
   @JsonProperty
@@ -125,6 +165,12 @@ public class RowIngestionMetersTotals
     return unparseable;
   }
 
+  @JsonProperty
+  public long getFiltered()
+  {
+    return filtered;
+  }
+
   @Override
   public boolean equals(Object o)
   {
@@ -140,13 +186,14 @@ public class RowIngestionMetersTotals
            && processedWithError == that.processedWithError
            && thrownAway == that.thrownAway
            && thrownAwayByReason.equals(that.thrownAwayByReason)
-           && unparseable == that.unparseable;
+           && unparseable == that.unparseable
+           && filtered == that.filtered;
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(processed, processedBytes, processedWithError, thrownAway, thrownAwayByReason, unparseable);
+    return Objects.hash(processed, processedBytes, processedWithError, thrownAway, thrownAwayByReason, unparseable, filtered);
   }
 
   @Override
@@ -159,6 +206,7 @@ public class RowIngestionMetersTotals
            ", thrownAway=" + thrownAway +
            ", thrownAwayByReason=" + thrownAwayByReason +
            ", unparseable=" + unparseable +
+           ", filtered=" + filtered +
            '}';
   }
 
