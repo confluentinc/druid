@@ -67,4 +67,10 @@ public final class DummyBlockingPool implements BlockingPool<Object>
   {
     return 0;
   }
+
+  @Override
+  public int getUsedBufferCount()
+  {
+    return 0;
+  }
 }
