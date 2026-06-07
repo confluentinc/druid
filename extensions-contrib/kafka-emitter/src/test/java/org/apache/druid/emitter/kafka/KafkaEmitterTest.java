@@ -43,7 +43,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -62,7 +61,7 @@ import static org.mockito.Mockito.when;
 
 public class KafkaEmitterTest
 {
-  private KafkaProducer<String, String> producer;
+  private KafkaProducer<String, byte[]> producer;
 
   @Before
   public void setup()
@@ -146,6 +145,7 @@ public class KafkaEmitterTest
         "alerts",
         "requests",
         "segments",
+        null,
         "clusterName",
         ImmutableMap.of("clusterId", "cluster-101"),
         null,
@@ -201,6 +201,7 @@ public class KafkaEmitterTest
         "requests",
         "segments",
         null,
+        "clusterName",
         ImmutableMap.of("clusterId", "cluster-101", "env", "staging"),
         null,
         null,
@@ -250,6 +251,7 @@ public class KafkaEmitterTest
         "alerts",
         "requests",
         "segment_metadata",
+        null,
         "clusterName",
         null,
         null,
@@ -299,6 +301,7 @@ public class KafkaEmitterTest
         "alerts",
         "requests",
         "segment_metadata",
+        null,
         "clusterName",
         null,
         null,
@@ -426,6 +429,7 @@ public class KafkaEmitterTest
         "topic",
         null,
         null,
+        null,
         "cluster-102",
         ImmutableMap.of("clusterName", "cluster-101", "env", "staging"), // clusterName again, extraDimensions should take precedence
         null,
@@ -477,7 +481,7 @@ public class KafkaEmitterTest
     final ImmutableMap<String, String> extraDimensions = ImmutableMap.of("clusterId", "cluster-101");
     final Map<String, List<EventMap>> feedToAllEventsBeforeDrop = trackExpectedEventsPerFeed(
         inputEvents,
-        null,
+        "clusterName",
         extraDimensions
     );
 
@@ -503,7 +507,7 @@ public class KafkaEmitterTest
     int totalBufferSize = 0;
     for (final List<EventMap> feedEvents : feedToAllEventsBeforeDrop.values()) {
       for (int idx = 0; idx < feedEvents.size() - bufferEventsDrop; idx++) {
-        totalBufferSize += MAPPER.writeValueAsString(feedEvents.get(idx)).getBytes(StandardCharsets.UTF_8).length;
+        totalBufferSize += MAPPER.writeValueAsBytes(feedEvents.get(idx)).length;
       }
     }
 
@@ -520,7 +524,8 @@ public class KafkaEmitterTest
         "alerts",
         "requests",
         "segments",
-        null,
+        KafkaEmitterConfig.SegmentMetadataTopicFormat.PROTOBUF,
+        "clusterName",
         extraDimensions,
         ImmutableMap.of(ProducerConfig.BUFFER_MEMORY_CONFIG, String.valueOf(totalBufferSize)),
         null,
@@ -553,7 +558,7 @@ public class KafkaEmitterTest
     )
     {
       @Override
-      protected Producer<String, String> setKafkaProducer()
+      protected Producer<String, byte[]> setKafkaProducer()
       {
         // override send interval to 1 second
         sendInterval = 1;
@@ -595,9 +600,9 @@ public class KafkaEmitterTest
     // A concurrent hashmap because the producer callback can trigger concurrently and can override the map initialization
     final ConcurrentHashMap<String, List<EventMap>> feedToActualEvents = new ConcurrentHashMap<>();
     when(producer.send(any(), any())).then((invocation) -> {
-      final ProducerRecord<?, ?> producerRecord = invocation.getArgument(0);
-      final String value = String.valueOf(producerRecord.value());
-      final EventMap eventMap = MAPPER.readValue(value, EventMap.class);
+      final ProducerRecord<?, byte[]> producerRecord = invocation.getArgument(0);
+      final EventMap eventMap = MAPPER.readValue(producerRecord.value(), EventMap.class);
+
       feedToActualEvents.computeIfAbsent(
           (String) eventMap.get("feed"), k -> new ArrayList<>()
       ).add(eventMap);

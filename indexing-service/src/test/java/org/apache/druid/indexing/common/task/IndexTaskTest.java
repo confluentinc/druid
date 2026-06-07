@@ -1420,7 +1420,8 @@ public class IndexTaskTest extends IngestionTestBase
             RowIngestionMeters.PROCESSED_BYTES, 657,
             RowIngestionMeters.UNPARSEABLE, 4,
             RowIngestionMeters.THROWN_AWAY, 1,
-            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedThrownAwayByReason
+            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedThrownAwayByReason,
+            RowIngestionMeters.FILTERED, 0
         ),
         RowIngestionMeters.BUILD_SEGMENTS,
         ImmutableMap.of(
@@ -1429,7 +1430,8 @@ public class IndexTaskTest extends IngestionTestBase
             RowIngestionMeters.PROCESSED_BYTES, 657,
             RowIngestionMeters.UNPARSEABLE, 4,
             RowIngestionMeters.THROWN_AWAY, 1,
-            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedThrownAwayByReason
+            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedThrownAwayByReason,
+            RowIngestionMeters.FILTERED, 0
         )
     );
     Assert.assertEquals(expectedMetrics, reportData.getRowStats());
@@ -1581,7 +1583,8 @@ public class IndexTaskTest extends IngestionTestBase
             RowIngestionMeters.PROCESSED_BYTES, 0,
             RowIngestionMeters.UNPARSEABLE, 0,
             RowIngestionMeters.THROWN_AWAY, 0,
-            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedDeterminePartitionsThrownAwayByReason
+            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedDeterminePartitionsThrownAwayByReason,
+            RowIngestionMeters.FILTERED, 0
         ),
         RowIngestionMeters.BUILD_SEGMENTS,
         ImmutableMap.of(
@@ -1590,7 +1593,8 @@ public class IndexTaskTest extends IngestionTestBase
             RowIngestionMeters.PROCESSED_BYTES, 182,
             RowIngestionMeters.UNPARSEABLE, 3,
             RowIngestionMeters.THROWN_AWAY, 1,
-            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedBuildSegmentsThrownAwayByReason
+            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedBuildSegmentsThrownAwayByReason,
+            RowIngestionMeters.FILTERED, 0
         )
     );
 
@@ -1679,7 +1683,8 @@ public class IndexTaskTest extends IngestionTestBase
             RowIngestionMeters.PROCESSED_BYTES, 182,
             RowIngestionMeters.UNPARSEABLE, 3,
             RowIngestionMeters.THROWN_AWAY, 1,
-            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedDeterminePartitionsThrownAwayByReason
+            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedDeterminePartitionsThrownAwayByReason,
+            RowIngestionMeters.FILTERED, 0
         ),
         RowIngestionMeters.BUILD_SEGMENTS,
         ImmutableMap.of(
@@ -1688,7 +1693,8 @@ public class IndexTaskTest extends IngestionTestBase
             RowIngestionMeters.PROCESSED_BYTES, 0,
             RowIngestionMeters.UNPARSEABLE, 0,
             RowIngestionMeters.THROWN_AWAY, 0,
-            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedBuildSegmentsThrownAwayByReason
+            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedBuildSegmentsThrownAwayByReason,
+            RowIngestionMeters.FILTERED, 0
         )
     );
 
