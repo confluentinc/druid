@@ -240,6 +240,9 @@ public class SqlResource
     final HttpStatement stmt;
     final QueryContext queryContext;
 
+    // Confluent: record query start time so QueryResultPusher can compute broker query time for SQL queries.
+    req.setAttribute(QueryResource.QUERY_START_TIME_ATTRIBUTE, System.nanoTime());
+
     try {
       SqlQueryPlus sqlQueryPlus = makeSqlQueryPlus(sqlQuery, req, queryConfigProvider.getContext());
 
