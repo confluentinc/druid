@@ -1,0 +1,4 @@
+# Placeholder so distribution/docker/extra_jars/ exists for the Confluent
+# `COPY distribution/docker/extra_jars/ /opt/druid/lib/` line in the druid
+# distribution Dockerfile. Empty by default; drop extra runtime jars here to
+# bundle them into the base druid image.

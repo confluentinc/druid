@@ -39,6 +39,7 @@ import org.apache.druid.query.Result;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorAdapters;
 import org.apache.druid.query.aggregation.AggregatorFactory;
+import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.vector.VectorCursorGranularizer;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.Cursor;
@@ -46,6 +47,7 @@ import org.apache.druid.segment.CursorBuildSpec;
 import org.apache.druid.segment.CursorFactory;
 import org.apache.druid.segment.CursorHolder;
 import org.apache.druid.segment.Cursors;
+import org.apache.druid.segment.RowCountingCursorDecorator;
 import org.apache.druid.segment.SegmentMissingException;
 import org.apache.druid.segment.TimeBoundaryInspector;
 import org.apache.druid.segment.filter.Filters;
@@ -86,11 +88,26 @@ public class TimeseriesQueryEngine
    * Run a single-segment, single-interval timeseries query on a particular adapter. The query must have been
    * scoped down to a single interval before calling this method.
    */
+  /**
+   * Confluent: backward-compat overload for callers that do not track the querySegmentCount metric
+   * (upstream tests and internal callers). Delegates with an empty ResponseContext.
+   */
+  public Sequence<Result<TimeseriesResultValue>> process(
+      TimeseriesQuery query,
+      CursorFactory cursorFactory,
+      @Nullable TimeBoundaryInspector timeBoundaryInspector,
+      @Nullable TimeseriesQueryMetrics timeseriesQueryMetrics
+  )
+  {
+    return process(query, cursorFactory, timeBoundaryInspector, timeseriesQueryMetrics, ResponseContext.createEmpty());
+  }
+
   public Sequence<Result<TimeseriesResultValue>> process(
       TimeseriesQuery query,
       final CursorFactory cursorFactory,
       @Nullable TimeBoundaryInspector timeBoundaryInspector,
-      @Nullable final TimeseriesQueryMetrics timeseriesQueryMetrics
+      @Nullable final TimeseriesQueryMetrics timeseriesQueryMetrics,
+      ResponseContext responseContext
   )
   {
     if (cursorFactory == null) {
@@ -98,7 +115,6 @@ public class TimeseriesQueryEngine
           "Null cursor factory found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-
     final Interval interval = Iterables.getOnlyElement(query.getIntervals());
     final Granularity gran = query.getGranularity();
 
@@ -110,9 +126,9 @@ public class TimeseriesQueryEngine
       final Sequence<Result<TimeseriesResultValue>> result;
 
       if (query.context().getVectorize().shouldVectorize(cursorHolder.canVectorize())) {
-        result = processVectorized(query, cursorHolder, timeBoundaryInspector, interval, gran);
+        result = processVectorized(query, cursorHolder, timeBoundaryInspector, interval, gran, responseContext);
       } else {
-        result = processNonVectorized(query, cursorHolder, timeBoundaryInspector, interval, gran);
+        result = processNonVectorized(query, cursorHolder, timeBoundaryInspector, interval, gran, responseContext);
       }
 
       final int limit = query.getLimit();
@@ -133,7 +149,8 @@ public class TimeseriesQueryEngine
       final CursorHolder cursorHolder,
       @Nullable final TimeBoundaryInspector timeBoundaryInspector,
       final Interval queryInterval,
-      final Granularity gran
+      final Granularity gran,
+      final ResponseContext responseContext
   )
   {
     final boolean skipEmptyBuckets = query.isSkipEmptyBuckets();
@@ -183,6 +200,7 @@ public class TimeseriesQueryEngine
                   bucketInterval -> {
                     // Whether or not the current bucket is empty
                     boolean emptyBucket = true;
+                    long numRowsScanned = 0;
 
                     while (!cursor.isDone()) {
                       granularizer.setCurrentOffsets(bucketInterval);
@@ -198,13 +216,16 @@ public class TimeseriesQueryEngine
                             granularizer.getStartOffset(),
                             granularizer.getEndOffset()
                         );
-
+                        numRowsScanned += granularizer.getEndOffset() - granularizer.getStartOffset();
                         emptyBucket = false;
                       }
 
                       if (!granularizer.advanceCursorWithinBucket()) {
                         break;
                       }
+                    }
+                    if (responseContext != null) {
+                      responseContext.addRowScanCount(numRowsScanned);
                     }
 
                     if (emptyBucket && skipEmptyBuckets) {
@@ -250,15 +271,17 @@ public class TimeseriesQueryEngine
       final CursorHolder cursorHolder,
       @Nullable TimeBoundaryInspector timeBoundaryInspector,
       final Interval queryInterval,
-      final Granularity gran
+      final Granularity gran,
+      final ResponseContext responseContext
   )
   {
     final boolean skipEmptyBuckets = query.isSkipEmptyBuckets();
     final List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
-    final Cursor cursor = cursorHolder.asCursor();
-    if (cursor == null) {
+    final Cursor rawCursor = cursorHolder.asCursor();
+    if (rawCursor == null) {
       return Sequences.empty();
     }
+    final Cursor cursor = new RowCountingCursorDecorator(rawCursor, responseContext);
     final CursorGranularizer granularizer = CursorGranularizer.create(
         cursor,
         timeBoundaryInspector,
@@ -281,7 +304,6 @@ public class TimeseriesQueryEngine
                           }
                           final Aggregator[] aggregators = new Aggregator[aggregatorSpecs.size()];
                           final String[] aggregatorNames = new String[aggregatorSpecs.size()];
-
                           for (int i = 0; i < aggregatorSpecs.size(); i++) {
                             aggregators[i] = aggregatorSpecs.get(i).factorize(columnSelectorFactory);
                             aggregatorNames[i] = aggregatorSpecs.get(i).getName();

@@ -782,9 +782,15 @@ public class QueryResourceTest
             )
             {
               @Override
-              public void emitLogsAndMetrics(@Nullable Throwable e, @Nullable String remoteAddress, long bytesWritten)
+              public void emitLogsAndMetrics(
+                  @Nullable Throwable e,
+                  @Nullable String remoteAddress,
+                  long bytesWritten,
+                  long numRowsScanned,
+                  long cpuConsumedMillis
+              )
               {
-                super.emitLogsAndMetrics(e, remoteAddress, bytesWritten);
+                super.emitLogsAndMetrics(e, remoteAddress, bytesWritten, numRowsScanned, cpuConsumedMillis);
                 Assert.assertTrue(Throwables.getStackTraceAsString(e).contains(embeddedExceptionMessage));
               }
             };

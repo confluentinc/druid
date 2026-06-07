@@ -1165,7 +1165,8 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
             RowIngestionMeters.PROCESSED_WITH_ERROR, 3,
             RowIngestionMeters.UNPARSEABLE, 4,
             RowIngestionMeters.THROWN_AWAY, 0,
-            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedThrownAwayByReason
+            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedThrownAwayByReason,
+            RowIngestionMeters.FILTERED, 0
         )
     );
     Assert.assertEquals(expectedMetrics, reportData.getRowStats());
@@ -1258,7 +1259,8 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
             RowIngestionMeters.PROCESSED_WITH_ERROR, 0,
             RowIngestionMeters.UNPARSEABLE, 3,
             RowIngestionMeters.THROWN_AWAY, 0,
-            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedThrownAwayByReason
+            RowIngestionMeters.THROWN_AWAY_BY_REASON, expectedThrownAwayByReason,
+            RowIngestionMeters.FILTERED, 0
         )
     );
     Assert.assertEquals(expectedMetrics, reportData.getRowStats());

@@ -193,8 +193,8 @@ public class GroupingEngine
         );
       } else {
         return new GroupByQueryResources(
-            mergeBufferHolders.subList(0, requiredMergeBufferNumForToolchestMerge), 
-            mergeBufferHolders.subList(requiredMergeBufferNumForToolchestMerge, requiredMergeBufferNum)
+            mergeBufferHolders.subList(0, requiredMergeBufferNumForToolchestMerge),
+                mergeBufferHolders.subList(requiredMergeBufferNumForToolchestMerge, requiredMergeBufferNum)
         );
       }
     }
@@ -474,12 +474,28 @@ public class GroupingEngine
    *
    * @return result sequence for the cursor factory
    */
+  /**
+   * Confluent: backward-compat overload for callers that do not track the querySegmentCount metric
+   * (upstream tests and internal callers). Delegates with an empty ResponseContext.
+   */
   public Sequence<ResultRow> process(
       GroupByQuery query,
       CursorFactory cursorFactory,
       @Nullable TimeBoundaryInspector timeBoundaryInspector,
       NonBlockingPool<ByteBuffer> bufferPool,
       @Nullable GroupByQueryMetrics groupByQueryMetrics
+  )
+  {
+    return process(query, cursorFactory, timeBoundaryInspector, bufferPool, groupByQueryMetrics, ResponseContext.createEmpty());
+  }
+
+  public Sequence<ResultRow> process(
+      GroupByQuery query,
+      CursorFactory cursorFactory,
+      @Nullable TimeBoundaryInspector timeBoundaryInspector,
+      NonBlockingPool<ByteBuffer> bufferPool,
+      @Nullable GroupByQueryMetrics groupByQueryMetrics,
+      ResponseContext responseContext
   )
   {
     final GroupByQueryConfig querySpecificConfig = configSupplier.get().withOverrides(query);
@@ -528,7 +544,8 @@ public class GroupingEngine
             fudgeTimestamp,
             buildSpec.getInterval(),
             querySpecificConfig,
-            processingConfig
+            processingConfig,
+            responseContext
         );
       } else {
         result = GroupByQueryEngine.process(
@@ -539,7 +556,8 @@ public class GroupingEngine
             bufferHolder.get(),
             fudgeTimestamp,
             querySpecificConfig,
-            processingConfig
+            processingConfig,
+            responseContext
         );
       }
 
@@ -589,7 +607,8 @@ public class GroupingEngine
       GroupByQueryResources resource,
       Sequence<ResultRow> subqueryResult,
       boolean wasQueryPushedDown,
-      GroupByStatsProvider.PerQueryStats perQueryStats
+      GroupByStatsProvider.PerQueryStats perQueryStats,
+      ResponseContext context
   )
   {
     // Keep a reference to resultSupplier outside the "try" so we can close it if something goes wrong
