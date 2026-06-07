@@ -155,9 +155,9 @@ class SqlResourceQueryResultPusher extends QueryResultPusher
       }
 
       @Override
-      public void recordSuccess(long numBytes)
+      public void recordSuccess(long numBytes, long numRowsScanned, long cpuTimeInMillis)
       {
-        stmt.reporter().succeeded(numBytes);
+        stmt.reporter().succeeded(numBytes, numRowsScanned, cpuTimeInMillis);
       }
 
       @Override
