@@ -112,10 +112,16 @@ blocks:
               MAVEN_OPTS="${MAVEN_OPTS} -Xmx1g" ${MVN} test -pl ${MAVEN_PROJECTS}
               ${MAVEN_SKIP} -Dremoteresources.skip=true
 
-        - name: "Server"
+        # sql rides along with server in the same reactor so that druid-server is built from
+        # source (target/classes) rather than resolved from the installed JAR. SystemSchemaTest
+        # reads the sys.servers druid_version/build_revision from the druid-server JAR manifest
+        # (DruidNode / BuildInfo); under a per-module `-pl sql` run that manifest carries the real
+        # version (e.g. 37.0.0), but the test expects the manifest-less value ("unknown"/"") that
+        # upstream's full-reactor `mvn test` produces. Co-locating sql with server matches upstream.
+        - name: "Server and SQL"
           env_vars:
             - name: MAVEN_PROJECTS
-              value: server
+              value: server,sql
           commands: *run_tests
 
         - name: "Processing"
@@ -159,5 +165,5 @@ blocks:
         - name: "Other Tests"
           env_vars:
             - name: MAVEN_PROJECTS
-              value: '!server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!web-console,!services,!embedded-tests,!quidem-ut'
+              value: '!server,!sql,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!web-console,!services,!embedded-tests,!quidem-ut'
           commands: *run_tests

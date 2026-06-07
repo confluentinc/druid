@@ -86,7 +86,6 @@ import org.apache.druid.segment.join.MapJoinableFactory;
 import org.apache.druid.segment.loading.SegmentCacheManager;
 import org.apache.druid.segment.metadata.CentralizedDatasourceSchemaConfig;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
-import org.apache.druid.server.BuildInfo;
 import org.apache.druid.server.DruidNode;
 import org.apache.druid.server.QueryStackTests;
 import org.apache.druid.server.SegmentManager;
@@ -376,17 +375,13 @@ public class SystemSchemaTest extends CalciteTestBase
   private final long availableProcessors = Runtime.getRuntime().availableProcessors();
   private final long totalMemory = JvmUtils.getTotalMemory();
 
-  // Derive the expected version and build revision from the exact same sources the production
-  // DruidNode uses, so the assertion holds whether druid-server is on the classpath as reactor
-  // classes (no manifest -> "unknown"/"") or as an installed JAR (manifest -> real version/commit).
-  // Reading from SystemSchemaTest.class (the sql test-classes, which never carry a manifest) made
-  // this test fail when run via `-pl` against the installed druid-server JAR.
   private final String version = GuavaUtils.firstNonNull(
-      DruidNode.class.getPackage().getImplementationVersion(),
+      SystemSchemaTest.class.getPackage().getImplementationVersion(),
       DruidNode.UNKNOWN_VERSION
   );
 
-  private final String buildRevision = BuildInfo.getBuildRevision();
+  // buildRevision is empty string outside a packaged JAR (same behaviour as the buildRevision metric dimension)
+  private final String buildRevision = "";
 
   private final DiscoveryDruidNode coordinator = new DiscoveryDruidNode(
       new DruidNode("s1", "localhost", false, 8081, null, true, false),
