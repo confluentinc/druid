@@ -153,11 +153,11 @@ blocks:
         - name: "Druid E2E Tests"
           env_vars:
               - name: MAVEN_PROJECTS
-                value: 'integration-tests,integration-tests-ex/image,integration-tests-ex/tools,quidem-ut,embedded-tests'
+                value: 'quidem-ut,embedded-tests'
           commands: *run_tests
 
         - name: "Other Tests"
           env_vars:
             - name: MAVEN_PROJECTS
-              value: '!server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!integration-tests-ex/cases,!web-console,!services,!embedded-tests,!integration-tests,!integration-tests-ex/image,!integration-tests-ex/tools,!quidem-ut'
+              value: '!server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!web-console,!services,!embedded-tests,!quidem-ut'
           commands: *run_tests

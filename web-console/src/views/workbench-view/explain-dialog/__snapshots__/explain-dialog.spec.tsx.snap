@@ -102,7 +102,6 @@ exports[`ExplainDialog matches snapshot on some data (many queries) 1`] = `
       fill={false}
       large={false}
       renderActiveTabPanelOnly={true}
-      size="medium"
       vertical={true}
     >
       <Blueprint5.Tab

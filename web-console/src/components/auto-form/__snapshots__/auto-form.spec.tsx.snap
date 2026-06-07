@@ -34,7 +34,6 @@ exports[`AutoForm matches snapshot 1`] = `
       onValueChange={[Function]}
       selectAllOnFocus={false}
       selectAllOnIncrement={false}
-      size="medium"
       small={false}
       stepSize={1000}
     />
@@ -79,6 +78,7 @@ exports[`AutoForm matches snapshot 1`] = `
     label="Test boolean"
   >
     <Blueprint5.SegmentedControl
+      intent="none"
       onValueChange={[Function]}
       options={
         [
@@ -102,6 +102,7 @@ exports[`AutoForm matches snapshot 1`] = `
     label="Test boolean with default"
   >
     <Blueprint5.SegmentedControl
+      intent="none"
       onValueChange={[Function]}
       options={
         [
