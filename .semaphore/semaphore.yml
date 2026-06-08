@@ -158,9 +158,6 @@ blocks:
 
         # Keep -Dmaven.repo.local=.m2 (else deps resolve to upstream 37.0.0 from Central, not our build);
         # reuseForks=false runs each test class in a fresh JVM so embedded-tests heap doesn't accumulate.
-        # KafkaIndexFaultToleranceTest is re-enabled here (it was excluded in #453): its earlier CI stall
-        # was a producer-side OUT_OF_ORDER_SEQUENCE_NUMBER storm after a topic-partition increase, now
-        # fixed in KafkaResource.produceRecordsWithoutTransaction (max.in.flight=1 + block on delivery).
         - name: "Druid E2E Tests"
           env_vars:
               - name: MAVEN_PROJECTS
