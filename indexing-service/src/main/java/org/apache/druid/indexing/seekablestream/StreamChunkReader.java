@@ -91,8 +91,17 @@ class StreamChunkReader<RecordType extends ByteEntity>
 
   List<InputRow> parse(@Nullable List<RecordType> streamChunk, boolean isEndOfShard) throws IOException
   {
+    return parse(streamChunk, isEndOfShard, false);
+  }
+
+  List<InputRow> parse(@Nullable List<RecordType> streamChunk, boolean isEndOfShard, boolean isFiltered)
+      throws IOException
+  {
     if (streamChunk == null || streamChunk.isEmpty()) {
-      if (!isEndOfShard) {
+      if (isFiltered) {
+        // Confluent (OBSDATA-11562): header-based pre-ingestion filtering — count as filtered, not thrownAway
+        rowIngestionMeters.incrementFiltered();
+      } else if (!isEndOfShard) {
         // We do not count end of shard record as thrown away event since this is a record created by Druid
         // Note that this only applies to Kinesis
         rowIngestionMeters.incrementThrownAway(InputRowFilterResult.NULL_OR_EMPTY_RECORD);
