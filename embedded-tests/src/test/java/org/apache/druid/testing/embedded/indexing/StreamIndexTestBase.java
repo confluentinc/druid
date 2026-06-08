@@ -71,9 +71,7 @@ public abstract class StreamIndexTestBase extends EmbeddedClusterTestBase
         .withEmbeddedDerbyAndZookeeper()
         .useContainerFriendlyHostname()
         .useLatchableEmitter()
-        // -1 => no wait timeout (LatchableEmitter waits indefinitely). Temporary: confirm this
-        // heavy supervisor-recovery test can complete on the CI agent given unlimited time.
-        .useDefaultTimeoutForLatchableEmitter(-1)
+        .useDefaultTimeoutForLatchableEmitter(60)
         .addResource(getStreamIngestResource())
         .addServer(indexer)
         .addServer(coordinator)
