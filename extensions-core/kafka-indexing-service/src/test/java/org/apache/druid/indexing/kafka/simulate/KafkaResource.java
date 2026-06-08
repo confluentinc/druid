@@ -30,6 +30,7 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.testcontainers.kafka.KafkaContainer;
 
@@ -38,6 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -213,10 +215,22 @@ public class KafkaResource extends StreamIngestResource<KafkaContainer>
   {
     final Map<String, Object> props = producerProperties();
     props.remove(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
+    // Pin in-flight requests to 1 for strict per-partition ordering. When records are produced right
+    // after a topic partition increase, sends to a new partition can transiently fail (NOT_LEADER_OR_
+    // FOLLOWER) before its leader is ready; with the default (up to 5) in-flight batches the failed
+    // batch leaves an idempotent-sequence gap, so every later batch is rejected OUT_OF_ORDER_SEQUENCE_
+    // NUMBER and never recovers. With a single in-flight batch, a failed send simply retries in place.
+    props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
 
     try (final KafkaProducer<byte[], byte[]> kafkaProducer = new KafkaProducer<>(props)) {
+      final List<Future<RecordMetadata>> futures = new ArrayList<>(records.size());
       for (ProducerRecord<byte[], byte[]> record : records) {
-        kafkaProducer.send(record);
+        futures.add(kafkaProducer.send(record));
+      }
+      // Block on delivery so a genuine produce failure surfaces here instead of silently dropping
+      // records (which would later manifest as an opaque ingestion-count timeout).
+      for (Future<RecordMetadata> future : futures) {
+        future.get();
       }
     }
     catch (Exception e) {
