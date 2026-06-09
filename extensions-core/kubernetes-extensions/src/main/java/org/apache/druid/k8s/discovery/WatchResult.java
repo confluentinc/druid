@@ -26,6 +26,7 @@ import java.net.SocketTimeoutException;
 public interface WatchResult
 {
   String ADDED = "ADDED";
+  String MODIFIED = "MODIFIED";
   String DELETED = "DELETED";
   String BOOKMARK = "BOOKMARK";
 
