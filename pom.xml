@@ -983,7 +983,8 @@
                 <groupId>org.asynchttpclient</groupId>
                 <artifactId>async-http-client</artifactId>
                 <!-- Uses Netty 4.1.x -->
-                <version>2.12.4</version>
+                <!-- 2.15.0 fixes CVE-2026-45300 (Cookie header leakage on cross-origin redirects) -->
+                <version>2.15.0</version>
             </dependency>
             <dependency>
                 <groupId>net.java.dev.jna</groupId>
