@@ -78,9 +78,11 @@ public class AWSClientUtil
       return true;
     }
 
-    // A special check carried forwarded from previous implementation.
+    // S3 can return a recoverable error code with a non-5xx HTTP status. For example, completeMultipartUpload
+    // may fail with error code "InternalError" inside a 200 OK response, which the status-code based checks
+    // below would miss. Match the error code against the curated recoverable set for any service exception.
     if (exception instanceof AmazonServiceException
-        && "RequestTimeout".equals(((AmazonServiceException) exception).getErrorCode())) {
+        && RECOVERABLE_ERROR_CODES.contains(((AmazonServiceException) exception).getErrorCode())) {
       return true;
     }
 
