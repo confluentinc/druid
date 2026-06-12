@@ -93,7 +93,15 @@ public class S3Utils
         // This is likely due to a temporary DNS issue and can be retried.
         return true;
       } else if (e instanceof AmazonClientException) {
-        return AWSClientUtil.isClientExceptionRecoverable((AmazonClientException) e);
+        if (AWSClientUtil.isClientExceptionRecoverable((AmazonClientException) e)) {
+          return true;
+        }
+        // The recoverable error may be hidden behind a generic wrapper that is itself an AmazonClientException.
+        // For example, when a multipart upload part fails, TransferManager throws
+        // SdkClientException("Unable to complete multi-part upload. Individual part upload failed: ...") whose
+        // retryable AmazonS3Exception (e.g. a 503) is only present as the cause. Check the cause chain before
+        // concluding the operation is not retryable.
+        return apply(e.getCause());
       } else {
         return apply(e.getCause());
       }
