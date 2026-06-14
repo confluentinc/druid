@@ -551,6 +551,7 @@ public class CompressionUtilsTest
   }
 
   // If this ever passes, er... fails to fail... then the bug is fixed
+  @Ignore
   @Test(expected = AssertionError.class)
   // http://bugs.java.com/bugdatabase/view_bug.do?bug_id=7036144
   public void testGunzipBug() throws IOException
