@@ -552,7 +552,7 @@ public class CompressionUtilsTest
   }
 
   // If this ever passes, er... fails to fail... then the bug is fixed
-  @Ignore("This test fails in JDK 21, looks like the bug was fixed in 21.0.9 at least.")
+  @Ignore("This test fails in JDK 17.0.19+ as the bug in the JDK was fixed")
   @Test(expected = AssertionError.class)
   // http://bugs.java.com/bugdatabase/view_bug.do?bug_id=7036144
   public void testGunzipBug() throws IOException
