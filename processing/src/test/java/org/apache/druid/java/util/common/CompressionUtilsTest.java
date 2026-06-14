@@ -33,6 +33,7 @@ import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStr
 import org.apache.druid.utils.CompressionUtils;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -551,7 +552,7 @@ public class CompressionUtilsTest
   }
 
   // If this ever passes, er... fails to fail... then the bug is fixed
-  @Ignore
+  @Ignore("This test fails in JDK 21, looks like the bug was fixed in 21.0.9 at least.")
   @Test(expected = AssertionError.class)
   // http://bugs.java.com/bugdatabase/view_bug.do?bug_id=7036144
   public void testGunzipBug() throws IOException
