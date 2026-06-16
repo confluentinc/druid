@@ -75,7 +75,7 @@
         <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
         <aether.version>0.9.0.M2</aether.version>
         <apache.curator.version>5.8.0</apache.curator.version>
-        <apache.kafka.version>3.9.1</apache.kafka.version>
+        <apache.kafka.version>3.9.2</apache.kafka.version>
         <!-- when updating apache ranger, verify the usage of aws-bundle-sdk vs aws-logs-sdk
         and update as needed in extensions-core/druid-ranger-security/pm.xml  -->
         <apache.ranger.version>2.4.0</apache.ranger.version>
@@ -98,7 +98,7 @@
         <guava.version>32.1.3-jre</guava.version>
         <guice.version>5.1.0</guice.version>
         <hamcrest.version>2.2</hamcrest.version>
-        <jetty.version>12.1.6</jetty.version>
+        <jetty.version>12.1.7</jetty.version>
         <jersey.version>1.19.4</jersey.version>
         <jackson.core.version>2.21.1</jackson.core.version>
         <jackson.version>2.21.1</jackson.version>
@@ -430,7 +430,7 @@
             <dependency>
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcpkix-jdk18on</artifactId>
-                <version>1.78.1</version>
+                <version>1.84</version>
             </dependency>
             <!-- Transitive dependency of hive-common in druid-kerberos, druid-ranger-security and
             druid-iceberg-extension  -->
