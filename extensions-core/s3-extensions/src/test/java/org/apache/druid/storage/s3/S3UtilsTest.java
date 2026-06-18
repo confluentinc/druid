@@ -126,6 +126,77 @@ public class S3UtilsTest
   }
 
   @Test
+  public void testRetryWith5XXErrorsWrappedInSdkClientException() throws Exception
+  {
+    // Mimics a multipart upload part failure: a generic SdkClientException wraps the retryable
+    // S3Exception (503), leaving the retryable cause only on the cause chain.
+    final int maxRetries = 3;
+    final AtomicInteger count = new AtomicInteger();
+    S3Utils.retryS3Operation(
+        () -> {
+          if (count.incrementAndGet() >= maxRetries) {
+            return "hey";
+          } else {
+            S3Exception s3Exception = (S3Exception) S3Exception.builder()
+                .message("Service Unavailable")
+                .statusCode(503)
+                .build();
+            throw SdkClientException.builder()
+                .message("Unable to complete multi-part upload. Individual part upload failed: Service Unavailable")
+                .cause(s3Exception)
+                .build();
+          }
+        },
+        maxRetries
+    );
+    Assert.assertEquals(maxRetries, count.get());
+  }
+
+  @Test
+  public void testNoRetryWith4XXErrorsWrappedInSdkClientException()
+  {
+    final AtomicInteger count = new AtomicInteger();
+    Assert.assertThrows(
+        Exception.class,
+        () -> S3Utils.retryS3Operation(
+            () -> {
+              count.incrementAndGet();
+              S3Exception s3Exception = (S3Exception) S3Exception.builder()
+                  .message("Access Denied")
+                  .statusCode(403)
+                  .build();
+              throw SdkClientException.builder()
+                  .message("Unable to complete multi-part upload. Individual part upload failed: Access Denied")
+                  .cause(s3Exception)
+                  .build();
+            },
+            3
+        )
+    );
+    Assert.assertEquals(1, count.get());
+  }
+
+  @Test
+  public void testNoRetryWithInterruptedExceptionWrappedInSdkClientException()
+  {
+    final AtomicInteger count = new AtomicInteger();
+    Assert.assertThrows(
+        Exception.class,
+        () -> S3Utils.retryS3Operation(
+            () -> {
+              count.incrementAndGet();
+              throw SdkClientException.builder()
+                  .message("Upload aborted")
+                  .cause(new InterruptedException())
+                  .build();
+            },
+            3
+        )
+    );
+    Assert.assertEquals(1, count.get());
+  }
+
+  @Test
   public void testRetryWithSdkClientException() throws Exception
   {
     final int maxRetries = 3;
