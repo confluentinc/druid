@@ -19,6 +19,7 @@
 
 package org.apache.druid.storage.s3;
 
+import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import org.junit.Assert;
 import org.junit.Test;
