@@ -50,7 +50,7 @@ public class ServiceLocation
 
   public static ServiceLocation fromDruidNode(final DruidNode druidNode)
   {
-    return new ServiceLocation(druidNode.getHost(), druidNode.getPlaintextPort(), druidNode.getTlsPort(), "");
+    return new ServiceLocation(druidNode.getHost(), druidNode.getAdvertisedPlaintextPort(), druidNode.getTlsPort(), "");
   }
 
   private static final Splitter SPLITTER = Splitter.on(":").limit(2);

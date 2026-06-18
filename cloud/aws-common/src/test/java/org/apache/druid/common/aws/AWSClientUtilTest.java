@@ -85,6 +85,16 @@ public class AWSClientUtilTest
   }
 
   @Test
+  public void testRecoverableException_InternalErrorInOkResponse()
+  {
+    // S3 completeMultipartUpload can fail with a recoverable error code inside a 200 OK response.
+    AmazonServiceException ex = new AmazonServiceException(null);
+    ex.setStatusCode(200);
+    ex.setErrorCode("InternalError");
+    Assert.assertTrue(AWSClientUtil.isClientExceptionRecoverable(ex));
+  }
+
+  @Test
   public void testRecoverableException_MultiObjectDeleteException()
   {
     MultiObjectDeleteException.DeleteError retryableError = new MultiObjectDeleteException.DeleteError();
