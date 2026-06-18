@@ -426,7 +426,7 @@ public class DruidNodeTest
   public void testSerde2() throws Exception
   {
     DruidNode actual = mapper.readValue(
-        mapper.writeValueAsString(new DruidNode("service", "host", false, 1234, null, 5678, null, false, null)),
+        mapper.writeValueAsString(new DruidNode("service", "host", false, 1234, null, 5678, null, false, (Map<String, String>) null)),
         DruidNode.class
     );
     Assert.assertEquals("service", actual.getServiceName());
@@ -493,7 +493,7 @@ public class DruidNodeTest
 
 
     DruidNode actual = mapper.readValue(json, DruidNode.class);
-    Assert.assertEquals(new DruidNode("service", "host", false, 1234, null, 5678, true, false, null), actual);
+    Assert.assertEquals(new DruidNode("service", "host", false, 1234, null, 5678, true, false, (Map<String, String>) null), actual);
 
     Assert.assertEquals("http", actual.getServiceScheme());
     Assert.assertEquals("host:1234", actual.getHostAndPort());
@@ -513,7 +513,7 @@ public class DruidNodeTest
 
 
     DruidNode actual = mapper.readValue(json, DruidNode.class);
-    Assert.assertEquals(new DruidNode("service", "host", false, 1234, null, 5678, null, false, null), actual);
+    Assert.assertEquals(new DruidNode("service", "host", false, 1234, null, 5678, null, false, (Map<String, String>) null), actual);
 
     Assert.assertEquals("http", actual.getServiceScheme());
     Assert.assertEquals("host:1234", actual.getHostAndPort());
@@ -533,7 +533,7 @@ public class DruidNodeTest
 
 
     DruidNode actual = mapper.readValue(json, DruidNode.class);
-    Assert.assertEquals(new DruidNode("service", "host", false, null, 1234, 5678, null, false, null), actual);
+    Assert.assertEquals(new DruidNode("service", "host", false, null, 1234, 5678, null, false, (Map<String, String>) null), actual);
 
     Assert.assertEquals("http", actual.getServiceScheme());
     Assert.assertEquals("host:1234", actual.getHostAndPort());
