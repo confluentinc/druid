@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 public class ResourcePoolTest
 {
   ResourceFactory<String, String> resourceFactory;
-  ResourcePool<String, String> pool;
+  DefaultResourcePoolImpl<String, String> pool;
 
   @Before
   public void setUp()
@@ -52,7 +52,7 @@ public class ResourcePoolTest
     resourceFactory = (ResourceFactory<String, String>) EasyMock.createMock(ResourceFactory.class);
 
     EasyMock.replay(resourceFactory);
-    pool = new ResourcePool<String, String>(
+    pool = new DefaultResourcePoolImpl<String, String>(
         resourceFactory,
         new ResourcePoolConfig(2, TimeUnit.MINUTES.toMillis(4)),
         eagerInitialization
@@ -418,7 +418,7 @@ public class ResourcePoolTest
   {
     resourceFactory = (ResourceFactory<String, String>) EasyMock.createMock(ResourceFactory.class);
 
-    pool = new ResourcePool<String, String>(
+    pool = new DefaultResourcePoolImpl<>(
         resourceFactory,
         new ResourcePoolConfig(2, TimeUnit.MILLISECONDS.toMillis(10)),
         true
@@ -446,6 +446,65 @@ public class ResourcePoolTest
     ResourceContainer<String> billy = pool.take("billy");
     Assert.assertEquals("billy1", billy.get());
     billy.returnResource();
+
+    EasyMock.verify(resourceFactory);
+    EasyMock.reset(resourceFactory);
+  }
+
+  @Test
+  public void testGetStatsTracksActiveAndQueued() throws Exception
+  {
+    primePool();
+    EasyMock.expect(resourceFactory.isGood("billy1")).andReturn(true).times(1);
+    EasyMock.expect(resourceFactory.isGood("billy0")).andReturn(true).times(1);
+    EasyMock.replay(resourceFactory);
+
+    Assert.assertEquals(0, pool.getStats().get("billy").getNumActive());
+    Assert.assertEquals(0, pool.getStats().get("billy").getNumQueued());
+
+    CountDownLatch latch1 = new CountDownLatch(1);
+    CountDownLatch latch2 = new CountDownLatch(1);
+    CountDownLatch latch3 = new CountDownLatch(1);
+
+    MyThread t1 = new MyThread(latch1, "billy");
+    t1.start();
+    t1.waitForValueToBeGotten(1, TimeUnit.SECONDS);
+
+    MyThread t2 = new MyThread(latch2, "billy");
+    t2.start();
+    t2.waitForValueToBeGotten(1, TimeUnit.SECONDS);
+
+    // Both slots taken; this thread will block in wait()
+    MyThread blocked = new MyThread(latch3, "billy");
+    blocked.start();
+
+    // Wait until the blocked thread reaches wait(); poll briefly.
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+    while (pool.getStats().get("billy").getNumQueued() < 1 && System.nanoTime() < deadline) {
+      Thread.sleep(10);
+    }
+
+    PoolStats stats = pool.getStats().get("billy");
+    Assert.assertEquals(2, stats.getNumActive());
+    Assert.assertEquals(1, stats.getNumQueued());
+
+    EasyMock.verify(resourceFactory);
+    EasyMock.reset(resourceFactory);
+    EasyMock.expect(resourceFactory.isGood("billy0")).andReturn(true).times(1);
+    EasyMock.replay(resourceFactory);
+
+    latch2.countDown();
+    blocked.waitForValueToBeGotten(1, TimeUnit.SECONDS);
+
+    PoolStats afterUnblock = pool.getStats().get("billy");
+    Assert.assertEquals(2, afterUnblock.getNumActive());
+    Assert.assertEquals(0, afterUnblock.getNumQueued());
+
+    latch1.countDown();
+    latch3.countDown();
+    t1.join();
+    t2.join();
+    blocked.join();
 
     EasyMock.verify(resourceFactory);
     EasyMock.reset(resourceFactory);

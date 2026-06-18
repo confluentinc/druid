@@ -92,8 +92,19 @@ public class S3Utils
       } else if (e instanceof SdkClientException && e.getMessage().contains("Unable to execute HTTP request")) {
         // This is likely due to a temporary DNS issue and can be retried.
         return true;
+      } else if (e instanceof InterruptedException) {
+        Thread.interrupted(); // Clear interrupted state and not retry
+        return false;
       } else if (e instanceof AmazonClientException) {
-        return AWSClientUtil.isClientExceptionRecoverable((AmazonClientException) e);
+        if (AWSClientUtil.isClientExceptionRecoverable((AmazonClientException) e)) {
+          return true;
+        }
+        // The recoverable error may be hidden behind a generic wrapper that is itself an AmazonClientException.
+        // For example, when a multipart upload part fails, TransferManager throws
+        // SdkClientException("Unable to complete multi-part upload. Individual part upload failed: ...") whose
+        // retryable AmazonS3Exception (e.g. a 503) is only present as the cause. Check the cause chain before
+        // concluding the operation is not retryable.
+        return apply(e.getCause());
       } else {
         return apply(e.getCause());
       }
@@ -343,7 +354,7 @@ public class S3Utils
       String bucket,
       String key,
       File file
-  )
+  ) throws InterruptedException
   {
     final PutObjectRequest putObjectRequest = new PutObjectRequest(bucket, key, file);
 
@@ -351,7 +362,7 @@ public class S3Utils
       putObjectRequest.setAccessControlList(S3Utils.grantFullControlToBucketOwner(service, bucket));
     }
     log.info("Pushing [%s] to bucket[%s] and key[%s].", file, bucket, key);
-    service.putObject(putObjectRequest);
+    service.upload(putObjectRequest);
   }
 
   @Nullable

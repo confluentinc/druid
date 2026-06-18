@@ -31,9 +31,11 @@ import org.apache.druid.guice.annotations.EscalatedClient;
 import org.apache.druid.guice.annotations.EscalatedGlobal;
 import org.apache.druid.guice.annotations.Global;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.HttpClientConfig;
 import org.apache.druid.java.util.http.client.HttpClientInit;
+import org.apache.druid.java.util.http.client.NettyHttpClient;
 import org.apache.druid.server.security.Escalator;
 
 import javax.net.ssl.SSLContext;
@@ -76,9 +78,13 @@ public class HttpClientModule implements Module
   public void configure(Binder binder)
   {
     JsonConfigProvider.bind(binder, propertyPrefix, DruidHttpClientConfig.class, annotationClazz);
+    final OutboundHttpClientPool poolHolder = new OutboundHttpClientPool();
+    binder.bind(OutboundHttpClientPool.class)
+          .annotatedWith(annotationClazz)
+          .toInstance(poolHolder);
     binder.bind(HttpClient.class)
           .annotatedWith(annotationClazz)
-          .toProvider(new HttpClientProvider(annotationClazz, isEscalated, eagerByDefault))
+          .toProvider(new HttpClientProvider(annotationClazz, isEscalated, eagerByDefault, poolHolder))
           .in(LazySingleton.class);
   }
 
@@ -86,19 +92,29 @@ public class HttpClientModule implements Module
   {
     private final boolean isEscalated;
     private final boolean eagerByDefault;
+    private final OutboundHttpClientPool poolHolder;
     private Escalator escalator;
+    private ServiceEmitter emitter;
 
-    public HttpClientProvider(Class<? extends Annotation> annotationClazz, boolean isEscalated, boolean eagerByDefault)
+
+    public HttpClientProvider(
+        Class<? extends Annotation> annotationClazz,
+        boolean isEscalated,
+        boolean eagerByDefault,
+        OutboundHttpClientPool poolHolder
+    )
     {
       super(annotationClazz);
       this.isEscalated = isEscalated;
       this.eagerByDefault = eagerByDefault;
+      this.poolHolder = poolHolder;
     }
 
     @Inject
-    public void inject(Escalator escalator)
+    public void inject(Escalator escalator, ServiceEmitter emitter)
     {
       this.escalator = escalator;
+      this.emitter = emitter;
     }
 
     @Override
@@ -125,8 +141,13 @@ public class HttpClientModule implements Module
 
       HttpClient client = HttpClientInit.createClient(
           builder.build(),
-          getLifecycleProvider().get()
+          getLifecycleProvider().get(),
+          emitter
       );
+
+      if (client instanceof NettyHttpClient) {
+        poolHolder.register(((NettyHttpClient) client).getPool());
+      }
 
       if (isEscalated) {
         return escalator.createEscalatedClient(client);
