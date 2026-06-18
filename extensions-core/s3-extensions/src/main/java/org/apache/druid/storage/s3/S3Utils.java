@@ -92,6 +92,12 @@ public class S3Utils
       } else if (e instanceof SdkClientException && e.getMessage().contains("Unable to execute HTTP request")) {
         // This is likely due to a temporary DNS issue and can be retried.
         return true;
+      } else if (e instanceof SdkClientException
+                 && e.getMessage() != null
+                 && e.getMessage().contains("Unable to find a region")) {
+        // This can happen sometimes when AWS isn't able to obtain the credentials for some service:
+        // https://github.com/aws/aws-sdk-java/issues/2285
+        return true;
       } else if (e instanceof InterruptedException) {
         Thread.interrupted(); // Clear interrupted state and not retry
         return false;
