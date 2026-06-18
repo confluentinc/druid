@@ -130,6 +130,36 @@ public class DruidNode
     this(serviceName, host, bindOnHost, plaintextPort, port, tlsPort, enablePlaintextPort, enableTlsPort, null, null);
   }
 
+  public DruidNode(
+      String serviceName,
+      String host,
+      boolean bindOnHost,
+      Integer plaintextPort,
+      Integer port,
+      Integer tlsPort,
+      Boolean enablePlaintextPort,
+      boolean enableTlsPort,
+      Map<String, String> labels
+  )
+  {
+    this(serviceName, host, bindOnHost, plaintextPort, port, tlsPort, enablePlaintextPort, enableTlsPort, labels, null);
+  }
+
+  public DruidNode(
+      String serviceName,
+      String host,
+      boolean bindOnHost,
+      Integer plaintextPort,
+      Integer port,
+      Integer tlsPort,
+      Boolean enablePlaintextPort,
+      boolean enableTlsPort,
+      Integer advertisedPlaintextPort
+  )
+  {
+    this(serviceName, host, bindOnHost, plaintextPort, port, tlsPort, enablePlaintextPort, enableTlsPort, null, advertisedPlaintextPort);
+  }
+
   /**
    * host = null     , port = null -> host = _default_, port = -1
    * host = "abc:123", port = null -> host = abc, port = 123
