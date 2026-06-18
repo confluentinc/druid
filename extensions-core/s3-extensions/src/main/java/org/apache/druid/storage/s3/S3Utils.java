@@ -115,7 +115,12 @@ public class S3Utils
         Thread.interrupted(); // Clear interrupted state and not retry
         return false;
       } else if (e instanceof SdkException) {
-        return AWSClientUtil.isClientExceptionRecoverable((SdkException) e);
+        if (AWSClientUtil.isClientExceptionRecoverable((SdkException) e)) {
+          return true;
+        }
+        // The recoverable error may be hidden behind a generic wrapper (e.g. SdkClientException wrapping
+        // a retryable S3Exception). Walk the cause chain before concluding non-retryable.
+        return apply(e.getCause());
       } else {
         return apply(e.getCause());
       }
