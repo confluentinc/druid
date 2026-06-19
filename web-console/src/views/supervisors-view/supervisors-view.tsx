@@ -90,6 +90,7 @@ import './supervisors-view.scss';
 
 const SUPERVISOR_TABLE_COLUMNS: TableColumnSelectorColumn[] = [
   'Supervisor ID',
+  'Datasource',
   'Type',
   'Topic/Stream',
   'Status',
@@ -119,6 +120,7 @@ interface SupervisorQuery extends TableState {
 
 interface SupervisorQueryResultRow {
   supervisor_id: string;
+  datasource: string;
   type: string;
   source: string;
   detailed_state: string;
@@ -238,6 +240,7 @@ export class SupervisorsView extends React.PureComponent<
           const sqlQuery = assemble(
             'WITH s AS (SELECT',
             '  "supervisor_id",',
+            '  "datasource",',
             '  "type",',
             '  "source",',
             `  CASE WHEN "suspended" = 0 THEN "detailed_state" ELSE 'SUSPENDED' END AS "detailed_state",`,
@@ -275,6 +278,7 @@ export class SupervisorsView extends React.PureComponent<
           supervisors = supervisorList.map((sup: any) => {
             return {
               supervisor_id: deepGet(sup, 'id'),
+              datasource: deepGet(sup, 'dataSource'),
               type: deepGet(sup, 'spec.tuningConfig.type'),
               source:
                 deepGet(sup, 'spec.ioConfig.topic') ||
@@ -406,6 +410,7 @@ export class SupervisorsView extends React.PureComponent<
 
   private getSupervisorActions(
     id: string,
+    datasource: string,
     supervisorSuspended: boolean,
     type: string,
   ): BasicAction[] {
@@ -417,7 +422,7 @@ export class SupervisorsView extends React.PureComponent<
         {
           icon: IconNames.MULTI_SELECT,
           title: 'Go to datasource',
-          onAction: () => goToDatasource(id),
+          onAction: () => goToDatasource(datasource),
         },
         {
           icon: IconNames.CLOUD_UPLOAD,
@@ -628,6 +633,7 @@ export class SupervisorsView extends React.PureComponent<
       supervisorTableActionDialogId: supervisor.supervisor_id,
       supervisorTableActionDialogActions: this.getSupervisorActions(
         supervisor.supervisor_id,
+        supervisor.datasource,
         supervisor.suspended,
         supervisor.type,
       ),
@@ -661,7 +667,7 @@ export class SupervisorsView extends React.PureComponent<
         showPagination
         columns={[
           {
-            Header: twoLines('Supervisor ID', <i>(datasource)</i>),
+            Header: 'Supervisor ID',
             id: 'supervisor_id',
             accessor: 'supervisor_id',
             width: 280,
@@ -674,6 +680,13 @@ export class SupervisorsView extends React.PureComponent<
                 {value}
               </TableClickableCell>
             ),
+          },
+          {
+            Header: 'Datasource',
+            accessor: 'datasource',
+            width: 280,
+            Cell: this.renderSupervisorFilterableCell('datasource'),
+            show: visibleColumns.shown('Datasource'),
           },
           {
             Header: 'Type',
@@ -889,9 +902,15 @@ export class SupervisorsView extends React.PureComponent<
             sortable: false,
             Cell: row => {
               const id = row.value;
+              const datasource = row.original.datasource;
               const type = row.original.type;
               const supervisorSuspended = row.original.suspended;
-              const supervisorActions = this.getSupervisorActions(id, supervisorSuspended, type);
+              const supervisorActions = this.getSupervisorActions(
+                id,
+                datasource,
+                supervisorSuspended,
+                type,
+              );
               return (
                 <ActionCell
                   onDetail={() => this.onSupervisorDetail(row.original)}

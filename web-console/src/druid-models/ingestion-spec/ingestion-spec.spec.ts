@@ -560,6 +560,7 @@ describe('ingestion-spec', () => {
       } as any),
     ).toEqual({
       type: 'index_parallel',
+      id: 'index_parallel_coronavirus_hamlcmea_2020-03-19T00:56:12.175Z',
       spec: {
         dataSchema: {},
       },
