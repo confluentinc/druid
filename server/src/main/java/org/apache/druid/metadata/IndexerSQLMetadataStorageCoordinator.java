@@ -429,14 +429,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
   ) throws IOException
   {
     verifySegmentsToCommit(segments);
-
-    if ((startMetadata == null && endMetadata != null) || (startMetadata != null && endMetadata == null)) {
-      throw new IllegalArgumentException("start/end metadata pair must be either null or non-null");
-    } else if (startMetadata != null && supervisorId == null) {
-      throw new IllegalArgumentException(
-          "supervisorId cannot be null if startMetadata and endMetadata are both non-null.");
-    }
-
+    IndexerMetadataStorageCoordinator.validateDataSourceMetadata(supervisorId, startMetadata, endMetadata);
     final String dataSource = segments.iterator().next().getDataSource();
 
     // Find which segments are used (i.e. not overshadowed).
@@ -1356,13 +1349,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
   )
   {
     verifySegmentsToCommit(appendSegments);
-    if ((startMetadata == null && endMetadata != null)
-        || (startMetadata != null && endMetadata == null)) {
-      throw new IllegalArgumentException("start/end metadata pair must be either null or non-null");
-    } else if (startMetadata != null && supervisorId == null) {
-      throw new IllegalArgumentException(
-          "supervisorId cannot be null if startMetadata and endMetadata are both non-null.");
-    }
+    IndexerMetadataStorageCoordinator.validateDataSourceMetadata(supervisorId, startMetadata, endMetadata);
 
     final String dataSource = appendSegments.iterator().next().getDataSource();
     final List<PendingSegmentRecord> segmentIdsForNewVersions = connector.retryTransaction(
@@ -2665,7 +2652,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
 
     if (retVal.isSuccess()) {
       log.info(
-          "Updated metadata for supervisor[%s] for datasource[%s] from[%s] to[%s].",
+          "Updated metadata for supervisor[%s], datasource[%s] from[%s] to[%s].",
           supervisorId, dataSource, oldCommitMetadataFromDb, newCommitMetadata
       );
     } else {
