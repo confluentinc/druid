@@ -80,12 +80,15 @@ public class HttpClientConfig
     return new Builder();
   }
 
+  private static final long DEFAULT_CONNECT_TIMEOUT_MS = 500;
+
   private final int numConnections;
   private final boolean eagerInitialization;
   private final SSLContext sslContext;
   private final HttpClientProxyConfig proxyConfig;
   private final Duration readTimeout;
   private final Duration sslHandshakeTimeout;
+  private final long connectTimeout;
   private final int bossPoolSize;
   private final int workerPoolSize;
   private final CompressionCodec compressionCodec;
@@ -98,6 +101,7 @@ public class HttpClientConfig
       HttpClientProxyConfig proxyConfig,
       Duration readTimeout,
       Duration sslHandshakeTimeout,
+      long connectTimeout,
       int bossPoolSize,
       int workerPoolSize,
       CompressionCodec compressionCodec,
@@ -110,6 +114,7 @@ public class HttpClientConfig
     this.proxyConfig = proxyConfig;
     this.readTimeout = readTimeout;
     this.sslHandshakeTimeout = sslHandshakeTimeout;
+    this.connectTimeout = connectTimeout;
     this.bossPoolSize = bossPoolSize;
     this.workerPoolSize = workerPoolSize;
     this.compressionCodec = compressionCodec;
@@ -146,6 +151,11 @@ public class HttpClientConfig
     return sslHandshakeTimeout;
   }
 
+  public long getConnectTimeout()
+  {
+    return connectTimeout;
+  }
+
   public int getBossPoolSize()
   {
     return bossPoolSize;
@@ -174,6 +184,7 @@ public class HttpClientConfig
     private HttpClientProxyConfig proxyConfig = null;
     private Duration readTimeout = null;
     private Duration sslHandshakeTimeout = null;
+    private long connectTimeout = DEFAULT_CONNECT_TIMEOUT_MS;
     private int bossCount = DEFAULT_BOSS_COUNT;
     private int workerCount = DEFAULT_WORKER_COUNT;
     private CompressionCodec compressionCodec = DEFAULT_COMPRESSION_CODEC;
@@ -219,6 +230,12 @@ public class HttpClientConfig
       return this;
     }
 
+    public Builder withConnectTimeout(long connectTimeoutMs)
+    {
+      this.connectTimeout = connectTimeoutMs;
+      return this;
+    }
+
     public Builder withWorkerCount(int workerCount)
     {
       this.workerCount = workerCount;
@@ -246,6 +263,7 @@ public class HttpClientConfig
           proxyConfig,
           readTimeout,
           sslHandshakeTimeout,
+          connectTimeout,
           bossCount,
           workerCount,
           compressionCodec,
