@@ -33,6 +33,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collection;
+import java.util.Map;
 
 public class DiscoveryDruidNodeTest
 {
@@ -113,7 +114,7 @@ public class DiscoveryDruidNodeTest
             8282,
             true,
             true,
-            null
+            (Map<String, String>) null
         ),
         NodeRole.BROKER,
         ImmutableMap.of(
