@@ -777,7 +777,12 @@ export class SupervisorsView extends React.PureComponent<
               }
               return (
                 <TableClickableCell
-                  onClick={() => goToTasks(original.supervisor_id, `index_${original.type}`)}
+                  onClick={() =>
+                    goToTasks(
+                      `index_${original.type}_${original.supervisor_id}`,
+                      `index_${original.type}`,
+                    )
+                  }
                   hoverIcon={IconNames.ARROW_TOP_RIGHT}
                   title="Go to tasks"
                 >
