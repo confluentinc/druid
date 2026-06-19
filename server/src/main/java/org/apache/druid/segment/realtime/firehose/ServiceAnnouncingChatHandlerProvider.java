@@ -124,9 +124,11 @@ public class ServiceAnnouncingChatHandlerProvider implements ChatHandlerProvider
         node.getHost(),
         node.isBindOnHost(),
         node.getPlaintextPort(),
+        null,
         node.getTlsPort(),
         node.isEnablePlaintextPort(),
-        node.isEnableTlsPort()
+        node.isEnableTlsPort(),
+        node.getAdvertisedPlaintextPort()
     );
   }
 }
