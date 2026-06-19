@@ -156,6 +156,25 @@ public class DefaultK8sApiClient implements K8sApiClient
             while (watch.hasNext()) {
               Watch.Response<V1Pod> item = watch.next();
               if (item != null && item.type != null && !item.type.equals(WatchResult.BOOKMARK)) {
+                String effectiveType = item.type;
+                if (WatchResult.MODIFIED.equals(item.type)) {
+                  if (item.object != null
+                      && item.object.getMetadata() != null
+                      && item.object.getMetadata().getDeletionTimestamp() != null) {
+                    LOGGER.info(
+                        "Pod [%s/%s] has deletionTimestamp set, treating MODIFIED as DELETED for nodeRole [%s].",
+                        item.object.getMetadata().getNamespace(),
+                        item.object.getMetadata().getName(),
+                        nodeRole
+                    );
+                    effectiveType = WatchResult.DELETED;
+                  } else {
+                    // Non-terminating MODIFIED events (readiness probe changes, resource updates, label changes)
+                    // carry no useful discovery information. Skip to avoid ERROR log noise in BaseNodeRoleWatcher.
+                    continue;
+                  }
+                }
+
                 DiscoveryDruidNodeAndResourceVersion result = null;
                 if (item.object != null) {
                   result = new DiscoveryDruidNodeAndResourceVersion(
@@ -163,20 +182,15 @@ public class DefaultK8sApiClient implements K8sApiClient
                     getDiscoveryDruidNodeFromPodDef(nodeRole, item.object)
                   );
                 } else {
-                  // The item's object can be null in some cases -- likely due to a blip
-                  // in the k8s watch. Handle that by passing the null upwards. The caller
-                  // needs to know that the object can be null.
                   LOGGER.debug("item of type " + item.type + " was NULL when watching nodeRole [%s]", nodeRole);
                 }
 
                 obj = new Watch.Response<>(
-                    item.type,
+                    effectiveType,
                     result
                 );
                 return true;
               } else if (item != null && item.type != null && item.type.equals(WatchResult.BOOKMARK)) {
-                // Events with type BOOKMARK will only contain resourceVersion and no metadata. See
-                // Kubernetes API documentation for details.
                 LOGGER.debug("BOOKMARK event fired, no nothing, only update resourceVersion");
                 return true;
               } else {
