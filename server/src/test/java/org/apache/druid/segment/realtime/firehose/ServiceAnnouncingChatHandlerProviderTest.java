@@ -41,6 +41,7 @@ public class ServiceAnnouncingChatHandlerProviderTest extends EasyMockSupport
   private static final String TEST_SERVICE_NAME = "test-service-name";
   private static final String TEST_HOST = "test-host";
   private static final int TEST_PORT = 1234;
+  private static final int TEST_ADVERTISED_PORT = 5678;
 
   private ServiceAnnouncingChatHandlerProvider chatHandlerProvider;
 
@@ -91,6 +92,7 @@ public class ServiceAnnouncingChatHandlerProviderTest extends EasyMockSupport
     EasyMock.expect(node.getHost()).andReturn(TEST_HOST);
     EasyMock.expect(node.isBindOnHost()).andReturn(false);
     EasyMock.expect(node.getPlaintextPort()).andReturn(TEST_PORT);
+    EasyMock.expect(node.getAdvertisedPlaintextPort()).andReturn(TEST_ADVERTISED_PORT);
     EasyMock.expect(node.isEnablePlaintextPort()).andReturn(true);
     EasyMock.expect(node.isEnableTlsPort()).andReturn(false);
     EasyMock.expect(node.getTlsPort()).andReturn(-1);
@@ -110,6 +112,8 @@ public class ServiceAnnouncingChatHandlerProviderTest extends EasyMockSupport
     Assert.assertEquals(TEST_SERVICE_NAME, param.getServiceName());
     Assert.assertEquals(TEST_HOST, param.getHost());
     Assert.assertEquals(TEST_PORT, param.getPlaintextPort());
+    Assert.assertEquals(TEST_ADVERTISED_PORT, param.getAdvertisedPlaintextPort());
+    Assert.assertEquals(TEST_HOST + ":" + TEST_ADVERTISED_PORT, param.getHostAndPort());
     Assert.assertEquals(-1, param.getTlsPort());
     Assert.assertEquals(null, param.getHostAndTlsPort());
     Assert.assertTrue("chatHandler did not register", chatHandlerProvider.get(TEST_SERVICE_NAME).isPresent());
@@ -120,6 +124,7 @@ public class ServiceAnnouncingChatHandlerProviderTest extends EasyMockSupport
     EasyMock.expect(node.getHost()).andReturn(TEST_HOST);
     EasyMock.expect(node.isBindOnHost()).andReturn(false);
     EasyMock.expect(node.getPlaintextPort()).andReturn(TEST_PORT);
+    EasyMock.expect(node.getAdvertisedPlaintextPort()).andReturn(TEST_ADVERTISED_PORT);
     EasyMock.expect(node.isEnablePlaintextPort()).andReturn(true);
     EasyMock.expect(node.getTlsPort()).andReturn(-1);
     EasyMock.expect(node.isEnableTlsPort()).andReturn(false);
@@ -133,6 +138,8 @@ public class ServiceAnnouncingChatHandlerProviderTest extends EasyMockSupport
     Assert.assertEquals(TEST_SERVICE_NAME, param.getServiceName());
     Assert.assertEquals(TEST_HOST, param.getHost());
     Assert.assertEquals(TEST_PORT, param.getPlaintextPort());
+    Assert.assertEquals(TEST_ADVERTISED_PORT, param.getAdvertisedPlaintextPort());
+    Assert.assertEquals(TEST_HOST + ":" + TEST_ADVERTISED_PORT, param.getHostAndPort());
     Assert.assertEquals(-1, param.getTlsPort());
     Assert.assertEquals(null, param.getHostAndTlsPort());
     Assert.assertFalse("chatHandler did not deregister", chatHandlerProvider.get(TEST_SERVICE_NAME).isPresent());
