@@ -2392,6 +2392,7 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
     return new TestableKinesisIndexTask(
         taskId,
         null,
+        null,
         cloneDataSchema(dataSchema),
         tuningConfig,
         ioConfig,
@@ -2464,6 +2465,7 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
     @JsonCreator
     private TestableKinesisIndexTask(
         @JsonProperty("id") String id,
+        @JsonProperty("supervisorId") @Nullable String supervisorId,
         @JsonProperty("resource") TaskResource taskResource,
         @JsonProperty("dataSchema") DataSchema dataSchema,
         @JsonProperty("tuningConfig") KinesisIndexTaskTuningConfig tuningConfig,
@@ -2474,6 +2476,7 @@ public class KinesisIndexTaskTest extends SeekableStreamIndexTaskTestBase
     {
       super(
           id,
+          supervisorId,
           taskResource,
           dataSchema,
           tuningConfig,

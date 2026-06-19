@@ -434,24 +434,26 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
           if (spec.isSuspended()) {
             log.info(
                 "Skipping DynamicAllocationTasksNotice execution because [%s] supervisor is suspended",
-                dataSource
+                supervisorId
             );
             return;
           }
           if (SupervisorStateManager.BasicState.IDLE == getState()) {
             log.info(
                 "Skipping DynamicAllocationTasksNotice execution because [%s] supervisor is idle",
-                dataSource
+                supervisorId
             );
             return;
           }
-          log.debug("PendingCompletionTaskGroups is [%s] for dataSource [%s]", pendingCompletionTaskGroups,
+          log.debug("PendingCompletionTaskGroups is [%s] for supervisor[%s] for dataSource[%s]", pendingCompletionTaskGroups,
+                    supervisorId,
                     dataSource
           );
           for (CopyOnWriteArrayList<TaskGroup> list : pendingCompletionTaskGroups.values()) {
             if (!list.isEmpty()) {
               log.info(
-                  "Skipping DynamicAllocationTasksNotice execution for datasource [%s] because following tasks are pending [%s]",
+                  "Skipping DynamicAllocationTasksNotice execution for supervisor[%s] for datasource[%s] because following tasks are pending [%s]",
+                  supervisorId,
                   dataSource,
                   pendingCompletionTaskGroups
               );
@@ -460,13 +462,15 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
           }
           final Integer desiredTaskCount = scaleAction.call();
           ServiceMetricEvent.Builder event = ServiceMetricEvent.builder()
-              .setDimension(DruidMetrics.DATASOURCE, dataSource)
+                                                               .setDimension(DruidMetrics.SUPERVISOR_ID, supervisorId)
+                                                               .setDimension(DruidMetrics.DATASOURCE, dataSource)
               .setDimension(DruidMetrics.STREAM, getIoConfig().getStream());
           if (nowTime - dynamicTriggerLastRunTime < autoScalerConfig.getMinTriggerScaleActionFrequencyMillis()) {
             log.info(
-                "DynamicAllocationTasksNotice submitted again in [%d] millis, minTriggerDynamicFrequency is [%s] for dataSource [%s], skipping it! desired task count is [%s], active task count is [%s]",
+                "DynamicAllocationTasksNotice submitted again in [%d] millis, minTriggerDynamicFrequency is [%s] for supervisor[%s] for dataSource[%s], skipping it! desired task count is [%s], active task count is [%s]",
                 nowTime - dynamicTriggerLastRunTime,
                 autoScalerConfig.getMinTriggerScaleActionFrequencyMillis(),
+                supervisorId,
                 dataSource,
                 desiredTaskCount,
                 getActiveTaskGroupsCount()
@@ -529,15 +533,16 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       return false;
     } else {
       log.info(
-          "Starting scale action, current active task count is [%d] and desired task count is [%d] for dataSource [%s].",
+          "Starting scale action, current active task count is [%d] and desired task count is [%d] for supervisor[%s] for dataSource[%s].",
           currentActiveTaskCount,
           desiredActiveTaskCount,
+          supervisorId,
           dataSource
       );
       gracefulShutdownInternal();
       changeTaskCountInIOConfig(desiredActiveTaskCount);
       clearAllocationInfo();
-      log.info("Changed taskCount to [%s] for dataSource [%s].", desiredActiveTaskCount, dataSource);
+      log.info("Changed taskCount to [%s] for supervisor[%s] for dataSource[%s].", desiredActiveTaskCount, supervisorId, dataSource);
       return true;
     }
   }
@@ -549,13 +554,13 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       Optional<SupervisorManager> supervisorManager = taskMaster.getSupervisorManager();
       if (supervisorManager.isPresent()) {
         MetadataSupervisorManager metadataSupervisorManager = supervisorManager.get().getMetadataSupervisorManager();
-        metadataSupervisorManager.insert(dataSource, spec);
+        metadataSupervisorManager.insert(supervisorId, spec);
       } else {
-        log.error("supervisorManager is null in taskMaster, skipping scale action for dataSource [%s].", dataSource);
+        log.error("supervisorManager is null in taskMaster, skipping scale action for supervisor[%s] for dataSource[%s].", supervisorId, dataSource);
       }
     }
     catch (Exception e) {
-      log.error(e, "Failed to sync taskCount to MetaStorage for dataSource [%s].", dataSource);
+      log.error(e, "Failed to sync taskCount to MetaStorage for supervisor[%s] for dataSource[%s].", supervisorId, dataSource);
     }
   }
 
@@ -784,6 +789,11 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
   private final SeekableStreamSupervisorTuningConfig tuningConfig;
   private final SeekableStreamIndexTaskTuningConfig taskTuningConfig;
   private final String supervisorId;
+
+  /**
+   * Type-verbose id for identifying this supervisor in thread-names, listeners, etc.
+  */
+  private final String supervisorTag;
   private final TaskInfoProvider taskInfoProvider;
   private final long futureTimeoutInSeconds; // how long to wait for async operations to complete
   private final RowIngestionMetersFactory rowIngestionMetersFactory;
@@ -816,7 +826,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
   private final IdleConfig idleConfig;
 
   public SeekableStreamSupervisor(
-      final String supervisorId,
+      final String supervisorTag,
       final TaskStorage taskStorage,
       final TaskMaster taskMaster,
       final IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator,
@@ -827,6 +837,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       final boolean useExclusiveStartingSequence
   )
   {
+    this.supervisorTag = Preconditions.checkNotNull(supervisorTag, "supervisorTag");
     this.taskStorage = taskStorage;
     this.taskMaster = taskMaster;
     this.indexerMetadataStorageCoordinator = indexerMetadataStorageCoordinator;
@@ -840,10 +851,10 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     this.autoScalerConfig = ioConfig.getAutoScalerConfig();
     this.tuningConfig = spec.getTuningConfig();
     this.taskTuningConfig = this.tuningConfig.convertToTaskTuningConfig();
-    this.supervisorId = supervisorId;
-    this.exec = Execs.singleThreaded(StringUtils.encodeForFormat(supervisorId));
-    this.scheduledExec = Execs.scheduledSingleThreaded(StringUtils.encodeForFormat(supervisorId) + "-Scheduler-%d");
-    this.reportingExec = Execs.scheduledSingleThreaded(StringUtils.encodeForFormat(supervisorId) + "-Reporting-%d");
+    this.supervisorId = spec.getId();
+    this.exec = Execs.singleThreaded(StringUtils.encodeForFormat(supervisorTag));
+    this.scheduledExec = Execs.scheduledSingleThreaded(StringUtils.encodeForFormat(supervisorTag) + "-Scheduler-%d");
+    this.reportingExec = Execs.scheduledSingleThreaded(StringUtils.encodeForFormat(supervisorTag) + "-Reporting-%d");
 
     this.stateManager = new SeekableStreamSupervisorStateManager(
         spec.getSupervisorStateManagerConfig(),
@@ -853,7 +864,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     int workerThreads;
     int maxNumTasks;
     if (autoScalerConfig != null && autoScalerConfig.getEnableTaskAutoScaler()) {
-      log.info("Running Task autoscaler for datasource [%s]", dataSource);
+      log.info("Running Task autoscaler for supervisor[%s] for datasource[%s]", supervisorId, dataSource);
 
       workerThreads = (this.tuningConfig.getWorkerThreads() != null
                        ? this.tuningConfig.getWorkerThreads()
@@ -888,10 +899,10 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     this.workerExec = MoreExecutors.listeningDecorator(
         Execs.multiThreaded(
             workerThreads,
-            StringUtils.encodeForFormat(supervisorId) + "-Worker-%d"
+            StringUtils.encodeForFormat(supervisorTag) + "-Worker-%d"
         )
     );
-    log.info("Created worker pool with [%d] threads for dataSource [%s]", workerThreads, this.dataSource);
+    log.info("Created worker pool with [%d] threads for supervisor[%s] for dataSource[%s]", workerThreads, this.supervisorId, this.dataSource);
 
     this.taskInfoProvider = new TaskInfoProvider()
     {
@@ -933,7 +944,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
   @Override
   public int getActiveTaskGroupsCount()
   {
-    return activelyReadingTaskGroups.values().size();
+    return activelyReadingTaskGroups.size();
   }
 
   @Override
@@ -951,7 +962,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         if (!started) {
           log.warn(
               "First initialization attempt failed for SeekableStreamSupervisor[%s], starting retries...",
-              dataSource
+              supervisorId
           );
 
           exec.submit(
@@ -1002,7 +1013,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         if (started) {
           Optional<TaskRunner> taskRunner = taskMaster.getTaskRunner();
           if (taskRunner.isPresent()) {
-            taskRunner.get().unregisterListener(supervisorId);
+            taskRunner.get().unregisterListener(supervisorTag);
           }
 
           // Stopping gracefully will synchronize the end sequences of the tasks and signal them to publish, and will block
@@ -1166,15 +1177,15 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
                     if (log.isDebugEnabled()) {
                       log.debug(
                           "Handled notice [%s] from notices queue in [%d] ms, "
-                              + "current notices queue size [%d] for datasource [%s]",
-                          noticeType, timeElapsed.toMillis(), getNoticesQueueSize(), dataSource
+                              + "current notices queue size [%d] for supervisor[%s] for datasource[%s]",
+                          noticeType, timeElapsed.toMillis(), getNoticesQueueSize(), supervisorId, dataSource
                       );
                     }
                     emitNoticeProcessTime(noticeType, timeElapsed.toMillis());
                   }
                   catch (Throwable e) {
                     stateManager.recordThrowableEvent(e);
-                    log.makeAlert(e, "SeekableStreamSupervisor[%s] failed to handle notice", dataSource)
+                    log.makeAlert(e, "SeekableStreamSupervisor[%s] for datasource=[%s] failed to handle notice", supervisorId, dataSource)
                        .addData("noticeClass", notice.getClass().getSimpleName())
                        .emit();
                   }
@@ -1182,7 +1193,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
               }
               catch (InterruptedException e) {
                 stateManager.recordThrowableEvent(e);
-                log.info("SeekableStreamSupervisor[%s] interrupted, exiting", dataSource);
+                log.info("SeekableStreamSupervisor[%s] interrupted, exiting", supervisorId);
               }
             }
         );
@@ -1198,7 +1209,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         started = true;
         log.info(
             "Started SeekableStreamSupervisor[%s], first run in [%s], with spec: [%s]",
-            dataSource,
+            supervisorId,
             ioConfig.getStartDelay(),
             spec.toString()
         );
@@ -1209,7 +1220,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
           recordSupplier.close();
         }
         initRetryCounter++;
-        log.makeAlert(e, "Exception starting SeekableStreamSupervisor[%s]", dataSource)
+        log.makeAlert(e, "Exception starting SeekableStreamSupervisor[%s]", supervisorId)
            .emit();
 
         throw new RuntimeException(e);
@@ -1258,7 +1269,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     );
 
     SupervisorReport<SeekableStreamSupervisorReportPayload<PartitionIdType, SequenceOffsetType>> report = new SupervisorReport<>(
-        dataSource,
+        supervisorId,
         DateTimes.nowUtc(),
         payload
     );
@@ -1621,16 +1632,15 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         // if suspended, ensure tasks have been requested to gracefully stop
         if (stateManager.getSupervisorState().getBasicState().equals(SupervisorStateManager.BasicState.STOPPING)) {
           // if we're already terminating, don't do anything here, the terminate already handles shutdown
-          log.info("[%s] supervisor is already stopping.", dataSource);
+          log.debug("Supervisor[%s] for datasource[%s] is already stopping.", supervisorId, dataSource);
         } else if (stateManager.isIdle()) {
-          log.info("[%s] supervisor is idle.", dataSource);
+          log.debug("Supervisor[%s] for datasource[%s] is idle.", supervisorId, dataSource);
         } else if (!spec.isSuspended()) {
-          log.info("[%s] supervisor is running.", dataSource);
-
+          log.debug("Supervisor[%s] for datasource[%s] is running.", supervisorId, dataSource);
           stateManager.maybeSetState(SeekableStreamSupervisorStateManager.SeekableStreamState.CREATING_TASKS);
           createNewTasks();
         } else {
-          log.info("[%s] supervisor is suspended.", dataSource);
+          log.debug("Supervisor[%s] for datasource[%s] is suspended.", supervisorId, dataSource);
           gracefulShutdownInternal();
         }
       }
@@ -1639,7 +1649,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     }
     catch (Exception e) {
       stateManager.recordThrowableEvent(e);
-      log.warn(e, "Exception in supervisor run loop for dataSource [%s]", dataSource);
+      log.makeAlert(e, "Exception in supervisor run loop for supervisor[%s] for dataSource[%s]", supervisorId, dataSource).emit();
     }
     finally {
       stateManager.markRunFinished();
@@ -1667,7 +1677,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
             @Override
             public String getListenerId()
             {
-              return supervisorId;
+              return supervisorTag;
             }
 
             @Override
@@ -1709,8 +1719,8 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
   {
     if (dataSourceMetadata == null) {
       // Reset everything
-      boolean result = indexerMetadataStorageCoordinator.deleteDataSourceMetadata(dataSource);
-      log.info("Reset dataSource[%s] - dataSource metadata entry deleted? [%s]", dataSource, result);
+      boolean result = indexerMetadataStorageCoordinator.deleteDataSourceMetadata(supervisorId);
+      log.info("Reset supervisor[%s] for dataSource[%s] - dataSource metadata entry deleted? [%s]", supervisorId, dataSource, result);
       activelyReadingTaskGroups.values()
                                .forEach(group -> killTasksInGroup(
                                    group,
@@ -1726,7 +1736,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
             dataSourceMetadata.getClass()
         );
       }
-      log.info("Reset dataSource[%s] with metadata[%s]", dataSource, dataSourceMetadata);
+      log.info("Reset supervisor[%s] for dataSource[%s] with metadata[%s]", supervisorId, dataSource, dataSourceMetadata);
       // Reset only the partitions in dataSourceMetadata if it has not been reset yet
       @SuppressWarnings("unchecked")
       final SeekableStreamDataSourceMetadata<PartitionIdType, SequenceOffsetType> resetMetadata =
@@ -1734,7 +1744,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
       if (resetMetadata.getSeekableStreamSequenceNumbers().getStream().equals(ioConfig.getStream())) {
         // metadata can be null
-        final DataSourceMetadata metadata = indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(dataSource);
+        final DataSourceMetadata metadata = indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(supervisorId);
         if (metadata != null && !checkSourceMetadataMatch(metadata)) {
           throw new IAE(
               "Datasource metadata instance does not match required, found instance of [%s]",
@@ -1782,7 +1792,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         } else {
           final DataSourceMetadata newMetadata = currentMetadata.minus(resetMetadata);
           try {
-            metadataUpdateSuccess = indexerMetadataStorageCoordinator.resetDataSourceMetadata(dataSource, newMetadata);
+            metadataUpdateSuccess = indexerMetadataStorageCoordinator.resetDataSourceMetadata(supervisorId, newMetadata);
           }
           catch (IOException e) {
             log.error("Resetting DataSourceMetadata failed [%s]", e.getMessage());
@@ -1827,17 +1837,17 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
    */
   public void resetOffsetsInternal(@Nonnull final DataSourceMetadata dataSourceMetadata)
   {
-    log.info("Reset offsets for dataSource[%s] with metadata[%s]", dataSource, dataSourceMetadata);
+    log.info("Reset offsets for supervisor[%s] for dataSource[%s] with metadata[%s]", supervisorId, dataSource, dataSourceMetadata);
 
     @SuppressWarnings("unchecked")
     final SeekableStreamDataSourceMetadata<PartitionIdType, SequenceOffsetType> resetMetadata =
         (SeekableStreamDataSourceMetadata<PartitionIdType, SequenceOffsetType>) dataSourceMetadata;
 
     final boolean metadataUpdateSuccess;
-    final DataSourceMetadata metadata = indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(dataSource);
+    final DataSourceMetadata metadata = indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(supervisorId);
     if (metadata == null) {
-      log.info("Checkpointed metadata in null for dataSource[%s] - inserting metadata[%s]", dataSource, resetMetadata);
-      metadataUpdateSuccess = indexerMetadataStorageCoordinator.insertDataSourceMetadata(dataSource, resetMetadata);
+      log.info("Checkpointed metadata in null for supervisor[%s] for dataSource[%s] - inserting metadata[%s]", supervisorId, dataSource, resetMetadata);
+      metadataUpdateSuccess = indexerMetadataStorageCoordinator.insertDataSourceMetadata(supervisorId, resetMetadata);
     } else {
       if (!checkSourceMetadataMatch(metadata)) {
         throw InvalidInput.exception(
@@ -1849,18 +1859,18 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       final SeekableStreamDataSourceMetadata<PartitionIdType, SequenceOffsetType> currentMetadata =
           (SeekableStreamDataSourceMetadata<PartitionIdType, SequenceOffsetType>) metadata;
       final DataSourceMetadata newMetadata = currentMetadata.plus(resetMetadata);
-      log.info("Current checkpointed metadata[%s], new metadata[%s] for dataSource[%s]", currentMetadata, newMetadata, dataSource);
+      log.info("Current checkpointed metadata[%s], new metadata[%s] for supervisor[%s] for dataSource[%s]", currentMetadata, newMetadata, supervisorId, dataSource);
       try {
-        metadataUpdateSuccess = indexerMetadataStorageCoordinator.resetDataSourceMetadata(dataSource, newMetadata);
+        metadataUpdateSuccess = indexerMetadataStorageCoordinator.resetDataSourceMetadata(supervisorId, newMetadata);
       }
       catch (IOException e) {
-        log.error("Reset offsets for dataSource[%s] with metadata[%s] failed [%s]", dataSource, newMetadata, e.getMessage());
+        log.error("Reset offsets for supervisor[%s] for dataSource[%s] with metadata[%s] failed [%s]", supervisorId, dataSource, newMetadata, e.getMessage());
         throw new RuntimeException(e);
       }
     }
 
     if (!metadataUpdateSuccess) {
-      throw new ISE("Unable to reset metadata[%s] for datasource[%s]", dataSource, dataSourceMetadata);
+      throw new ISE("Unable to reset metadata[%s] for supervisor[%s] for dataSource[%s]", supervisorId, dataSource, dataSourceMetadata);
     }
 
     resetMetadata.getSeekableStreamSequenceNumbers()
@@ -1943,7 +1953,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     final Map<String, Task> activeTaskMap = getActiveTaskMap();
 
     for (Task task : activeTaskMap.values()) {
-      if (!doesTaskTypeMatchSupervisor(task)) {
+      if (!doesTaskMatchSupervisor(task)) {
         continue;
       }
 
@@ -2146,7 +2156,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         stopFutures.add(stopTask(taskId, false));
       }
     }
-    log.debug("Found [%d] seekablestream indexing tasks for datasource[%s]", taskCount, dataSource);
+    log.debug("Found [%d] seekablestream indexing tasks for supervisor[%s] for datasource[%s]", taskCount, supervisorId, dataSource);
 
     if (!stopFutures.isEmpty()) {
       coalesceAndAwait(stopFutures);
@@ -2316,7 +2326,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     }
 
     final DataSourceMetadata rawDataSourceMetadata = indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(
-        dataSource);
+        supervisorId);
 
     if (rawDataSourceMetadata != null && !checkSourceMetadataMatch(rawDataSourceMetadata)) {
       throw new IAE(
@@ -2509,7 +2519,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
             .stream()
             .map(x -> {
               Optional<Task> taskOptional = taskStorage.getTask(x);
-              if (!taskOptional.isPresent() || !doesTaskTypeMatchSupervisor(taskOptional.get())) {
+              if (!taskOptional.isPresent() || !doesTaskMatchSupervisor(taskOptional.get())) {
                 return false;
               }
               @SuppressWarnings("unchecked")
@@ -2567,7 +2577,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       genericTask = taskStorage.getTask(taskId).orNull();
     }
 
-    if (genericTask == null || !doesTaskTypeMatchSupervisor(genericTask)) {
+    if (genericTask == null || !doesTaskMatchSupervisor(genericTask)) {
       return false;
     }
 
@@ -2644,7 +2654,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
                                           + maxMsgTimeStr)
                                  .substring(0, 15);
 
-    return Joiner.on("_").join(baseTaskName(), dataSource, hashCode);
+    return Joiner.on("_").join(baseTaskName(), supervisorId, hashCode);
   }
 
   protected abstract String baseTaskName();
@@ -2893,7 +2903,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       @SuppressWarnings("unchecked")
       SeekableStreamDataSourceMetadata<PartitionIdType, SequenceOffsetType> currentMetadata =
           (SeekableStreamDataSourceMetadata<PartitionIdType, SequenceOffsetType>)
-              indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(dataSource);
+              indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(supervisorId);
 
       SeekableStreamDataSourceMetadata<PartitionIdType, SequenceOffsetType> cleanedMetadata =
           createDataSourceMetadataWithExpiredPartitions(currentMetadata, newlyExpiredPartitions);
@@ -2903,7 +2913,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       validateMetadataPartitionExpiration(newlyExpiredPartitions, currentMetadata, cleanedMetadata);
 
       try {
-        boolean success = indexerMetadataStorageCoordinator.resetDataSourceMetadata(dataSource, cleanedMetadata);
+        boolean success = indexerMetadataStorageCoordinator.resetDataSourceMetadata(supervisorId, cleanedMetadata);
         if (!success) {
           log.error("Failed to update datasource metadata[%s] with expired partitions removed", cleanedMetadata);
         }
@@ -3903,7 +3913,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
   protected DataSourceMetadata retrieveDataSourceMetadata()
   {
-    return indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(dataSource);
+    return indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(supervisorId);
   }
 
   /**
@@ -4255,7 +4265,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
    * @param task task
    * @return true if isInstance else false
    */
-  protected abstract boolean doesTaskTypeMatchSupervisor(Task task);
+  protected abstract boolean doesTaskMatchSupervisor(Task task);
 
   /**
    * creates a specific instance of kafka/kinesis datasource metadata. Only used for reset.
@@ -4384,7 +4394,8 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       emitter.emit(
           ServiceMetricEvent.builder()
                             .setDimension("noticeType", noticeType)
-                            .setDimension("dataSource", dataSource)
+                            .setDimension(DruidMetrics.SUPERVISOR_ID, supervisorId)
+                            .setDimension(DruidMetrics.DATASOURCE, dataSource)
                             .setDimensionIfNotNull(DruidMetrics.TAGS, spec.getContextValue(DruidMetrics.TAGS))
                             .setMetric("ingest/notices/time", timeInMillis)
       );
@@ -4403,7 +4414,8 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     try {
       emitter.emit(
           ServiceMetricEvent.builder()
-                            .setDimension("dataSource", dataSource)
+                            .setDimension(DruidMetrics.SUPERVISOR_ID, supervisorId)
+                            .setDimension(DruidMetrics.DATASOURCE, dataSource)
                             .setDimensionIfNotNull(DruidMetrics.TAGS, spec.getContextValue(DruidMetrics.TAGS))
                             .setMetric("ingest/notices/queueSize", getNoticesQueueSize())
       );
@@ -4459,6 +4471,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         for (Map.Entry<PartitionIdType, Long> entry : partitionLags.entrySet()) {
           emitter.emit(
               ServiceMetricEvent.builder()
+                                .setDimension(DruidMetrics.SUPERVISOR_ID, supervisorId)
                                 .setDimension(DruidMetrics.DATASOURCE, dataSource)
                                 .setDimension(DruidMetrics.STREAM, getIoConfig().getStream())
                                 .setDimension(DruidMetrics.PARTITION, entry.getKey())
@@ -4471,6 +4484,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         }
         emitter.emit(
             ServiceMetricEvent.builder()
+                              .setDimension(DruidMetrics.SUPERVISOR_ID, supervisorId)
                               .setDimension(DruidMetrics.DATASOURCE, dataSource)
                               .setDimension(DruidMetrics.STREAM, getIoConfig().getStream())
                               .setDimensionIfNotNull(DruidMetrics.TAGS, metricTags)
@@ -4478,6 +4492,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         );
         emitter.emit(
             ServiceMetricEvent.builder()
+                              .setDimension(DruidMetrics.SUPERVISOR_ID, supervisorId)
                               .setDimension(DruidMetrics.DATASOURCE, dataSource)
                               .setDimension(DruidMetrics.STREAM, getIoConfig().getStream())
                               .setDimensionIfNotNull(DruidMetrics.TAGS, metricTags)
@@ -4485,6 +4500,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         );
         emitter.emit(
             ServiceMetricEvent.builder()
+                              .setDimension(DruidMetrics.SUPERVISOR_ID, supervisorId)
                               .setDimension(DruidMetrics.DATASOURCE, dataSource)
                               .setDimension(DruidMetrics.STREAM, getIoConfig().getStream())
                               .setDimensionIfNotNull(DruidMetrics.TAGS, metricTags)

@@ -370,6 +370,8 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask
             segments,
             null,
             null,
+            null,
+            null,
             null
         );
         return toolbox.getTaskActionClient().submit(action);

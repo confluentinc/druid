@@ -23,6 +23,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import org.apache.druid.common.config.Configs;
+import org.apache.druid.error.DruidException;
+import org.apache.druid.error.InvalidInput;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import org.apache.druid.indexing.overlord.TaskMaster;
@@ -56,6 +59,7 @@ public abstract class SeekableStreamSupervisorSpec implements SupervisorSpec
     return ingestionSchema;
   }
 
+  protected final String id;
   protected final TaskStorage taskStorage;
   protected final TaskMaster taskMaster;
   protected final IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator;
@@ -70,7 +74,13 @@ public abstract class SeekableStreamSupervisorSpec implements SupervisorSpec
   private final boolean suspended;
   protected final SupervisorStateManagerConfig supervisorStateManagerConfig;
 
+  /**
+   * Base constructor for SeekableStreamSupervisors.
+   * The unique identifier for the supervisor. A null {@code id} implies the constructor will use the
+   * non-null `dataSource` in `ingestionSchema` for backwards compatibility.
+   */
   public SeekableStreamSupervisorSpec(
+      @Nullable final String id,
       final SeekableStreamSupervisorIngestionSpec ingestionSchema,
       @Nullable Map<String, Object> context,
       Boolean suspended,
@@ -86,6 +96,10 @@ public abstract class SeekableStreamSupervisorSpec implements SupervisorSpec
   )
   {
     this.ingestionSchema = checkIngestionSchema(ingestionSchema);
+    this.id = Preconditions.checkNotNull(
+        Configs.valueOrDefault(id, ingestionSchema.getDataSchema().getDataSource()),
+        "spec id cannot be null!"
+    );
     this.context = context;
 
     this.taskStorage = taskStorage;
@@ -144,9 +158,10 @@ public abstract class SeekableStreamSupervisorSpec implements SupervisorSpec
   }
 
   @Override
+  @JsonProperty
   public String getId()
   {
-    return ingestionSchema.getDataSchema().getDataSource();
+    return id;
   }
 
   public DruidMonitorSchedulerConfig getMonitorSchedulerConfig()
