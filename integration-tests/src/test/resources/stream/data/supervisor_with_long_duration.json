@@ -49,9 +49,9 @@
   "ioConfig": {
     "%%TOPIC_KEY%%": "%%TOPIC_VALUE%%",
     "%%STREAM_PROPERTIES_KEY%%": %%STREAM_PROPERTIES_VALUE%%,
-    "taskCount": 2,
+    "taskCount": 1,
     "replicas": 1,
-    "taskDuration": "PT120S",
+    "taskDuration": "PT600S",
     "%%USE_EARLIEST_KEY%%": true,
     "inputFormat" : %%INPUT_FORMAT%%
   }

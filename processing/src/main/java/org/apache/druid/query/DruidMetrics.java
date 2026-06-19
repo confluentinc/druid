@@ -46,6 +46,7 @@ public class DruidMetrics
   public static final String STREAM = "stream";
 
   public static final String PARTITION = "partition";
+  public static final String SUPERVISOR_ID = "supervisorId";
 
   public static final String TAGS = "tags";
 
