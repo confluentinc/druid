@@ -116,6 +116,7 @@ public class KinesisIndexTaskSerdeTest
     KinesisIndexTask target = new KinesisIndexTask(
         "id",
         null,
+        null,
         DATA_SCHEMA,
         TUNING_CONFIG,
         IO_CONFIG,
