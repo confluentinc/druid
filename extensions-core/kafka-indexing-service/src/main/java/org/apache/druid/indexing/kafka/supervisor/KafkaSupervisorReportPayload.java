@@ -31,6 +31,7 @@ import java.util.Map;
 public class KafkaSupervisorReportPayload extends SeekableStreamSupervisorReportPayload<KafkaTopicPartition, Long>
 {
   public KafkaSupervisorReportPayload(
+      String id,
       String dataSource,
       String topic,
       int partitions,
@@ -48,6 +49,7 @@ public class KafkaSupervisorReportPayload extends SeekableStreamSupervisorReport
   )
   {
     super(
+        id,
         dataSource,
         topic,
         partitions,
@@ -71,7 +73,8 @@ public class KafkaSupervisorReportPayload extends SeekableStreamSupervisorReport
   public String toString()
   {
     return "KafkaSupervisorReportPayload{" +
-           "dataSource='" + getDataSource() + '\'' +
+           "id='" + getId() + '\'' +
+           ", dataSource='" + getDataSource() + '\'' +
            ", topic='" + getStream() + '\'' +
            ", partitions=" + getPartitions() +
            ", replicas=" + getReplicas() +

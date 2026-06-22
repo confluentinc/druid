@@ -374,7 +374,7 @@ export class ConsoleApplication extends React.PureComponent<
         goToDatasource={this.goToDatasources}
         goToQuery={this.goToQuery}
         goToStreamingDataLoader={this.goToStreamingDataLoader}
-        goToTasks={this.goToTasksWithDatasource}
+        goToTasks={this.goToTasksWithTaskGroupId}
         capabilities={capabilities}
       />,
     );

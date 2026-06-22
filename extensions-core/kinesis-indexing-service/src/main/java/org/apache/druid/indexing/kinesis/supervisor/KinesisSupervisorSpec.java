@@ -57,6 +57,7 @@ public class KinesisSupervisorSpec extends SeekableStreamSupervisorSpec
 
   @JsonCreator
   public KinesisSupervisorSpec(
+      @JsonProperty("id") @Nullable String id,
       @JsonProperty("spec") @Nullable KinesisSupervisorIngestionSpec ingestionSchema,
       @JsonProperty("dataSchema") @Nullable DataSchema dataSchema,
       @JsonProperty("tuningConfig") @Nullable KinesisSupervisorTuningConfig tuningConfig,
@@ -76,6 +77,7 @@ public class KinesisSupervisorSpec extends SeekableStreamSupervisorSpec
   )
   {
     super(
+        id,
         ingestionSchema != null
         ? ingestionSchema
         : new KinesisSupervisorIngestionSpec(
@@ -178,6 +180,7 @@ public class KinesisSupervisorSpec extends SeekableStreamSupervisorSpec
   protected KinesisSupervisorSpec toggleSuspend(boolean suspend)
   {
     return new KinesisSupervisorSpec(
+        getId(),
         getSpec(),
         getDataSchema(),
         getTuningConfig(),
