@@ -82,6 +82,7 @@ import java.util.stream.Collectors;
 
 public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadataStorageCoordinatorTestBase
 {
+  private static final String SUPERVISOR_ID = "supervisor";
   @Rule
   public final TestDerbyConnector.DerbyConnectorRule derbyConnectorRule = new TestDerbyConnector.DerbyConnectorRule();
 
@@ -114,6 +115,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
       @Override
       protected DataStoreMetadataUpdateResult updateDataSourceMetadataWithHandle(
           Handle handle,
+          String supervisorId,
           String dataSource,
           DataSourceMetadata startMetadata,
           DataSourceMetadata endMetadata
@@ -121,7 +123,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
       {
         // Count number of times this method is called.
         metadataUpdateCounter.getAndIncrement();
-        return super.updateDataSourceMetadataWithHandle(handle, dataSource, startMetadata, endMetadata);
+        return super.updateDataSourceMetadataWithHandle(handle, supervisorId, dataSource, startMetadata, endMetadata);
       }
 
       @Override
@@ -427,6 +429,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
     // Insert first segment.
     final SegmentPublishResult result1 = coordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment),
+        SUPERVISOR_ID,
         new ObjectMetadata(null),
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -446,6 +449,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
     // Insert second segment.
     final SegmentPublishResult result2 = coordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment2),
+        SUPERVISOR_ID,
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
         new ObjectMetadata(ImmutableMap.of("foo", "baz")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -465,7 +469,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
     // Examine metadata.
     Assert.assertEquals(
         new ObjectMetadata(ImmutableMap.of("foo", "baz")),
-        coordinator.retrieveDataSourceMetadata("fooDataSource")
+        coordinator.retrieveDataSourceMetadata(SUPERVISOR_ID)
     );
 
     // Should only be tried once per call.
@@ -488,6 +492,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
       @Override
       protected DataStoreMetadataUpdateResult updateDataSourceMetadataWithHandle(
           Handle handle,
+          String supervisorId,
           String dataSource,
           DataSourceMetadata startMetadata,
           DataSourceMetadata endMetadata
@@ -497,7 +502,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
         if (attemptCounter.getAndIncrement() == 0) {
           return new DataStoreMetadataUpdateResult(true, true, null);
         } else {
-          return super.updateDataSourceMetadataWithHandle(handle, dataSource, startMetadata, endMetadata);
+          return super.updateDataSourceMetadataWithHandle(handle, supervisorId, dataSource, startMetadata, endMetadata);
         }
       }
     };
@@ -505,6 +510,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
     // Insert first segment.
     final SegmentPublishResult result1 = failOnceCoordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment),
+        SUPERVISOR_ID,
         new ObjectMetadata(null),
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -527,6 +533,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
     // Insert second segment.
     final SegmentPublishResult result2 = failOnceCoordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment2),
+        SUPERVISOR_ID,
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
         new ObjectMetadata(ImmutableMap.of("foo", "baz")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -546,7 +553,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
     // Examine metadata.
     Assert.assertEquals(
         new ObjectMetadata(ImmutableMap.of("foo", "baz")),
-        failOnceCoordinator.retrieveDataSourceMetadata("fooDataSource")
+        failOnceCoordinator.retrieveDataSourceMetadata(SUPERVISOR_ID)
     );
 
     // Should be tried twice per call.
@@ -558,6 +565,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
   {
     final SegmentPublishResult result1 = coordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment),
+        SUPERVISOR_ID,
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
         new ObjectMetadata(ImmutableMap.of("foo", "baz")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -580,6 +588,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
   {
     final SegmentPublishResult result1 = coordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment),
+        SUPERVISOR_ID,
         new ObjectMetadata(null),
         new ObjectMetadata(ImmutableMap.of("foo", "baz")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -588,6 +597,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
 
     final SegmentPublishResult result2 = coordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment2),
+        SUPERVISOR_ID,
         new ObjectMetadata(null),
         new ObjectMetadata(ImmutableMap.of("foo", "baz")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -658,6 +668,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
   {
     final SegmentPublishResult result1 = coordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment),
+        SUPERVISOR_ID,
         new ObjectMetadata(null),
         new ObjectMetadata(ImmutableMap.of("foo", "baz")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -666,6 +677,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
 
     final SegmentPublishResult result2 = coordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment2),
+        SUPERVISOR_ID,
         new ObjectMetadata(ImmutableMap.of("foo", "qux")),
         new ObjectMetadata(ImmutableMap.of("foo", "baz")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -1935,6 +1947,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
   {
     coordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment),
+        SUPERVISOR_ID,
         new ObjectMetadata(null),
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -1942,13 +1955,45 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
 
     Assert.assertEquals(
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
-        coordinator.retrieveDataSourceMetadata("fooDataSource")
+        coordinator.retrieveDataSourceMetadata(SUPERVISOR_ID)
     );
 
-    Assert.assertFalse("deleteInvalidDataSourceMetadata", coordinator.deleteDataSourceMetadata("nonExistentDS"));
-    Assert.assertTrue("deleteValidDataSourceMetadata", coordinator.deleteDataSourceMetadata("fooDataSource"));
+    Assert.assertFalse("deleteInvalidDataSourceMetadata", coordinator.deleteDataSourceMetadata("nonExistentSupervisor"));
+    Assert.assertTrue("deleteValidDataSourceMetadata", coordinator.deleteDataSourceMetadata(SUPERVISOR_ID));
 
-    Assert.assertNull("getDataSourceMetadataNullAfterDelete", coordinator.retrieveDataSourceMetadata("fooDataSource"));
+    Assert.assertNull("getDataSourceMetadataNullAfterDelete", coordinator.retrieveDataSourceMetadata(SUPERVISOR_ID));
+  }
+
+  /**
+   * Multiple supervisors (e.g. one per Kafka region) ingesting into the same datasource must keep
+   * independent committed metadata, keyed by supervisorId rather than datasource (see #18082).
+   * Verifies that insert/retrieve/reset/delete are all isolated per supervisorId.
+   */
+  @Test
+  public void testMultipleSupervisorsForSameDatasourceKeepIsolatedMetadata() throws IOException
+  {
+    final String supervisor1 = "supervisor_1";
+    final String supervisor2 = "supervisor_2";
+    final ObjectMetadata metadata1 = new ObjectMetadata(ImmutableMap.of("offset", 10));
+    final ObjectMetadata metadata2 = new ObjectMetadata(ImmutableMap.of("offset", 20));
+
+    Assert.assertTrue(coordinator.insertDataSourceMetadata(supervisor1, metadata1));
+    Assert.assertTrue(coordinator.insertDataSourceMetadata(supervisor2, metadata2));
+
+    // Each supervisor sees only its own metadata.
+    Assert.assertEquals(metadata1, coordinator.retrieveDataSourceMetadata(supervisor1));
+    Assert.assertEquals(metadata2, coordinator.retrieveDataSourceMetadata(supervisor2));
+
+    // Resetting one supervisor's metadata must not affect the other.
+    final ObjectMetadata resetMetadata1 = new ObjectMetadata(ImmutableMap.of("offset", 999));
+    Assert.assertTrue(coordinator.resetDataSourceMetadata(supervisor1, resetMetadata1));
+    Assert.assertEquals(resetMetadata1, coordinator.retrieveDataSourceMetadata(supervisor1));
+    Assert.assertEquals(metadata2, coordinator.retrieveDataSourceMetadata(supervisor2));
+
+    // Deleting one supervisor's metadata must not affect the other.
+    Assert.assertTrue(coordinator.deleteDataSourceMetadata(supervisor1));
+    Assert.assertNull(coordinator.retrieveDataSourceMetadata(supervisor1));
+    Assert.assertEquals(metadata2, coordinator.retrieveDataSourceMetadata(supervisor2));
   }
 
   @Test
@@ -2872,6 +2917,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
   {
     coordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment),
+        SUPERVISOR_ID,
         new ObjectMetadata(null),
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -2879,19 +2925,19 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
 
     Assert.assertEquals(
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
-        coordinator.retrieveDataSourceMetadata("fooDataSource")
+        coordinator.retrieveDataSourceMetadata(SUPERVISOR_ID)
     );
 
     // Try delete. Datasource should not be deleted as it is in excluded set
     int deletedCount = coordinator.removeDataSourceMetadataOlderThan(
         System.currentTimeMillis(),
-        ImmutableSet.of("fooDataSource")
+        ImmutableSet.of(SUPERVISOR_ID)
     );
 
     // Datasource should not be deleted
     Assert.assertEquals(
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
-        coordinator.retrieveDataSourceMetadata("fooDataSource")
+        coordinator.retrieveDataSourceMetadata(SUPERVISOR_ID)
     );
     Assert.assertEquals(0, deletedCount);
   }
@@ -2901,6 +2947,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
   {
     coordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment),
+        SUPERVISOR_ID,
         new ObjectMetadata(null),
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -2908,7 +2955,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
 
     Assert.assertEquals(
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
-        coordinator.retrieveDataSourceMetadata("fooDataSource")
+        coordinator.retrieveDataSourceMetadata(SUPERVISOR_ID)
     );
 
     // Try delete. Datasource should be deleted as it is not in excluded set and created time older than given time
@@ -2916,7 +2963,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
 
     // Datasource should be deleted
     Assert.assertNull(
-        coordinator.retrieveDataSourceMetadata("fooDataSource")
+        coordinator.retrieveDataSourceMetadata(SUPERVISOR_ID)
     );
     Assert.assertEquals(1, deletedCount);
   }
@@ -2927,6 +2974,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
   {
     coordinator.commitSegmentsAndMetadata(
         ImmutableSet.of(defaultSegment),
+        SUPERVISOR_ID,
         new ObjectMetadata(null),
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
         new SegmentSchemaMapping(CentralizedDatasourceSchemaConfig.SCHEMA_VERSION)
@@ -2934,7 +2982,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
 
     Assert.assertEquals(
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
-        coordinator.retrieveDataSourceMetadata("fooDataSource")
+        coordinator.retrieveDataSourceMetadata(SUPERVISOR_ID)
     );
 
     // Do delete. Datasource metadata should not be deleted. Datasource is not active but it was created just now so it's
@@ -2947,7 +2995,7 @@ public class IndexerSQLMetadataStorageCoordinatorTest extends IndexerSqlMetadata
     // Datasource should not be deleted
     Assert.assertEquals(
         new ObjectMetadata(ImmutableMap.of("foo", "bar")),
-        coordinator.retrieveDataSourceMetadata("fooDataSource")
+        coordinator.retrieveDataSourceMetadata(SUPERVISOR_ID)
     );
     Assert.assertEquals(0, deletedCount);
   }
