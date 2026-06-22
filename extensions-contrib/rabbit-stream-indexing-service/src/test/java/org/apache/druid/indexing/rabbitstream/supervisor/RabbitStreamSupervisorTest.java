@@ -216,6 +216,7 @@ public class RabbitStreamSupervisorTest extends EasyMockSupport
         OBJECT_MAPPER,
         new RabbitStreamSupervisorSpec(
             null,
+            null,
             dataSchema,
             tuningConfig,
             rabbitStreamSupervisorIOConfig,
@@ -278,6 +279,7 @@ public class RabbitStreamSupervisorTest extends EasyMockSupport
         clientFactory,
         OBJECT_MAPPER,
         new RabbitStreamSupervisorSpec(
+            null,
             null,
             dataSchema,
             tuningConfig,

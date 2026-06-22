@@ -1541,12 +1541,13 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
       @Override
       public SegmentPublishResult commitSegmentsAndMetadata(
           Set<DataSegment> segments,
+          String supervisorId,
           DataSourceMetadata startMetadata,
           DataSourceMetadata endMetadata,
           SegmentSchemaMapping segmentSchemaMapping
       ) throws IOException
       {
-        SegmentPublishResult result = super.commitSegmentsAndMetadata(segments, startMetadata, endMetadata, segmentSchemaMapping);
+        SegmentPublishResult result = super.commitSegmentsAndMetadata(segments, supervisorId, startMetadata, endMetadata, segmentSchemaMapping);
 
         Assert.assertNotNull(
             "Segment latch not initialized, did you forget to call expectPublishSegments?",
