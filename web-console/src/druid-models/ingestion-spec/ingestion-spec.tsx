@@ -481,7 +481,7 @@ export function cleanSpec(
 ): Partial<IngestionSpec> {
   return allowKeys(
     spec,
-    ['type', 'spec', 'context'].concat(allowSuspended ? ['suspended'] : []) as any,
+    ['id', 'type', 'spec', 'context'].concat(allowSuspended ? ['suspended'] : []) as any,
   ) as IngestionSpec;
 }
 

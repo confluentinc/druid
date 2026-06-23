@@ -97,6 +97,7 @@ public class IndexerSqlMetadataStorageCoordinatorSchemaPersistenceTest extends
       @Override
       protected DataStoreMetadataUpdateResult updateDataSourceMetadataWithHandle(
           Handle handle,
+          String supervisorId,
           String dataSource,
           DataSourceMetadata startMetadata,
           DataSourceMetadata endMetadata
@@ -104,7 +105,7 @@ public class IndexerSqlMetadataStorageCoordinatorSchemaPersistenceTest extends
       {
         // Count number of times this method is called.
         metadataUpdateCounter.getAndIncrement();
-        return super.updateDataSourceMetadataWithHandle(handle, dataSource, startMetadata, endMetadata);
+        return super.updateDataSourceMetadataWithHandle(handle, supervisorId, dataSource, startMetadata, endMetadata);
       }
 
       @Override

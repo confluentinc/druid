@@ -294,10 +294,43 @@ public class SupervisorResourceTest extends EasyMockSupport
     Assert.assertTrue(
         specs.stream()
              .allMatch(spec ->
-                           ("id1".equals(spec.getId()) && SPEC1.equals(spec.getSpec())) ||
-                           ("id2".equals(spec.getId()) && SPEC2.equals(spec.getSpec()))
+                           ("id1".equals(spec.getId()) && spec.getDataSource().equals("datasource1") && SPEC1.equals(spec.getSpec())) ||
+                           ("id2".equals(spec.getId()) && spec.getDataSource().equals("datasource2") && SPEC2.equals(spec.getSpec()))
              )
     );
+  }
+
+  @Test
+  public void testSpecGetAllFullWithEmptyDataSourcesFallsBackToId()
+  {
+    // A tombstone-like spec can carry an empty datasource list. Listing supervisors must not NPE the
+    // entire endpoint in that case; the supervisor id is used as the datasource fallback.
+    SupervisorSpec emptyDsSpec = new TestSupervisorSpec("emptyDsId", null, null)
+    {
+      @Override
+      public List<String> getDataSources()
+      {
+        return Collections.emptyList();
+      }
+    };
+
+    EasyMock.expect(taskMaster.getSupervisorManager()).andReturn(Optional.of(supervisorManager));
+    EasyMock.expect(supervisorManager.getSupervisorIds()).andReturn(ImmutableSet.of("emptyDsId")).atLeastOnce();
+    EasyMock.expect(supervisorManager.getSupervisorSpec("emptyDsId")).andReturn(Optional.of(emptyDsSpec)).anyTimes();
+    EasyMock.expect(supervisorManager.getSupervisorState("emptyDsId"))
+            .andReturn(Optional.of(SupervisorStateManager.BasicState.RUNNING))
+            .anyTimes();
+    setupMockRequest();
+    replayAll();
+
+    Response response = supervisorResource.specGetAll("", null, null, request);
+    verifyAll();
+
+    Assert.assertEquals(200, response.getStatus());
+    List<SupervisorStatus> specs = (List<SupervisorStatus>) response.getEntity();
+    Assert.assertEquals(1, specs.size());
+    Assert.assertEquals("emptyDsId", specs.get(0).getId());
+    Assert.assertEquals("emptyDsId", specs.get(0).getDataSource());
   }
 
   @Test
@@ -341,8 +374,8 @@ public class SupervisorResourceTest extends EasyMockSupport
 
     EasyMock.expect(taskMaster.getSupervisorManager()).andReturn(Optional.of(supervisorManager));
     EasyMock.expect(supervisorManager.getSupervisorIds()).andReturn(SUPERVISOR_IDS).atLeastOnce();
-    EasyMock.expect(supervisorManager.getSupervisorSpec("id1")).andReturn(Optional.of(SPEC1)).times(1);
-    EasyMock.expect(supervisorManager.getSupervisorSpec("id2")).andReturn(Optional.of(SPEC2)).times(1);
+    EasyMock.expect(supervisorManager.getSupervisorSpec("id1")).andReturn(Optional.of(SPEC1)).times(2);
+    EasyMock.expect(supervisorManager.getSupervisorSpec("id2")).andReturn(Optional.of(SPEC2)).times(2);
     EasyMock.expect(supervisorManager.getSupervisorState("id1")).andReturn(Optional.of(state1)).times(1);
     EasyMock.expect(supervisorManager.getSupervisorState("id2")).andReturn(Optional.of(state2)).times(1);
     setupMockRequest();
@@ -360,11 +393,13 @@ public class SupervisorResourceTest extends EasyMockSupport
                 if ("id1".equals(id)) {
                   return state1.toString().equals(state.getState())
                          && state1.toString().equals(state.getDetailedState())
-                         && (Boolean) state.isHealthy() == state1.isHealthy();
+                         && (Boolean) state.isHealthy() == state1.isHealthy()
+                         && state.getDataSource().equals("datasource1");
                 } else if ("id2".equals(id)) {
                   return state2.toString().equals(state.getState())
                          && state2.toString().equals(state.getDetailedState())
-                         && (Boolean) state.isHealthy() == state2.isHealthy();
+                         && (Boolean) state.isHealthy() == state2.isHealthy()
+                         && state.getDataSource().equals("datasource2");
                 }
                 return false;
               })
