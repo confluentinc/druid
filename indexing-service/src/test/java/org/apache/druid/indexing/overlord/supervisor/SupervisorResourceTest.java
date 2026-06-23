@@ -301,6 +301,39 @@ public class SupervisorResourceTest extends EasyMockSupport
   }
 
   @Test
+  public void testSpecGetAllFullWithEmptyDataSourcesFallsBackToId()
+  {
+    // A tombstone-like spec can carry an empty datasource list. Listing supervisors must not NPE the
+    // entire endpoint in that case; the supervisor id is used as the datasource fallback.
+    SupervisorSpec emptyDsSpec = new TestSupervisorSpec("emptyDsId", null, null)
+    {
+      @Override
+      public List<String> getDataSources()
+      {
+        return Collections.emptyList();
+      }
+    };
+
+    EasyMock.expect(taskMaster.getSupervisorManager()).andReturn(Optional.of(supervisorManager));
+    EasyMock.expect(supervisorManager.getSupervisorIds()).andReturn(ImmutableSet.of("emptyDsId")).atLeastOnce();
+    EasyMock.expect(supervisorManager.getSupervisorSpec("emptyDsId")).andReturn(Optional.of(emptyDsSpec)).anyTimes();
+    EasyMock.expect(supervisorManager.getSupervisorState("emptyDsId"))
+            .andReturn(Optional.of(SupervisorStateManager.BasicState.RUNNING))
+            .anyTimes();
+    setupMockRequest();
+    replayAll();
+
+    Response response = supervisorResource.specGetAll("", null, null, request);
+    verifyAll();
+
+    Assert.assertEquals(200, response.getStatus());
+    List<SupervisorStatus> specs = (List<SupervisorStatus>) response.getEntity();
+    Assert.assertEquals(1, specs.size());
+    Assert.assertEquals("emptyDsId", specs.get(0).getId());
+    Assert.assertEquals("emptyDsId", specs.get(0).getDataSource());
+  }
+
+  @Test
   public void testSpecGetAllSystem()
   {
     SupervisorStateManager.State state1 = SupervisorStateManager.BasicState.RUNNING;

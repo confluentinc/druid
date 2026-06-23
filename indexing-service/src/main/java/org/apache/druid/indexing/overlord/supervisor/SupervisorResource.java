@@ -214,7 +214,7 @@ public class SupervisorResource
                   Optional<SupervisorSpec> theSpec = manager.getSupervisorSpec(x);
                   if (theSpec.isPresent()) {
                     final SupervisorSpec spec = theSpec.get();
-                    theBuilder.withDataSource(spec.getDataSources().stream().findFirst().orElse(null));
+                    theBuilder.withDataSource(spec.getDataSources().stream().findFirst().orElse(x));
                     if (includeFull) {
                       theBuilder.withSpec(spec);
                     }
