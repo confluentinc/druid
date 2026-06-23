@@ -342,7 +342,6 @@ public class SegmentTransactionalInsertAction implements TaskAction<SegmentPubli
            ", supervisorId=" + supervisorId +
            ", startMetadata=" + startMetadata +
            ", endMetadata=" + endMetadata +
-           ", dataSource='" + dataSource + '\'' +
            '}';
   }
 }
