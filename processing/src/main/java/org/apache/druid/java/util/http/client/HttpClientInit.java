@@ -85,7 +85,7 @@ public class HttpClientInit
               new MetricsEmittingResourcePoolImpl<>(
                   new DefaultResourcePoolImpl<>(
                     new ChannelResourceFactory(
-                      createBootstrap(lifecycle, timer, config.getBossPoolSize(), config.getWorkerPoolSize()),
+                      createBootstrap(lifecycle, timer, config.getBossPoolSize(), config.getWorkerPoolSize(), config.getConnectTimeout()),
                       config.getSslContext(),
                       config.getProxyConfig(),
                       timer,
@@ -130,7 +130,13 @@ public class HttpClientInit
     }
   }
 
-  private static ClientBootstrap createBootstrap(Lifecycle lifecycle, Timer timer, int bossPoolSize, int workerPoolSize)
+  private static ClientBootstrap createBootstrap(
+      Lifecycle lifecycle,
+      Timer timer,
+      int bossPoolSize,
+      int workerPoolSize,
+      long connectTimeoutMs
+  )
   {
     final NioClientBossPool bossPool = new NioClientBossPool(
         Executors.newCachedThreadPool(
@@ -158,6 +164,7 @@ public class HttpClientInit
     final ClientBootstrap bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossPool, workerPool));
 
     bootstrap.setOption("keepAlive", true);
+    bootstrap.setOption("connectTimeoutMillis", connectTimeoutMs);
     bootstrap.setPipelineFactory(new HttpClientPipelineFactory());
 
     InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory());
