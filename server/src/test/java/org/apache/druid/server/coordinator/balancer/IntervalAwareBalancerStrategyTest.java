@@ -25,6 +25,8 @@ import org.apache.druid.server.coordination.ServerType;
 import org.apache.druid.server.coordinator.CreateDataSegments;
 import org.apache.druid.server.coordinator.ServerHolder;
 import org.apache.druid.server.coordinator.loading.TestLoadQueuePeon;
+import org.apache.druid.server.coordinator.stats.CoordinatorRunStats;
+import org.apache.druid.server.coordinator.stats.Stats;
 import org.apache.druid.timeline.DataSegment;
 import org.junit.Assert;
 import org.junit.Before;
@@ -165,6 +167,20 @@ public class IntervalAwareBalancerStrategyTest
     // Most heavily loaded server for the interval should be dropped from first
     Assert.assertSame(serverB, ordered.next());
     Assert.assertSame(serverA, ordered.next());
+  }
+
+  @Test
+  public void testGetStatsTracksComputation()
+  {
+    final List<DataSegment> intervalSegments = minuteSegments(DS_WIKI, 2);
+    final ServerHolder serverA = createServerWith(new ArrayList<>());
+    final ServerHolder serverB = createServerWith(intervalSegments.subList(0, 1));
+
+    strategy.findServersToLoadSegment(intervalSegments.get(1), Arrays.asList(serverA, serverB));
+
+    final CoordinatorRunStats computeStats = strategy.getStats();
+    Assert.assertEquals(1L, computeStats.get(Stats.Balancer.COMPUTATION_COUNT));
+    Assert.assertTrue(computeStats.get(Stats.Balancer.COMPUTATION_TIME) >= 0);
   }
 
   private List<DataSegment> minuteSegments(String datasource, int count)

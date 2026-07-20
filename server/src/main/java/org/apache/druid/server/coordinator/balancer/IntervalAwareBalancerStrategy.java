@@ -19,9 +19,11 @@
 
 package org.apache.druid.server.coordinator.balancer;
 
+import com.google.common.base.Stopwatch;
 import org.apache.druid.server.coordinator.SegmentCountsPerInterval;
 import org.apache.druid.server.coordinator.ServerHolder;
 import org.apache.druid.server.coordinator.stats.CoordinatorRunStats;
+import org.apache.druid.server.coordinator.stats.Stats;
 import org.apache.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
@@ -30,6 +32,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A lightweight {@link BalancerStrategy} that spreads segments covering the same
@@ -71,6 +75,9 @@ public class IntervalAwareBalancerStrategy implements BalancerStrategy
 {
   private final boolean perDatasource;
 
+  private final CoordinatorRunStats stats = new CoordinatorRunStats();
+  private final AtomicLong computeTimeNanos = new AtomicLong(0);
+
   public IntervalAwareBalancerStrategy(boolean perDatasource)
   {
     this.perDatasource = perDatasource;
@@ -82,18 +89,24 @@ public class IntervalAwareBalancerStrategy implements BalancerStrategy
       List<ServerHolder> serverHolders
   )
   {
-    final List<ServerHolder> eligibleServers = new ArrayList<>();
-    for (ServerHolder server : serverHolders) {
-      if (server.canLoadSegment(segmentToLoad)) {
-        eligibleServers.add(server);
+    final Stopwatch computeTime = Stopwatch.createStarted();
+    try {
+      final List<ServerHolder> eligibleServers = new ArrayList<>();
+      for (ServerHolder server : serverHolders) {
+        if (server.canLoadSegment(segmentToLoad)) {
+          eligibleServers.add(server);
+        }
       }
+
+      // Shuffle first so that a subsequent stable sort breaks ties randomly.
+      Collections.shuffle(eligibleServers);
+      eligibleServers.sort(Comparator.comparingInt(server -> countSegmentsInInterval(server, segmentToLoad)));
+
+      return eligibleServers.iterator();
     }
-
-    // Shuffle first so that a subsequent stable sort breaks ties randomly.
-    Collections.shuffle(eligibleServers);
-    eligibleServers.sort(Comparator.comparingInt(server -> countSegmentsInInterval(server, segmentToLoad)));
-
-    return eligibleServers.iterator();
+    finally {
+      recordComputeTime(computeTime);
+    }
   }
 
   @Override
@@ -103,29 +116,35 @@ public class IntervalAwareBalancerStrategy implements BalancerStrategy
       List<ServerHolder> destinationServers
   )
   {
-    final int sourceCount = countSegmentsInInterval(sourceServer, segmentToMove);
+    final Stopwatch computeTime = Stopwatch.createStarted();
+    try {
+      final int sourceCount = countSegmentsInInterval(sourceServer, segmentToMove);
 
-    ServerHolder bestDestination = null;
-    int bestCount = Integer.MAX_VALUE;
-    for (ServerHolder server : destinationServers) {
-      if (server.equals(sourceServer) || !server.canLoadSegment(segmentToMove)) {
-        continue;
+      ServerHolder bestDestination = null;
+      int bestCount = Integer.MAX_VALUE;
+      for (ServerHolder server : destinationServers) {
+        if (server.equals(sourceServer) || !server.canLoadSegment(segmentToMove)) {
+          continue;
+        }
+        final int count = countSegmentsInInterval(server, segmentToMove);
+        if (count < bestCount) {
+          bestCount = count;
+          bestDestination = server;
+        }
       }
-      final int count = countSegmentsInInterval(server, segmentToMove);
-      if (count < bestCount) {
-        bestCount = count;
-        bestDestination = server;
-      }
-    }
 
-    // Only move if it strictly reduces the maximum per-interval count, i.e. the
-    // destination (after gaining the segment) would hold fewer segments for this
-    // interval than the source currently does. This avoids pointless moves and
-    // oscillation between two servers that differ by a single segment.
-    if (bestDestination != null && bestCount + 1 < sourceCount) {
-      return bestDestination;
+      // Only move if it strictly reduces the maximum per-interval count, i.e. the
+      // destination (after gaining the segment) would hold fewer segments for this
+      // interval than the source currently does. This avoids pointless moves and
+      // oscillation between two servers that differ by a single segment.
+      if (bestDestination != null && bestCount + 1 < sourceCount) {
+        return bestDestination;
+      }
+      return null;
     }
-    return null;
+    finally {
+      recordComputeTime(computeTime);
+    }
   }
 
   @Override
@@ -146,7 +165,18 @@ public class IntervalAwareBalancerStrategy implements BalancerStrategy
   @Override
   public CoordinatorRunStats getStats()
   {
-    return CoordinatorRunStats.empty();
+    stats.add(
+        Stats.Balancer.COMPUTATION_TIME,
+        TimeUnit.NANOSECONDS.toMillis(computeTimeNanos.getAndSet(0))
+    );
+    return stats;
+  }
+
+  private void recordComputeTime(Stopwatch computeTime)
+  {
+    computeTime.stop();
+    stats.add(Stats.Balancer.COMPUTATION_COUNT, 1);
+    computeTimeNanos.addAndGet(computeTime.elapsed(TimeUnit.NANOSECONDS));
   }
 
   /**
