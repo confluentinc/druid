@@ -153,6 +153,37 @@ public class IntervalAwareBalancerStrategyTest
   }
 
   @Test
+  public void testMoveTieBreakIsNotBiasedTowardListOrder()
+  {
+    final List<DataSegment> intervalSegments = minuteSegments(DS_WIKI, 4);
+
+    // Source holds 3 segments for the interval; two candidate destinations both
+    // hold 0 (a tie at the minimum). Over many runs, both should be chosen — a
+    // first-wins linear scan would always return destA.
+    final ServerHolder source = createServerWith(intervalSegments.subList(0, 3));
+    final ServerHolder destA = createServerWith(new ArrayList<>());
+    final ServerHolder destB = createServerWith(new ArrayList<>());
+    final DataSegment toMove = intervalSegments.get(0);
+
+    int chosenA = 0;
+    int chosenB = 0;
+    for (int i = 0; i < 2000; i++) {
+      final ServerHolder chosen =
+          strategy.findDestinationServerToMoveSegment(toMove, source, Arrays.asList(destA, destB));
+      if (chosen == destA) {
+        chosenA++;
+      } else if (chosen == destB) {
+        chosenB++;
+      }
+    }
+
+    // Both tied servers must be selected a meaningful fraction of the time.
+    Assert.assertTrue("destA never chosen: " + chosenA, chosenA > 700);
+    Assert.assertTrue("destB never chosen: " + chosenB, chosenB > 700);
+    Assert.assertEquals(2000, chosenA + chosenB);
+  }
+
+  @Test
   public void testDropPrefersMostLoadedServerForInterval()
   {
     final List<DataSegment> intervalSegments = minuteSegments(DS_WIKI, 5);
@@ -167,6 +198,38 @@ public class IntervalAwareBalancerStrategyTest
     // Most heavily loaded server for the interval should be dropped from first
     Assert.assertSame(serverB, ordered.next());
     Assert.assertSame(serverA, ordered.next());
+  }
+
+  @Test
+  public void testFullServerIsExcludedFromLoadCandidates()
+  {
+    final List<DataSegment> targetInterval = minuteSegments(DS_WIKI, 4);
+    // A different interval, used only to fill up the "full" server.
+    final List<DataSegment> otherInterval =
+        CreateDataSegments.ofDatasource(DS_WIKI)
+                          .forIntervals(1, Granularities.MINUTE)
+                          .startingAt("2024-01-01T01:00:00.000Z")
+                          .withNumPartitions(2)
+                          .eachOfSizeInMb(100);
+
+    // Full server: 200 MB capacity holding 2 x 100 MB segments of another interval.
+    // It therefore has 0 segments for the target interval (so by count alone it
+    // would rank first), but it cannot fit any more data.
+    final ServerHolder fullServer = createServerWith(otherInterval, 200L << 20);
+    // Normal server holds 1 segment of the target interval (count = 1).
+    final ServerHolder normalServer = createServerWith(targetInterval.subList(0, 1));
+
+    final DataSegment newSegment = targetInterval.get(1);
+    final Iterator<ServerHolder> ordered =
+        strategy.findServersToLoadSegment(newSegment, Arrays.asList(fullServer, normalServer));
+
+    final List<ServerHolder> result = new ArrayList<>();
+    ordered.forEachRemaining(result::add);
+
+    // Despite having the lowest interval count, the full server must be filtered out.
+    Assert.assertFalse("full server must be excluded", result.contains(fullServer));
+    Assert.assertTrue(result.contains(normalServer));
+    Assert.assertEquals(1, result.size());
   }
 
   @Test
@@ -194,9 +257,14 @@ public class IntervalAwareBalancerStrategyTest
 
   private ServerHolder createServerWith(List<DataSegment> segments)
   {
+    return createServerWith(segments, 10L << 30);
+  }
+
+  private ServerHolder createServerWith(List<DataSegment> segments, long maxSizeBytes)
+  {
     final String name = "hist_" + uniqueServerId++;
     final DruidServer server =
-        new DruidServer(name, name, null, 10L << 30, ServerType.HISTORICAL, "hot", 1);
+        new DruidServer(name, name, null, maxSizeBytes, ServerType.HISTORICAL, "hot", 1);
     for (DataSegment segment : segments) {
       server.addDataSegment(segment);
     }

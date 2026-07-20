@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -122,6 +123,7 @@ public class IntervalAwareBalancerStrategy implements BalancerStrategy
 
       ServerHolder bestDestination = null;
       int bestCount = Integer.MAX_VALUE;
+      int numTiedAtBest = 0;
       for (ServerHolder server : destinationServers) {
         if (server.equals(sourceServer) || !server.canLoadSegment(segmentToMove)) {
           continue;
@@ -130,6 +132,17 @@ public class IntervalAwareBalancerStrategy implements BalancerStrategy
         if (count < bestCount) {
           bestCount = count;
           bestDestination = server;
+          numTiedAtBest = 1;
+        } else if (count == bestCount) {
+          // Reservoir sampling over the servers tied at the minimum count, so that
+          // ties are broken uniformly at random rather than always picking the
+          // server that appears earliest in the list. Without this, when many
+          // servers share the lowest count for an interval (common on a large,
+          // lightly-loaded tier), moves would persistently favour the same
+          // early-ordered servers and skew the distribution over repeated runs.
+          if (ThreadLocalRandom.current().nextInt(++numTiedAtBest) == 0) {
+            bestDestination = server;
+          }
         }
       }
 
