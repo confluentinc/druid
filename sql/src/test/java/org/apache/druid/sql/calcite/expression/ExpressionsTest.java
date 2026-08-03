@@ -2834,7 +2834,7 @@ public class ExpressionsTest extends CalciteTestBase
             plannerContext,
             rexBuilder.makeExactLiteral(
                 BigDecimal.valueOf(123L),
-                rexBuilder.getTypeFactory().createSqlType(SqlTypeName.DECIMAL)
+                rexBuilder.getTypeFactory().createSqlType(SqlTypeName.DECIMAL, 19, 0)
             )
         )
     );
