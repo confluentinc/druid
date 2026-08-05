@@ -19,45 +19,69 @@
 
 package org.apache.druid.query;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListenableFutureTask;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.druid.java.util.common.lifecycle.Lifecycle;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * A prioritized executor backed by one or more independent thread pools ("shards"), each with its own
+ * {@link PriorityBlockingQueue}. Sharding exists to relieve contention on the single queue lock: with one queue,
+ * every producer (submit) and every worker (take) serializes on one {@link java.util.concurrent.locks.ReentrantLock},
+ * which becomes a bottleneck under very high task rates (e.g. one task per segment scan). Splitting into
+ * {@code druid.processing.numThreadPools} shards means each queue lock only sees ~1/N of the traffic and ~1/N of the
+ * worker threads contending on it.
+ *
+ * Tasks are routed to a shard at submit time using {@link ThreadLocalRandom} (no shared counter, so the router adds
+ * no contention of its own). The trade-off is that priority ordering is per-shard rather than global; for the
+ * high-throughput per-segment workload this pool serves, that is an acceptable exchange for the reduced contention.
+ * With {@code numThreadPools == 1} (the default) this behaves exactly like the previous single-pool implementation.
+ */
 public class PrioritizedExecutorService extends AbstractExecutorService implements ListeningExecutorService
 {
   public static PrioritizedExecutorService create(Lifecycle lifecycle, DruidProcessingConfig config)
   {
-    final PrioritizedExecutorService service = new PrioritizedExecutorService(
-        new ThreadPoolExecutor(
-            config.getNumThreads(),
-            config.getNumThreads(),
-            0L,
-            TimeUnit.MILLISECONDS,
-            new PriorityBlockingQueue<>(),
-            new ThreadFactoryBuilder().setDaemon(true).setNameFormat(config.getFormatString()).build()
-        ),
-        config
-    );
+    final int numPools = Math.max(1, config.getNumThreadPools());
+    final int totalThreads = config.getNumThreads();
+    final ThreadFactory threadFactory =
+        new ThreadFactoryBuilder().setDaemon(true).setNameFormat(config.getFormatString()).build();
+
+    final ThreadPoolExecutor[] shards = new ThreadPoolExecutor[numPools];
+    for (int p = 0; p < numPools; p++) {
+      // Spread the configured total thread count across the pools, giving the remainder to the first pools.
+      final int threadsForPool = totalThreads / numPools + (p < (totalThreads % numPools) ? 1 : 0);
+      shards[p] = new ThreadPoolExecutor(
+          threadsForPool,
+          threadsForPool,
+          0L,
+          TimeUnit.MILLISECONDS,
+          new PriorityBlockingQueue<>(),
+          threadFactory
+      );
+    }
+
+    final PrioritizedExecutorService service = new PrioritizedExecutorService(shards, config);
 
     lifecycle.addHandler(
         new Lifecycle.Handler()
@@ -79,19 +103,17 @@ public class PrioritizedExecutorService extends AbstractExecutorService implemen
   }
 
   private final AtomicLong queuePosition = new AtomicLong(Long.MAX_VALUE);
-  private final ListeningExecutorService delegate;
-  private final BlockingQueue<Runnable> delegateQueue;
+  private final ThreadPoolExecutor[] shards;
   private final boolean allowRegularTasks;
   private final int defaultPriority;
   private final DruidProcessingConfig config;
-  final ThreadPoolExecutor threadPoolExecutor; // Used in unit tests
 
   public PrioritizedExecutorService(
       ThreadPoolExecutor threadPoolExecutor,
       DruidProcessingConfig config
   )
   {
-    this(threadPoolExecutor, false, 0, config);
+    this(new ThreadPoolExecutor[]{threadPoolExecutor}, false, 0, config);
   }
 
   public PrioritizedExecutorService(
@@ -101,12 +123,40 @@ public class PrioritizedExecutorService extends AbstractExecutorService implemen
       DruidProcessingConfig config
   )
   {
-    this.threadPoolExecutor = threadPoolExecutor;
-    this.delegate = MoreExecutors.listeningDecorator(Preconditions.checkNotNull(threadPoolExecutor));
-    this.delegateQueue = threadPoolExecutor.getQueue();
+    this(new ThreadPoolExecutor[]{threadPoolExecutor}, allowRegularTasks, defaultPriority, config);
+  }
+
+  public PrioritizedExecutorService(
+      ThreadPoolExecutor[] shards,
+      DruidProcessingConfig config
+  )
+  {
+    this(shards, false, 0, config);
+  }
+
+  public PrioritizedExecutorService(
+      ThreadPoolExecutor[] shards,
+      boolean allowRegularTasks,
+      int defaultPriority,
+      DruidProcessingConfig config
+  )
+  {
+    Preconditions.checkArgument(shards != null && shards.length > 0, "need at least one thread pool");
+    this.shards = shards;
     this.allowRegularTasks = allowRegularTasks;
     this.defaultPriority = defaultPriority;
     this.config = config;
+  }
+
+  /**
+   * Returns a view over the <em>same</em> underlying shards that additionally accepts plain (non-{@link
+   * PrioritizedRunnable}) tasks, defaulting them to {@code defaultPriority}. Exists only so tests can exercise the
+   * mixed prioritized/regular-task path without reaching into the pool's internals.
+   */
+  @VisibleForTesting
+  PrioritizedExecutorService withRegularTasksAllowed(int defaultPriority)
+  {
+    return new PrioritizedExecutorService(shards, true, defaultPriority, config);
   }
 
   @Override
@@ -160,56 +210,93 @@ public class PrioritizedExecutorService extends AbstractExecutorService implemen
   }
 
   @Override
+  public void execute(final Runnable runnable)
+  {
+    final Runnable task = (runnable instanceof PrioritizedListenableFutureTask)
+                          ? runnable
+                          : newTaskFor(runnable, null);
+    // Route to a shard. ThreadLocalRandom is contention-free (no shared counter/cache line), and spreads
+    // homogeneous high-rate tasks evenly enough that per-shard queue depths stay balanced.
+    final int shard = shards.length == 1 ? 0 : ThreadLocalRandom.current().nextInt(shards.length);
+    shards[shard].execute(task);
+  }
+
+  @Override
   public void shutdown()
   {
-    delegate.shutdown();
+    for (ThreadPoolExecutor shard : shards) {
+      shard.shutdown();
+    }
   }
 
   @Override
   public List<Runnable> shutdownNow()
   {
-    return delegate.shutdownNow();
+    final List<Runnable> pending = new ArrayList<>();
+    for (ThreadPoolExecutor shard : shards) {
+      pending.addAll(shard.shutdownNow());
+    }
+    return pending;
   }
 
   @Override
   public boolean isShutdown()
   {
-    return delegate.isShutdown();
+    for (ThreadPoolExecutor shard : shards) {
+      if (!shard.isShutdown()) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
   public boolean isTerminated()
   {
-    return delegate.isTerminated();
-  }
-
-  @Override
-  public boolean awaitTermination(long l, TimeUnit timeUnit) throws InterruptedException
-  {
-    return delegate.awaitTermination(l, timeUnit);
-  }
-
-  @Override
-  public void execute(final Runnable runnable)
-  {
-    if (runnable instanceof PrioritizedListenableFutureTask) {
-      delegate.execute(runnable);
-    } else {
-      delegate.execute(newTaskFor(runnable, null));
+    for (ThreadPoolExecutor shard : shards) {
+      if (!shard.isTerminated()) {
+        return false;
+      }
     }
+    return true;
   }
 
-  public int getQueueSize()
+  @Override
+  public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException
   {
-    return delegateQueue.size();
+    final long deadlineNanos = System.nanoTime() + unit.toNanos(timeout);
+    for (ThreadPoolExecutor shard : shards) {
+      final long remainingNanos = deadlineNanos - System.nanoTime();
+      if (!shard.awaitTermination(remainingNanos, TimeUnit.NANOSECONDS)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
-   * Returns the approximate number of tasks being run by the thread pool currently.
+   * Total number of queued (not-yet-running) tasks across all shards. Summed on demand; only called by the
+   * periodic metrics monitor, never on the task hot path.
+   */
+  public int getQueueSize()
+  {
+    int total = 0;
+    for (ThreadPoolExecutor shard : shards) {
+      total += shard.getQueue().size();
+    }
+    return total;
+  }
+
+  /**
+   * Returns the approximate number of tasks being run by the thread pools currently, summed across shards.
    */
   public int getActiveTasks()
   {
-    return threadPoolExecutor.getActiveCount();
+    int total = 0;
+    for (ThreadPoolExecutor shard : shards) {
+      total += shard.getActiveCount();
+    }
+    return total;
   }
 }
 

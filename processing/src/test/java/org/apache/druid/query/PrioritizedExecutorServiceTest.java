@@ -248,7 +248,7 @@ public class PrioritizedExecutorServiceTest
   @Test
   public void testOrderedExecutionEqualPriorityMix() throws ExecutionException, InterruptedException
   {
-    exec = new PrioritizedExecutorService(exec.threadPoolExecutor, true, 0, config);
+    exec = exec.withRegularTasksAllowed(0);
     final int numTasks = 1_000;
     final List<ListenableFuture<?>> futures = Lists.newArrayListWithExpectedSize(numTasks);
     final AtomicInteger hasRun = new AtomicInteger(0);
@@ -281,7 +281,7 @@ public class PrioritizedExecutorServiceTest
     final int _default = 0;
     final int min = -1;
     final int max = 1;
-    exec = new PrioritizedExecutorService(exec.threadPoolExecutor, true, _default, config);
+    exec = exec.withRegularTasksAllowed(_default);
     final int numTasks = 999;
     final int[] priorities = new int[]{max, _default, min};
     final int tasksPerPriority = numTasks / priorities.length;
@@ -318,6 +318,112 @@ public class PrioritizedExecutorServiceTest
     }
     latch.countDown();
     checkFutures(futures);
+  }
+
+  /**
+   * Verifies the multi-pool (sharded) path: with {@code numThreadPools > 1}, tasks are routed across shards, all of
+   * them still run to completion, and {@link PrioritizedExecutorService#getQueueSize()} /
+   * {@link PrioritizedExecutorService#getActiveTasks()} aggregate correctly across every shard.
+   */
+  @Test
+  public void testShardedExecutionAndAggregatedMetrics() throws Exception
+  {
+    final int numPools = 4;
+    final int numThreads = 8; // 2 threads per pool
+    final PrioritizedExecutorService sharded = PrioritizedExecutorService.create(
+        new Lifecycle(),
+        new DruidProcessingConfig()
+        {
+          @Override
+          public String getFormatString()
+          {
+            return "sharded-test";
+          }
+
+          @Override
+          public int getNumThreads()
+          {
+            return numThreads;
+          }
+
+          @Override
+          public int getNumThreadPools()
+          {
+            return numPools;
+          }
+
+          @Override
+          public boolean isFifo()
+          {
+            return useFifo;
+          }
+        }
+    );
+
+    try {
+      final int numTasks = 400;
+      final CountDownLatch gate = new CountDownLatch(1);
+      final AtomicInteger completed = new AtomicInteger(0);
+      final List<ListenableFuture<?>> futures = Lists.newArrayListWithExpectedSize(numTasks);
+
+      for (int i = 0; i < numTasks; i++) {
+        futures.add(
+            sharded.submit(
+                new PrioritizedRunnable()
+                {
+                  @Override
+                  public int getPriority()
+                  {
+                    return 0;
+                  }
+
+                  @Override
+                  public void run()
+                  {
+                    try {
+                      gate.await();
+                    }
+                    catch (InterruptedException e) {
+                      Thread.currentThread().interrupt();
+                      throw new RuntimeException(e);
+                    }
+                    completed.incrementAndGet();
+                  }
+                }
+            )
+        );
+      }
+
+      // Wait until every worker thread across all shards has picked up a (blocked) task. Reaching numThreads active
+      // proves tasks were routed across all shards, and exercises getActiveTasks() aggregation.
+      final long deadlineMs = System.currentTimeMillis() + 30_000L;
+      while (sharded.getActiveTasks() < numThreads && System.currentTimeMillis() < deadlineMs) {
+        Thread.sleep(10);
+      }
+      Assert.assertEquals(
+          "all worker threads across shards should be busy",
+          numThreads,
+          sharded.getActiveTasks()
+      );
+
+      // With numThreads tasks running (blocked) and none finished, the remaining tasks must be queued across shards.
+      Assert.assertEquals(
+          "queued tasks should be summed across all shards",
+          numTasks - numThreads,
+          sharded.getQueueSize()
+      );
+
+      // Release the gate; every task must complete regardless of which shard ran it.
+      gate.countDown();
+      checkFutures(futures);
+      Assert.assertEquals(numTasks, completed.get());
+
+      // Queues drain to empty across all shards once everything has run.
+      Assert.assertEquals(0, sharded.getQueueSize());
+    }
+    finally {
+      sharded.shutdownNow();
+    }
   }
 
   private void checkFutures(Iterable<ListenableFuture<?>> futures) throws InterruptedException, ExecutionException
