@@ -20,6 +20,7 @@
 package org.apache.druid.guice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -46,6 +47,7 @@ import org.apache.druid.query.MetricsEmittingMergingBlockingPool;
 import org.apache.druid.query.MetricsEmittingQueryProcessingPool;
 import org.apache.druid.query.PrioritizedExecutorService;
 import org.apache.druid.query.QueryProcessingPool;
+import org.apache.druid.query.ShardedPrioritizedExecutorService;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.GroupByResourcesReservationPool;
 import org.apache.druid.server.metrics.MetricsModule;
@@ -152,13 +154,13 @@ public class DruidProcessingModule implements Module
       Lifecycle lifecycle
   )
   {
-    return new MetricsEmittingQueryProcessingPool(
-        PrioritizedExecutorService.create(
-            lifecycle,
-            config
-        ),
-        executorServiceMonitor
-    );
+    // Split the processing pool into several independent pools (each with its own queue lock) when configured, to
+    // relieve contention on a single queue lock under very high task rates. numThreadPools == 1 (the default) keeps
+    // the original single-pool behaviour.
+    final ListeningExecutorService exec = config.getNumThreadPools() > 1
+        ? ShardedPrioritizedExecutorService.create(lifecycle, config)
+        : PrioritizedExecutorService.create(lifecycle, config);
+    return new MetricsEmittingQueryProcessingPool(exec, executorServiceMonitor);
   }
 
   public static NonBlockingPool<ByteBuffer> createIntermediateResultsPool(
