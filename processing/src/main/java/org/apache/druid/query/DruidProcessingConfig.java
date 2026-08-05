@@ -43,6 +43,8 @@ public class DruidProcessingConfig implements ColumnConfig
   @JsonProperty
   private final int numThreads;
   @JsonProperty
+  private final int numThreadPools;
+  @JsonProperty
   private final int numMergeBuffers;
   @JsonProperty
   private final boolean fifo;
@@ -60,6 +62,7 @@ public class DruidProcessingConfig implements ColumnConfig
   public DruidProcessingConfig(
       @JsonProperty("formatString") @Nullable String formatString,
       @JsonProperty("numThreads") @Nullable Integer numThreads,
+      @JsonProperty("numThreadPools") @Nullable Integer numThreadPools,
       @JsonProperty("numMergeBuffers") @Nullable Integer numMergeBuffers,
       @JsonProperty("fifo") @Nullable Boolean fifo,
       @JsonProperty("tmpDir") @Nullable String tmpDir,
@@ -73,6 +76,10 @@ public class DruidProcessingConfig implements ColumnConfig
         numThreads,
         Math.max(runtimeInfo.getAvailableProcessors() - 1, 1)
     );
+    // Number of independent processing thread pools (queues) to split numThreads across, to relieve
+    // contention on a single queue lock. Defaults to 1 (single pool = legacy behaviour). Clamped to
+    // [1, numThreads] since you can't have more pools than threads.
+    this.numThreadPools = Math.min(this.numThreads, Math.max(1, Configs.valueOrDefault(numThreadPools, 1)));
     this.numMergeBuffers = Configs.valueOrDefault(numMergeBuffers, Math.max(2, this.numThreads / 4));
     this.fifo = fifo == null || fifo;
     this.tmpDir = Configs.valueOrDefault(tmpDir, System.getProperty("java.io.tmpdir"));
@@ -87,7 +94,7 @@ public class DruidProcessingConfig implements ColumnConfig
   @VisibleForTesting
   public DruidProcessingConfig()
   {
-    this(null, null, null, null, null, null, null, JvmUtils.getRuntimeInfo());
+    this(null, null, null, null, null, null, null, null, JvmUtils.getRuntimeInfo());
   }
 
   private void initializeBufferSize(RuntimeInfo runtimeInfo)
@@ -141,6 +148,16 @@ public class DruidProcessingConfig implements ColumnConfig
   public int getNumThreads()
   {
     return numThreads;
+  }
+
+  /**
+   * Number of independent processing thread pools (each with its own queue) that {@link #getNumThreads()} threads
+   * are split across. 1 (default) = a single shared pool/queue. Increasing this relieves contention on the single
+   * processing-queue lock at the cost of per-shard (rather than global) priority ordering.
+   */
+  public int getNumThreadPools()
+  {
+    return numThreadPools;
   }
 
   public int getNumMergeBuffers()
