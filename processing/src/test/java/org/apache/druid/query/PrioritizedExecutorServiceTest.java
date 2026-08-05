@@ -248,7 +248,7 @@ public class PrioritizedExecutorServiceTest
   @Test
   public void testOrderedExecutionEqualPriorityMix() throws ExecutionException, InterruptedException
   {
-    exec = new PrioritizedExecutorService(exec.threadPoolExecutor, true, 0, config);
+    exec = exec.withRegularTasksAllowed(0);
     final int numTasks = 1_000;
     final List<ListenableFuture<?>> futures = Lists.newArrayListWithExpectedSize(numTasks);
     final AtomicInteger hasRun = new AtomicInteger(0);
@@ -281,7 +281,7 @@ public class PrioritizedExecutorServiceTest
     final int _default = 0;
     final int min = -1;
     final int max = 1;
-    exec = new PrioritizedExecutorService(exec.threadPoolExecutor, true, _default, config);
+    exec = exec.withRegularTasksAllowed(_default);
     final int numTasks = 999;
     final int[] priorities = new int[]{max, _default, min};
     final int tasksPerPriority = numTasks / priorities.length;

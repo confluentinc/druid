@@ -19,6 +19,7 @@
 
 package org.apache.druid.query;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -106,7 +107,6 @@ public class PrioritizedExecutorService extends AbstractExecutorService implemen
   private final boolean allowRegularTasks;
   private final int defaultPriority;
   private final DruidProcessingConfig config;
-  final ThreadPoolExecutor threadPoolExecutor; // == shards[0]; retained for unit tests
 
   public PrioritizedExecutorService(
       ThreadPoolExecutor threadPoolExecutor,
@@ -143,10 +143,20 @@ public class PrioritizedExecutorService extends AbstractExecutorService implemen
   {
     Preconditions.checkArgument(shards != null && shards.length > 0, "need at least one thread pool");
     this.shards = shards;
-    this.threadPoolExecutor = shards[0];
     this.allowRegularTasks = allowRegularTasks;
     this.defaultPriority = defaultPriority;
     this.config = config;
+  }
+
+  /**
+   * Returns a view over the <em>same</em> underlying shards that additionally accepts plain (non-{@link
+   * PrioritizedRunnable}) tasks, defaulting them to {@code defaultPriority}. Exists only so tests can exercise the
+   * mixed prioritized/regular-task path without reaching into the pool's internals.
+   */
+  @VisibleForTesting
+  PrioritizedExecutorService withRegularTasksAllowed(int defaultPriority)
+  {
+    return new PrioritizedExecutorService(shards, true, defaultPriority, config);
   }
 
   @Override
