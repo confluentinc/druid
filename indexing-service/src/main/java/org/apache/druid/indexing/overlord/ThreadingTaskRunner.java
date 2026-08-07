@@ -174,7 +174,7 @@ public class ThreadingTaskRunner
 
                           final TaskLocation taskLocation = TaskLocation.create(
                               node.getHost(),
-                              node.getPlaintextPort(),
+                              node.getAdvertisedPlaintextPort(),
                               node.getTlsPort()
                           );
 
