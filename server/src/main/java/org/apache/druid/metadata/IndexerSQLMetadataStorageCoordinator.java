@@ -64,6 +64,7 @@ import org.apache.druid.timeline.Partitions;
 import org.apache.druid.timeline.SegmentId;
 import org.apache.druid.timeline.SegmentTimeline;
 import org.apache.druid.timeline.TimelineObjectHolder;
+import org.apache.druid.timeline.partition.DimensionValueSetShardSpec;
 import org.apache.druid.timeline.partition.NumberedShardSpec;
 import org.apache.druid.timeline.partition.PartialShardSpec;
 import org.apache.druid.timeline.partition.PartitionChunk;
@@ -1203,10 +1204,11 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
             final SegmentId newVersionSegmentId = pendingSegment.getId().asSegmentId();
             newVersionSegmentToParent.put(newVersionSegmentId, oldSegment.getId());
             upgradedFromSegmentIdMap.put(newVersionSegmentId.toString(), oldSegment.getId().toString());
+            final ShardSpec upgradedShardSpec = getUpgradedSegmentShardSpec(oldSegment, pendingSegment);
             allSegmentsToInsert.add(DataSegment.builder(oldSegment)
                                                .interval(newVersionSegmentId.getInterval())
                                                .version(newVersionSegmentId.getVersion())
-                                               .shardSpec(pendingSegment.getId().getShardSpec())
+                                               .shardSpec(upgradedShardSpec)
                                                .build());
           }
         }
@@ -1258,6 +1260,44 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     catch (CallbackFailedException e) {
       throw e;
     }
+  }
+
+  /**
+   * Builds the shard spec for the upgraded copy of an append segment. The partition number and core-partition count come
+   * from the pending segment, but a {@link DimensionValueSetShardSpec} on the original is preserved so the upgraded copy
+   * stays prunable by the broker.
+   */
+  private static ShardSpec getUpgradedSegmentShardSpec(DataSegment oldSegment, PendingSegmentRecord pendingSegment)
+  {
+    final ShardSpec pendingShardSpec = pendingSegment.getId().getShardSpec();
+    final ShardSpec oldShardSpec = oldSegment.getShardSpec();
+    if (oldShardSpec instanceof DimensionValueSetShardSpec) {
+      return new DimensionValueSetShardSpec(
+          pendingShardSpec.getPartitionNum(),
+          pendingShardSpec.getNumCorePartitions(),
+          ((DimensionValueSetShardSpec) oldShardSpec).getPartitionDimensionValues()
+      );
+    }
+    return pendingShardSpec;
+  }
+
+  /**
+   * Same as {@link #getUpgradedSegmentShardSpec(DataSegment, PendingSegmentRecord)} but for the REPLACE path, where the
+   * partition number and core-partition count are computed for the new interval rather than taken from a pending
+   * segment. Keeps a {@link DimensionValueSetShardSpec} prunable across a concurrent REPLACE
+   * (apache/druid#19615); every other shard spec is normalised to {@link NumberedShardSpec} as before.
+   */
+  private static ShardSpec getUpgradedSegmentShardSpec(DataSegment oldSegment, int partitionNum, int numCorePartitions)
+  {
+    final ShardSpec oldShardSpec = oldSegment.getShardSpec();
+    if (oldShardSpec instanceof DimensionValueSetShardSpec) {
+      return new DimensionValueSetShardSpec(
+          partitionNum,
+          numCorePartitions,
+          ((DimensionValueSetShardSpec) oldShardSpec).getPartitionDimensionValues()
+      );
+    }
+    return new NumberedShardSpec(partitionNum, numCorePartitions);
   }
 
   private Map<SegmentCreateRequest, PendingSegmentRecord> createNewSegments(
@@ -1906,7 +1946,12 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
           (i, value) -> value == null ? 0 : value + 1
       );
       final int numCorePartitions = intervalToNumCorePartitions.get(newInterval);
-      ShardSpec shardSpec = new NumberedShardSpec(partitionNum, numCorePartitions);
+      // A DimensionValueSetShardSpec must survive the upgrade so the re-versioned copy stays prunable by the broker
+      // (apache/druid#19615). Upstream expresses this generically as
+      // oldSegment.getShardSpec().withPartitionNum(partitionNum), but ShardSpec#withPartitionNum arrived with
+      // apache/druid#19059 which is not on this branch; special-casing here keeps every other shard spec on the
+      // existing NumberedShardSpec behaviour.
+      ShardSpec shardSpec = getUpgradedSegmentShardSpec(oldSegment, partitionNum, numCorePartitions);
 
       // Create upgraded segment with the correct interval, version and shard spec
       String lockVersion = upgradeSegmentToLockVersion.get(oldSegment.getId().toString());

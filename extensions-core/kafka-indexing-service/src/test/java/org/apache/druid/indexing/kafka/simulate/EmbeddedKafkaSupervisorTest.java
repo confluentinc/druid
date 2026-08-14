@@ -161,7 +161,8 @@ public class EmbeddedKafkaSupervisorTest extends EmbeddedClusterTestBase
         1,
         null, null, null, null, null, null, null, null, null, null,
         null, null, null, null, null, null, null, null, null, null
-    );
+    ,
+        null);
   }
 
   private List<ProducerRecord<byte[], byte[]>> generateRecordsForTopic(
