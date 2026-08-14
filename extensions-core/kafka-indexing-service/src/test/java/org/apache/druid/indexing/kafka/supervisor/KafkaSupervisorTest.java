@@ -359,7 +359,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
         null,
         null,
         null
-    );
+    ,
+        null);
 
     EasyMock.expect(ingestionSchema.getIOConfig()).andReturn(kafkaSupervisorIOConfig).anyTimes();
     EasyMock.expect(ingestionSchema.getDataSchema()).andReturn(dataSchema).anyTimes();
@@ -535,7 +536,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
             null,
             null,
             null
-        ),
+        ,
+        null),
         null
     ).get(0);
     Assert.assertTrue(indexTask.getRunner() instanceof KafkaIndexTaskRunner);
@@ -4681,7 +4683,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
             null,
             null,
             null
-        )
+        ,
+        null)
     );
 
     supervisor.addTaskGroupToActivelyReadingTaskGroup(
@@ -4721,7 +4724,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
         null,
         null,
         null
-    );
+    ,
+        null);
 
     KafkaIndexTask completedTaskFromStorage = createKafkaIndexTask(
         "id0",
@@ -4875,7 +4879,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
             null,
             null,
             null
-        )
+        ,
+        null)
     );
 
     // Create task1 with some start and end offsets
@@ -5396,7 +5401,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
         10,
         null,
         null
-    );
+    ,
+        null);
 
     return new TestableKafkaSupervisor(
         taskStorage,
@@ -5514,7 +5520,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
         null,
         null,
         null
-    );
+    ,
+        null);
 
     return new TestableKafkaSupervisorWithCustomIsTaskCurrent(
         taskStorage,

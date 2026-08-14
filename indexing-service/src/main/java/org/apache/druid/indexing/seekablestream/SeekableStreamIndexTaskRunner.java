@@ -67,7 +67,6 @@ import org.apache.druid.indexing.common.actions.SegmentLockAcquireAction;
 import org.apache.druid.indexing.common.actions.TaskLocks;
 import org.apache.druid.indexing.common.actions.TimeChunkLockAcquireAction;
 import org.apache.druid.indexing.common.stats.TaskRealtimeMetricsMonitor;
-import org.apache.druid.indexing.common.task.IndexTaskUtils;
 import org.apache.druid.indexing.input.InputRowSchemas;
 import org.apache.druid.indexing.seekablestream.common.OrderedPartitionableRecord;
 import org.apache.druid.indexing.seekablestream.common.OrderedSequenceNumber;
@@ -1244,12 +1243,13 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
             );
 
             // Emit publish metrics only when this task actually committed the segments.
+            // NOTE (34.0.0-confluent backport): upstream also emits "ingest/rows/published" here, computed via
+            // IndexTaskUtils.getTotalRowCount(...) -> DataSegment#getTotalRows. DataSegment does not carry a
+            // totalRows field on this branch, so that metric is omitted; the wasPublished() gating (the reason
+            // apache/druid#19395 is needed by #19571) is kept as-is.
             if (publishedSegmentsAndCommitMetadata.wasPublished()) {
               final int segmentCount = publishedSegmentsAndCommitMetadata.getSegments().size();
-              final long totalRowCount =
-                  IndexTaskUtils.getTotalRowCount(publishedSegmentsAndCommitMetadata.getSegments());
               task.emitMetric(toolbox.getEmitter(), "ingest/segments/count", segmentCount);
-              task.emitMetric(toolbox.getEmitter(), "ingest/rows/published", totalRowCount);
             }
           }
 

@@ -118,17 +118,11 @@ public class DimensionValueSetShardSpec extends NumberedShardSpec
     return Type.DIM_VALUE_SET;
   }
 
-  @Override
-  public ShardSpec withPartitionNum(int partitionNum)
-  {
-    return new DimensionValueSetShardSpec(partitionNum, getNumCorePartitions(), partitionDimensionValues);
-  }
-
-  @Override
-  public ShardSpec withCorePartitions(int partitions)
-  {
-    return new DimensionValueSetShardSpec(getPartitionNum(), partitions, partitionDimensionValues);
-  }
+  // NOTE (34.0.0-confluent backport): upstream also overrides ShardSpec#withPartitionNum and
+  // ShardSpec#withCorePartitions here. Those base-class methods arrived with apache/druid#19059
+  // (Overlord-based MSQ minor compaction), which is not part of this branch, and nothing on the
+  // streaming publish path calls them -- IndexerSQLMetadataStorageCoordinator#getUpgradedSegmentShardSpec
+  // constructs DimensionValueSetShardSpec directly. Re-add both overrides if #19059 is ever backported.
 
   @Override
   public boolean equals(Object o)

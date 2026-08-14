@@ -1281,6 +1281,25 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     return pendingShardSpec;
   }
 
+  /**
+   * Same as {@link #getUpgradedSegmentShardSpec(DataSegment, PendingSegmentRecord)} but for the REPLACE path, where the
+   * partition number and core-partition count are computed for the new interval rather than taken from a pending
+   * segment. Keeps a {@link DimensionValueSetShardSpec} prunable across a concurrent REPLACE
+   * (apache/druid#19615); every other shard spec is normalised to {@link NumberedShardSpec} as before.
+   */
+  private static ShardSpec getUpgradedSegmentShardSpec(DataSegment oldSegment, int partitionNum, int numCorePartitions)
+  {
+    final ShardSpec oldShardSpec = oldSegment.getShardSpec();
+    if (oldShardSpec instanceof DimensionValueSetShardSpec) {
+      return new DimensionValueSetShardSpec(
+          partitionNum,
+          numCorePartitions,
+          ((DimensionValueSetShardSpec) oldShardSpec).getPartitionDimensionValues()
+      );
+    }
+    return new NumberedShardSpec(partitionNum, numCorePartitions);
+  }
+
   private Map<SegmentCreateRequest, PendingSegmentRecord> createNewSegments(
       SegmentMetadataTransaction transaction,
       String dataSource,
@@ -1927,7 +1946,12 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
           (i, value) -> value == null ? 0 : value + 1
       );
       final int numCorePartitions = intervalToNumCorePartitions.get(newInterval);
-      ShardSpec shardSpec = new NumberedShardSpec(partitionNum, numCorePartitions);
+      // A DimensionValueSetShardSpec must survive the upgrade so the re-versioned copy stays prunable by the broker
+      // (apache/druid#19615). Upstream expresses this generically as
+      // oldSegment.getShardSpec().withPartitionNum(partitionNum), but ShardSpec#withPartitionNum arrived with
+      // apache/druid#19059 which is not on this branch; special-casing here keeps every other shard spec on the
+      // existing NumberedShardSpec behaviour.
+      ShardSpec shardSpec = getUpgradedSegmentShardSpec(oldSegment, partitionNum, numCorePartitions);
 
       // Create upgraded segment with the correct interval, version and shard spec
       String lockVersion = upgradeSegmentToLockVersion.get(oldSegment.getId().toString());

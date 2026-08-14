@@ -68,7 +68,6 @@ public class KafkaSupervisorTuningConfig extends KafkaIndexTaskTuningConfig
         null,
         null,
         null,
-        null,
         null
     );
   }

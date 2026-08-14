@@ -240,7 +240,8 @@ public class KafkaIndexTaskTuningConfigTest
         null,
         2,
         5
-    );
+    ,
+        null);
     KafkaIndexTaskTuningConfig copy = original.convertToTaskTuningConfig();
 
     Assert.assertEquals(original.getAppendableIndexSpec(), copy.getAppendableIndexSpec());
@@ -283,7 +284,6 @@ public class KafkaIndexTaskTuningConfigTest
         42,
         2,
         -1,
-        false,
         null
     );
 
