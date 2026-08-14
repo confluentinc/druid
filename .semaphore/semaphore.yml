@@ -158,15 +158,12 @@ blocks:
 
         # Keep -Dmaven.repo.local=.m2 (else deps resolve to upstream 37.0.0 from Central, not our build);
         # reuseForks=false runs each test class in a fresh JVM so embedded-tests heap doesn't accumulate.
-        # -Dtest=!KafkaIndexFaultToleranceTest: this upstream supervisor-recovery test stalls only on the
-        # CI agent (passes locally in isolation + under CPU load; never reproducible here). It is pure
-        # upstream and covered by apache's own docker-tests CI, so it's excluded from this pipeline.
         - name: "Druid E2E Tests"
           env_vars:
               - name: MAVEN_PROJECTS
                 value: 'quidem-ut,embedded-tests'
               - name: MAVEN_OPTS
-                value: "-Dmaven.repo.local=.m2 -DforkCount=1 -DreuseForks=false -Dtest=!KafkaIndexFaultToleranceTest"
+                value: "-Dmaven.repo.local=.m2 -DforkCount=1 -DreuseForks=false"
           commands: *run_tests
 
         - name: "Other Tests"
