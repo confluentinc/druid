@@ -378,7 +378,8 @@ public class EmbeddedKafkaClusterMetricsTest extends EmbeddedClusterTestBase
         null, null, null,
         maxRowsPerSegment,
         null, null, null, null, null, null, null, null, null, null,
-        null, null, null, null, null, null, null, null, null, null
+        null, null, null, null, null, null, null, null, null, null,
+        null
     );
   }
 }
