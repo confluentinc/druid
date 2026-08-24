@@ -134,6 +134,11 @@ public class KubernetesTaskRunnerConfig
   @NotNull
   private Integer capacity = Integer.MAX_VALUE;
 
+  @JsonProperty
+  // port peon TaskLocations should be reported on instead of DruidK8sConstants.PORT, e.g. the envoy
+  // sidecar's mTLS ingress port, since peons are addressed by pod IP and never announce their own DruidNode
+  private Integer advertisedPlaintextPort = null;
+
   public KubernetesTaskRunnerConfig()
   {
   }
@@ -334,6 +339,11 @@ public class KubernetesTaskRunnerConfig
   public Integer getCapacity()
   {
     return capacity;
+  }
+
+  public Integer getAdvertisedPlaintextPort()
+  {
+    return advertisedPlaintextPort;
   }
 
   public static Builder builder()
