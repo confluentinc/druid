@@ -42,6 +42,7 @@ import org.apache.druid.k8s.overlord.common.KubernetesPeonClient;
 import org.apache.druid.tasklogs.TaskLogs;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
@@ -98,6 +99,9 @@ public class KubernetesPeonLifecycle
 
   private final AtomicReference<TaskLocation> taskLocationRef = new AtomicReference<>();
 
+  @Nullable
+  private final Integer advertisedPlaintextPort;
+
   protected KubernetesPeonLifecycle(
       Task task,
       K8sTaskId taskId,
@@ -107,6 +111,19 @@ public class KubernetesPeonLifecycle
       TaskStateListener stateListener
   )
   {
+    this(task, taskId, kubernetesClient, taskLogs, mapper, stateListener, null);
+  }
+
+  protected KubernetesPeonLifecycle(
+      Task task,
+      K8sTaskId taskId,
+      KubernetesPeonClient kubernetesClient,
+      TaskLogs taskLogs,
+      ObjectMapper mapper,
+      TaskStateListener stateListener,
+      @Nullable Integer advertisedPlaintextPort
+  )
+  {
     this.task = task;
     this.taskId = taskId;
     this.kubernetesClient = kubernetesClient;
@@ -114,6 +131,7 @@ public class KubernetesPeonLifecycle
     this.mapper = mapper;
     this.stateListener = stateListener;
     this.taskStartedSuccessfullyFuture = SettableFuture.create();
+    this.advertisedPlaintextPort = advertisedPlaintextPort;
   }
 
   /**
@@ -290,9 +308,13 @@ public class KubernetesPeonLifecycle
         log.warn("Could not get task location from k8s for task [%s].", taskId);
         return TaskLocation.unknown();
       }
+      // Peons are addressed by pod IP, not DruidNode self-announcement, so the envoy-advertised port
+      // (if configured) has to be threaded in from KubernetesTaskRunnerConfig instead of via
+      // node.getAdvertisedPlaintextPort(); otherwise callers dial the raw peon port and bypass envoy.
+      final int plaintextPort = advertisedPlaintextPort != null ? advertisedPlaintextPort : DruidK8sConstants.PORT;
       taskLocationRef.set(TaskLocation.create(
           podStatus.getPodIP(),
-          DruidK8sConstants.PORT,
+          plaintextPort,
           DruidK8sConstants.TLS_PORT,
           Boolean.parseBoolean(pod.getMetadata().getAnnotations().getOrDefault(DruidK8sConstants.TLS_ENABLED, "false")),
           pod.getMetadata() != null ? pod.getMetadata().getName() : ""
