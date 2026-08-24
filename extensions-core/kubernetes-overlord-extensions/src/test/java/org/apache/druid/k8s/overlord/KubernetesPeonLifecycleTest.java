@@ -957,6 +957,45 @@ public class KubernetesPeonLifecycleTest extends EasyMockSupport
   }
 
   @Test
+  public void test_getTaskLocation_withAdvertisedPlaintextPortConfigured_returnsAdvertisedPort()
+      throws NoSuchFieldException, IllegalAccessException
+  {
+    KubernetesPeonLifecycle peonLifecycle = new KubernetesPeonLifecycle(
+        task,
+        k8sTaskId,
+        kubernetesClient,
+        taskLogs,
+        mapper,
+        stateListener,
+        LOG_SAVE_TIMEOUT.toStandardDuration().getMillis(),
+        9443
+    );
+    setPeonLifecycleState(peonLifecycle, KubernetesPeonLifecycle.State.RUNNING);
+
+    Pod pod = new PodBuilder()
+        .withNewMetadata()
+        .withName(ID)
+        .endMetadata()
+        .withNewStatus()
+        .withPodIP("ip")
+        .endStatus()
+        .build();
+
+    EasyMock.expect(kubernetesClient.getPeonPod(k8sTaskId.getK8sJobName())).andReturn(Optional.of(pod));
+
+    replayAll();
+
+    TaskLocation location = peonLifecycle.getTaskLocation();
+
+    Assert.assertEquals("ip", location.getHost());
+    Assert.assertEquals(9443, location.getPort());
+    Assert.assertEquals(-1, location.getTlsPort());
+    Assert.assertEquals(ID, location.getK8sPodName());
+
+    verifyAll();
+  }
+
+  @Test
   public void test_getTaskLocation_saveTaskLocation()
       throws NoSuchFieldException, IllegalAccessException
   {
