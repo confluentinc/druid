@@ -189,7 +189,15 @@
           <groupId>jakarta.ws.rs</groupId>
           <artifactId>jakarta.ws.rs-api</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.lz4</groupId>
+          <artifactId>lz4-java</artifactId>
+        </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>at.yawk.lz4</groupId>
+      <artifactId>lz4-java</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
@@ -255,7 +263,7 @@
     </dependency>
     <dependency>
       <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-core</artifactId>
+      <artifactId>hamcrest</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -326,6 +334,16 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <configuration>
+          <!-- Replacement for excluded org.lz4:lz4-java from kafka-schema-registry-client -->
+          <ignoredUnusedDeclaredDependencies>
+            <ignoredUnusedDeclaredDependency>at.yawk.lz4:lz4-java:jar:1.10.1</ignoredUnusedDeclaredDependency>
+          </ignoredUnusedDeclaredDependencies>
+        </configuration>
       </plugin>
     </plugins>
   </build>

@@ -20,8 +20,18 @@
 package org.apache.druid.java.util.http.client.pool;
 
 import java.io.Closeable;
+import java.util.Collections;
+import java.util.Map;
 
 public interface ResourcePool<K, V> extends Closeable
 {
   ResourceContainer<V> take(K key);
+
+  /**
+   * Snapshot of per-key pool state. Implementations that do not track stats return an empty map.
+   */
+  default Map<K, PoolStats> getStats()
+  {
+    return Collections.emptyMap();
+  }
 }

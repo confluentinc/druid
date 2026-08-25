@@ -223,7 +223,7 @@ name: Jackson
 license_category: binary
 module: java-core
 license_name: Apache License version 2.0
-version: 2.18.4.1
+version: 2.21.1
 libraries:
   - com.fasterxml.jackson.core: jackson-core
 notice: |
@@ -254,7 +254,7 @@ name: Jackson
 license_category: binary
 module: java-core
 license_name: Apache License version 2.0
-version: 2.18.4
+version: 2.21.1
 libraries:
   - com.fasterxml.jackson.core: jackson-annotations
   - com.fasterxml.jackson.dataformat: jackson-dataformat-cbor
@@ -296,7 +296,7 @@ name: Jackson
 license_category: binary
 module: extensions-contrib/druid-deltalake-extensions
 license_name: Apache License version 2.0
-version: 2.18.4
+version: 2.21.1
 libraries:
   - com.fasterxml.jackson.core: jackson-databind
 notice: |
@@ -1139,7 +1139,7 @@ name: org.bouncycastle bcprov-jdk18on
 license_category: binary
 module: extensions/druid-kubernetes-extensions
 license_name: MIT License
-version: "1.78.1"
+version: "1.84"
 libraries:
   - org.bouncycastle: bcprov-jdk18on
   - org.bouncycastle: bcprov-ext-jdk18on
@@ -1332,7 +1332,7 @@ name: Netty
 license_category: binary
 module: java-core
 license_name: Apache License version 2.0
-version: 4.1.122.Final
+version: 4.2.16.Final
 libraries:
   - io.netty: netty-buffer
   - io.netty: netty-codec
@@ -2147,23 +2147,23 @@ notices:
 name: Jetty
 license_category: binary
 module: java-core
-license_name: Apache License version 2.0
-version: 9.4.57.v20241219
+license_name: Eclipse Public License 2.0
+version: 12.0.30
 libraries:
+  - org.eclipse.jetty: jetty-alpn-client
   - org.eclipse.jetty: jetty-client
-  - org.eclipse.jetty: jetty-continuation
   - org.eclipse.jetty: jetty-http
   - org.eclipse.jetty: jetty-io
-  - org.eclipse.jetty: jetty-proxy
   - org.eclipse.jetty: jetty-rewrite
   - org.eclipse.jetty: jetty-security
   - org.eclipse.jetty: jetty-server
-  - org.eclipse.jetty: jetty-servlet
-  - org.eclipse.jetty: jetty-servlets
+  - org.eclipse.jetty: jetty-session
   - org.eclipse.jetty: jetty-util
-  - org.eclipse.jetty: jetty-util-ajax
-  - org.eclipse.jetty: jetty-xml
-  - org.eclipse.jetty: jetty-webapp
+  - org.eclipse.jetty.ee8: jetty-ee8-nested
+  - org.eclipse.jetty.ee8: jetty-ee8-proxy
+  - org.eclipse.jetty.ee8: jetty-ee8-security
+  - org.eclipse.jetty.ee8: jetty-ee8-servlet
+  - org.eclipse.jetty.ee8: jetty-ee8-servlets
 notice: |
   ==============================================================
    Jetty Web Container
@@ -2482,7 +2482,7 @@ module: java-core
 license_name: Apache License version 2.0
 version: 1.8.0
 libraries:
-  - org.lz4: lz4-java
+  - at.yawk.lz4: lz4-java
 
 ---
 
@@ -2894,7 +2894,7 @@ libraries:
 ---
 
 name: Jackson Dataformat Yaml
-version: 2.18.4
+version: 2.21.1
 license_category: binary
 module: extensions/druid-avro-extensions
 license_name: Apache License version 2.0
@@ -3238,7 +3238,7 @@ libraries:
 ---
 
 name: Apache Kafka
-version: 3.9.1
+version: 3.9.2
 license_category: binary
 module: extensions/druid-kafka-indexing-service
 license_name: Apache License version 2.0
@@ -3694,7 +3694,7 @@ name: Java Servlet API
 license_category: binary
 module: java-core
 license_name: CDDL 1.1
-version: 3.1.0
+version: 4.0.1
 copyright: Oracle and/or its affiliates.
 license_file_path: licenses/bin/javax.CDDL11
 libraries:
@@ -4252,7 +4252,7 @@ name: Apache Kafka
 license_category: binary
 module: extensions/kafka-extraction-namespace
 license_name: Apache License version 2.0
-version: 3.9.1
+version: 3.9.2
 libraries:
   - org.apache.kafka: kafka-clients
 notices:
