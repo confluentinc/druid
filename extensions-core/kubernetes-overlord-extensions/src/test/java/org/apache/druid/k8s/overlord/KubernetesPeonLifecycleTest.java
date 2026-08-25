@@ -987,10 +987,10 @@ public class KubernetesPeonLifecycleTest extends EasyMockSupport
 
     TaskLocation location = peonLifecycle.getTaskLocation();
 
-    Assert.assertEquals("ip", location.getHost());
-    Assert.assertEquals(9443, location.getPort());
-    Assert.assertEquals(-1, location.getTlsPort());
-    Assert.assertEquals(ID, location.getK8sPodName());
+    Assertions.assertEquals("ip", location.getHost());
+    Assertions.assertEquals(9443, location.getPort());
+    Assertions.assertEquals(-1, location.getTlsPort());
+    Assertions.assertEquals(ID, location.getK8sPodName());
 
     verifyAll();
   }
