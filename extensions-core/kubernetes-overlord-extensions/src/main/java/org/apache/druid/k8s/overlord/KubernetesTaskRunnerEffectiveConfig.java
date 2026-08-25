@@ -189,6 +189,12 @@ public class KubernetesTaskRunnerEffectiveConfig implements KubernetesTaskRunner
     return staticConfig.getK8sSharedInformerResyncPeriod();
   }
 
+  @Override
+  public Integer getAdvertisedPlaintextPort()
+  {
+    return staticConfig.getAdvertisedPlaintextPort();
+  }
+
   public PodTemplateSelectStrategy getPodTemplateSelectStrategy()
   {
     if (dynamicConfigSupplier == null || dynamicConfigSupplier.get() == null || dynamicConfigSupplier.get().getPodTemplateSelectStrategy() == null) {

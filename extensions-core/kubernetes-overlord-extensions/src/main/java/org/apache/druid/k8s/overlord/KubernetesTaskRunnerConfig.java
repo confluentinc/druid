@@ -91,6 +91,12 @@ public interface KubernetesTaskRunnerConfig
    */
   Period getK8sSharedInformerResyncPeriod();
 
+  /**
+   * Port peon TaskLocations should be reported on instead of the raw peon port, e.g. the envoy sidecar's mTLS
+   * ingress port, since peons are addressed by pod IP and never announce their own DruidNode.
+   */
+  Integer getAdvertisedPlaintextPort();
+
   static Builder builder()
   {
     return new Builder();
@@ -121,6 +127,7 @@ public interface KubernetesTaskRunnerConfig
     private Period logSaveTimeout;
     private boolean useK8sSharedInformers;
     private Period k8sSharedInformerResyncPeriod;
+    private Integer advertisedPlaintextPort;
 
     public Builder()
     {
@@ -265,6 +272,12 @@ public interface KubernetesTaskRunnerConfig
       return this;
     }
 
+    public Builder withAdvertisedPlaintextPort(Integer advertisedPlaintextPort)
+    {
+      this.advertisedPlaintextPort = advertisedPlaintextPort;
+      return this;
+    }
+
     public KubernetesTaskRunnerStaticConfig build()
     {
       return new KubernetesTaskRunnerStaticConfig(
@@ -290,7 +303,8 @@ public interface KubernetesTaskRunnerConfig
           this.capacity,
           this.taskJoinTimeout,
           this.useK8sSharedInformers,
-          this.k8sSharedInformerResyncPeriod
+          this.k8sSharedInformerResyncPeriod,
+          this.advertisedPlaintextPort
       );
     }
   }
