@@ -38,8 +38,9 @@ blocks:
             # This is a change meant to validate semaphore public builds
             # so thus removing configurations for Confluent's internal CodeArtifact
             - rm ~/.m2/settings.xml
+            # No clean needed on a fresh checkout
             - >
-              MAVEN_OPTS="${MAVEN_OPTS} -Xmx3000m" ${MVN} clean install
+              MAVEN_OPTS="${MAVEN_OPTS} -Xmx3000m" ${MVN} install
               -q -ff ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
             # downstream tests depend on artifacts installed by mvn install into .m2
             # also cache target to avoid the cost of recompiling tests
@@ -110,9 +111,11 @@ blocks:
             - name: MAVEN_PROJECTS
               value: extensions-contrib/confluent-extensions
           commands: &run_tests
+            # -Djacoco.skip=true: no coverage is collected/uploaded in this pipeline, so the
+            # jacoco agent's per-class instrumentation is pure overhead on every test job.
             - >
               MAVEN_OPTS="${MAVEN_OPTS} -Xmx1g" ${MVN} test -pl ${MAVEN_PROJECTS}
-              ${MAVEN_SKIP} -Dremoteresources.skip=true
+              ${MAVEN_SKIP} -Djacoco.skip=true -Dremoteresources.skip=true
 
         - name: "Server"
           env_vars:
@@ -120,16 +123,48 @@ blocks:
               value: server
           commands: *run_tests
 
-        - name: "Processing"
+        # processing (~967 test classes) split by class-name prefix into 3 parallel jobs.
+        # -Dsurefire.failIfNoSpecifiedTests=false so a prefix matching zero classes doesn't fail.
+        - name: "Processing (C,S,A,K,Y)"
           env_vars:
             - name: MAVEN_PROJECTS
               value: processing
+            - name: MAVEN_OPTS
+              value: "-Dmaven.repo.local=.m2 -Dsurefire.failIfNoSpecifiedTests=false -Dtest=C*,S*,A*,K*,Y*"
           commands: *run_tests
 
-        - name: "Indexing Service"
+        - name: "Processing (D,F,L,I,N,E)"
+          env_vars:
+            - name: MAVEN_PROJECTS
+              value: processing
+            - name: MAVEN_OPTS
+              value: "-Dmaven.repo.local=.m2 -Dsurefire.failIfNoSpecifiedTests=false -Dtest=D*,F*,L*,I*,N*,E*"
+          commands: *run_tests
+
+        # "rest" = negation of the two legs above, so no class prefix is ever silently dropped.
+        - name: "Processing (rest)"
+          env_vars:
+            - name: MAVEN_PROJECTS
+              value: processing
+            - name: MAVEN_OPTS
+              value: "-Dmaven.repo.local=.m2 -Dsurefire.failIfNoSpecifiedTests=false -Dtest=!C*,!S*,!A*,!K*,!Y*,!D*,!F*,!L*,!I*,!N*,!E*"
+          commands: *run_tests
+
+        # indexing-service (~199 test classes) split by class-name prefix into 2 parallel jobs.
+        - name: "Indexing Service (S,T,R,A,H,W)"
           env_vars:
             - name: MAVEN_PROJECTS
               value: indexing-service
+            - name: MAVEN_OPTS
+              value: "-Dmaven.repo.local=.m2 -Dsurefire.failIfNoSpecifiedTests=false -Dtest=S*,T*,R*,A*,H*,W*"
+          commands: *run_tests
+
+        - name: "Indexing Service (rest)"
+          env_vars:
+            - name: MAVEN_PROJECTS
+              value: indexing-service
+            - name: MAVEN_OPTS
+              value: "-Dmaven.repo.local=.m2 -Dsurefire.failIfNoSpecifiedTests=false -Dtest=!S*,!T*,!R*,!A*,!H*,!W*"
           commands: *run_tests
 
         - name: "Kafka Indexing Service"
@@ -153,14 +188,43 @@ blocks:
               value: "-Dmaven.repo.local=.m2 -DforkCount=1 -DreuseForks=false"
           commands: *run_tests
 
-        - name: "Druid E2E Tests"
+        # quidem-ut was the serial bottleneck; split into two independent jobs on separate agents.
+        # Both keep -Dmaven.repo.local=.m2 (job-level MAVEN_OPTS replaces the base) and
+        # -DforkCount=1 -DreuseForks=false (LauncherSmokeTest binds fixed ports, so parallelism
+        # comes from the split jobs, not from forks on one agent).
+        # quidem cases split via QTest's -Dquidem.split=index/count (hash-bucketed .iq files).
+        # Job 0 also runs LauncherSmokeTest; job 1 is QTest-only so nothing runs twice.
+        - name: "Quidem UT (0/2)"
           env_vars:
-              - name: MAVEN_PROJECTS
-                value: 'integration-tests,integration-tests-ex/image,integration-tests-ex/tools,quidem-ut,embedded-tests'
+            - name: MAVEN_PROJECTS
+              value: quidem-ut
+            - name: MAVEN_OPTS
+              value: "-Dmaven.repo.local=.m2 -DforkCount=1 -DreuseForks=false -Dquidem.split=0/2"
           commands: *run_tests
 
+        - name: "Quidem UT (1/2)"
+          env_vars:
+            - name: MAVEN_PROJECTS
+              value: quidem-ut
+            - name: MAVEN_OPTS
+              value: "-Dmaven.repo.local=.m2 -DforkCount=1 -DreuseForks=false -Dtest=QTest -Dquidem.split=1/2"
+          commands: *run_tests
+
+        # integration-tests and embedded-tests (~14 classes) stay together in one job, run
+        # exactly as before (default MAVEN_OPTS inherits -Dmaven.repo.local=.m2 from env_vars).
+        - name: "Druid E2E Tests"
+          env_vars:
+            - name: MAVEN_PROJECTS
+              value: 'integration-tests,integration-tests-ex/image,integration-tests-ex/tools,embedded-tests'
+          commands: *run_tests
+
+        # Everything not tested by a dedicated job above. The trailing block of exclusions are
+        # modules Confluent does not ship (absent from distribution/pom.xml dist-used /
+        # bundle-contrib-exts-used): cloud/vendor storage & compute, alternative metadata stores,
+        # unused emitters, unused ingest/format/query/sketch extensions. Their tests are skipped.
         - name: "Other Tests"
           env_vars:
             - name: MAVEN_PROJECTS
-              value: '!server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!integration-tests-ex/cases,!web-console,!services,!embedded-tests,!integration-tests,!integration-tests-ex/image,!integration-tests-ex/tools,!quidem-ut'
+              value: >-
+                !server,!processing,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-contrib/confluent-extensions,!integration-tests-ex/cases,!web-console,!services,!embedded-tests,!integration-tests,!integration-tests-ex/image,!integration-tests-ex/tools,!quidem-ut,!extensions-core/kinesis-indexing-service,!extensions-core/azure-extensions,!extensions-core/google-extensions,!extensions-core/ec2-extensions,!extensions-core/hdfs-storage,!extensions-contrib/gce-extensions,!extensions-contrib/aliyun-oss-extensions,!extensions-contrib/cloudfiles-extensions,!extensions-core/mysql-metadata-storage,!extensions-contrib/sqlserver-metadata-storage,!extensions-contrib/cassandra-storage,!extensions-core/druid-kerberos,!extensions-contrib/druid-ranger-security,!extensions-core/lookups-cached-single,!extensions-contrib/graphite-emitter,!extensions-contrib/opentsdb-emitter,!extensions-contrib/influxdb-emitter,!extensions-contrib/ambari-metrics-emitter,!extensions-contrib/dropwizard-emitter,!extensions-core/orc-extensions,!extensions-core/parquet-extensions,!extensions-core/avro-extensions,!extensions-contrib/thrift-extensions,!extensions-contrib/druid-iceberg-extensions,!extensions-contrib/druid-deltalake-extensions,!extensions-contrib/grpc-query,!extensions-contrib/rabbit-stream-indexing-service,!extensions-contrib/redis-cache,!extensions-contrib/influx-extensions,!extensions-core/druid-bloom-filter,!extensions-core/histogram,!extensions-core/stats,!extensions-contrib/momentsketch,!extensions-contrib/tdigestsketch,!extensions-contrib/ddsketch,!extensions-contrib/moving-average-query,!extensions-contrib/distinctcount,!extensions-contrib/time-min-max,!extensions-contrib/virtual-columns,!extensions-contrib/compressed-bigdecimal,!extensions-contrib/spectator-histogram,!extensions-contrib/opentelemetry-extensions
           commands: *run_tests
