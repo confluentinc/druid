@@ -152,6 +152,11 @@ public class KubernetesTaskRunnerStaticConfig implements KubernetesTaskRunnerCon
   @JsonProperty
   private Period k8sSharedInformerResyncPeriod = new Period("PT5M");
 
+  @JsonProperty
+  // port peon TaskLocations should be reported on instead of the raw peon port, e.g. the envoy
+  // sidecar's mTLS ingress port, since peons are addressed by pod IP and never announce their own DruidNode
+  private Integer advertisedPlaintextPort = null;
+
   public KubernetesTaskRunnerStaticConfig()
   {
   }
@@ -179,7 +184,8 @@ public class KubernetesTaskRunnerStaticConfig implements KubernetesTaskRunnerCon
       Integer capacity,
       Period taskJoinTimeout,
       boolean useK8sSharedInformers,
-      Period k8sSharedInformerResyncPeriod
+      Period k8sSharedInformerResyncPeriod,
+      Integer advertisedPlaintextPort
   )
   {
     this.namespace = namespace;
@@ -264,6 +270,10 @@ public class KubernetesTaskRunnerStaticConfig implements KubernetesTaskRunnerCon
     this.k8sSharedInformerResyncPeriod = ObjectUtils.getIfNull(
         k8sSharedInformerResyncPeriod,
         this.k8sSharedInformerResyncPeriod
+    );
+    this.advertisedPlaintextPort = ObjectUtils.getIfNull(
+        advertisedPlaintextPort,
+        this.advertisedPlaintextPort
     );
   }
 
@@ -405,5 +415,11 @@ public class KubernetesTaskRunnerStaticConfig implements KubernetesTaskRunnerCon
   public Period getK8sSharedInformerResyncPeriod()
   {
     return k8sSharedInformerResyncPeriod;
+  }
+
+  @Override
+  public Integer getAdvertisedPlaintextPort()
+  {
+    return advertisedPlaintextPort;
   }
 }
