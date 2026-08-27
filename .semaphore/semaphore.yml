@@ -113,9 +113,11 @@ blocks:
           commands: &run_tests
             # -Djacoco.skip=true: no coverage is collected/uploaded in this pipeline, so the
             # jacoco agent's per-class instrumentation is pure overhead on every test job.
+            # MAVEN_TEST_ARGS: extra mvn args a job needs on the command line (not in MAVEN_OPTS),
+            # e.g. -Dquidem.split, which must be a user property to win pom-config interpolation.
             - >
               MAVEN_OPTS="${MAVEN_OPTS} -Xmx1g" ${MVN} test -pl ${MAVEN_PROJECTS}
-              ${MAVEN_SKIP} -Djacoco.skip=true -Dremoteresources.skip=true
+              ${MAVEN_SKIP} -Djacoco.skip=true -Dremoteresources.skip=true ${MAVEN_TEST_ARGS:-}
 
         - name: "Server"
           env_vars:
@@ -192,17 +194,21 @@ blocks:
         # Both keep -Dmaven.repo.local=.m2 (job-level MAVEN_OPTS replaces the base) and
         # -DforkCount=1 -DreuseForks=false (LauncherSmokeTest binds fixed ports, so parallelism
         # comes from the split jobs, not from forks on one agent).
-        # quidem cases split 3 ways via QTest's -Dquidem.split=index/count (hash-bucketed .iq paths,
-        # QuidemSplitPathMatcher). quidem.split is read by System.getProperty in the surefire fork, so it
-        # must be bridged there — quidem-ut/pom.xml surefire <systemPropertyVariables> forwards ${quidem.split}
-        # into the fork (MAVEN_OPTS -D only reaches the Maven JVM, not the fork).
+        # quidem cases split 3 ways via QTest's quidem.split=index/count (hash-bucketed .iq paths,
+        # QuidemSplitPathMatcher). quidem.split is read by System.getProperty in the surefire fork;
+        # quidem-ut/pom.xml surefire <systemPropertyVariables> bridges ${quidem.split} into the fork.
+        # It MUST be passed as an mvn command-line user property (MAVEN_TEST_ARGS), not in MAVEN_OPTS:
+        # a MAVEN_OPTS -D is only a JVM system prop, which the pom's empty <quidem.split/> default
+        # outranks in interpolation, so ${quidem.split} would resolve to "" and every leg run the full suite.
         # Job 0 omits -Dtest so it also runs LauncherSmokeTest once; jobs 1-2 are QTest-only, nothing runs twice.
         - name: "Quidem UT (0/3)"
           env_vars:
             - name: MAVEN_PROJECTS
               value: quidem-ut
             - name: MAVEN_OPTS
-              value: "-Dmaven.repo.local=.m2 -DforkCount=1 -DreuseForks=false -Dquidem.split=0/3"
+              value: "-Dmaven.repo.local=.m2 -DforkCount=1 -DreuseForks=false"
+            - name: MAVEN_TEST_ARGS
+              value: "-Dquidem.split=0/3"
           commands: *run_tests
 
         - name: "Quidem UT (1/3)"
@@ -210,7 +216,9 @@ blocks:
             - name: MAVEN_PROJECTS
               value: quidem-ut
             - name: MAVEN_OPTS
-              value: "-Dmaven.repo.local=.m2 -DforkCount=1 -DreuseForks=false -Dtest=QTest -Dquidem.split=1/3"
+              value: "-Dmaven.repo.local=.m2 -DforkCount=1 -DreuseForks=false -Dtest=QTest"
+            - name: MAVEN_TEST_ARGS
+              value: "-Dquidem.split=1/3"
           commands: *run_tests
 
         - name: "Quidem UT (2/3)"
@@ -218,7 +226,9 @@ blocks:
             - name: MAVEN_PROJECTS
               value: quidem-ut
             - name: MAVEN_OPTS
-              value: "-Dmaven.repo.local=.m2 -DforkCount=1 -DreuseForks=false -Dtest=QTest -Dquidem.split=2/3"
+              value: "-Dmaven.repo.local=.m2 -DforkCount=1 -DreuseForks=false -Dtest=QTest"
+            - name: MAVEN_TEST_ARGS
+              value: "-Dquidem.split=2/3"
           commands: *run_tests
 
         # integration-tests and embedded-tests (~14 classes) stay together in one job, run
