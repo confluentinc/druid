@@ -45,6 +45,8 @@
     <properties>
         <quidem.uri>druidtest:///</quidem.uri>
         <quidem.record.autostart>false</quidem.record.autostart>
+        <!-- empty default so an unset value resolves to null (filter off), not the literal ${quidem.split} -->
+        <quidem.split></quidem.split>
     </properties>
     <dependencies>
         <dependency>
@@ -542,6 +544,16 @@
                 <artifactId>maven-dependency-plugin</artifactId>
                 <configuration>
                     <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- forward quidem.split into the forked test JVM; MAVEN_OPTS -D reaches Maven, not the fork -->
+                    <systemPropertyVariables>
+                        <quidem.split>${quidem.split}</quidem.split>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>
