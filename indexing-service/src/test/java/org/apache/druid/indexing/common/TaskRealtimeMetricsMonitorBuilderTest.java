@@ -40,6 +40,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -87,9 +88,10 @@ public class TaskRealtimeMetricsMonitorBuilderTest
 
     Assert.assertFalse(emittedEvents.isEmpty());
     for (ServiceMetricEvent sme : emittedEvents.values()) {
-      Assert.assertArrayEquals(
-          new String[]{SUPERVISOR_ID},
-          (String[]) sme.getUserDims().get(DruidMetrics.SUPERVISOR_ID)
+      // A String[] dimension value is stored as a List by ServiceMetricEvent.
+      Assert.assertEquals(
+          Collections.singletonList(SUPERVISOR_ID),
+          sme.getUserDims().get(DruidMetrics.SUPERVISOR_ID)
       );
     }
   }
