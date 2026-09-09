@@ -1000,7 +1000,7 @@ public class MSQWindowTest extends MSQTestBase
                     .putAll(DEFAULT_MSQ_CONTEXT)
                     .put(
                         DruidQuery.CTX_SCAN_SIGNATURE,
-                        "[{\"name\":\"m2\",\"type\":\"DOUBLE\"},{\"name\":\"v0\",\"type\":\"FLOAT\"}]"
+                        "[{\"name\":\"m2\",\"type\":\"DOUBLE\"}]"
                     )
                     .build();
 
@@ -1104,7 +1104,7 @@ public class MSQWindowTest extends MSQTestBase
                     .putAll(DEFAULT_MSQ_CONTEXT)
                     .put(
                         DruidQuery.CTX_SCAN_SIGNATURE,
-                        "[{\"name\":\"m2\",\"type\":\"DOUBLE\"},{\"name\":\"v0\",\"type\":\"FLOAT\"}]"
+                        "[{\"name\":\"m2\",\"type\":\"DOUBLE\"}]"
                     )
                     .build();
 
