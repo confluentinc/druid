@@ -36,7 +36,7 @@ import org.testcontainers.containers.MinIOContainer;
  */
 public class MinIOStorageResource extends TestcontainerResource<MinIOContainer>
 {
-  private static final String MINIO_IMAGE = "minio/minio:latest";
+  private static final String MINIO_IMAGE = "quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z";
   private static final String DEFAULT_BUCKET = "druid-deep-storage";
   private static final String DEFAULT_BASE_KEY = "druid/segments";
   private static final String ACCESS_KEY = "minioadmin";
