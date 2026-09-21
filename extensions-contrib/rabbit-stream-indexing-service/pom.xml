@@ -193,7 +193,7 @@
         <configuration>
           <!-- Replacement for excluded org.lz4:lz4-java from stream-client -->
           <ignoredUnusedDeclaredDependencies>
-            <ignoredUnusedDeclaredDependency>at.yawk.lz4:lz4-java:jar:1.10.1</ignoredUnusedDeclaredDependency>
+            <ignoredUnusedDeclaredDependency>at.yawk.lz4:lz4-java</ignoredUnusedDeclaredDependency>
           </ignoredUnusedDeclaredDependencies>
         </configuration>
       </plugin>
