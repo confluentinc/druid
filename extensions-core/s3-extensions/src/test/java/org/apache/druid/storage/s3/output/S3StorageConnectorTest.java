@@ -285,7 +285,7 @@ public class S3StorageConnectorTest
     public static MinIOContainer createContainer(AWSCredentials credentials)
     {
       MinIOContainer container = new MinIOContainer(
-          DockerImageName.parse("quay.io/minio/minio:latest").asCompatibleSubstituteFor("minio/minio")
+          DockerImageName.parse("public.ecr.aws/chainguard/minio:latest").asCompatibleSubstituteFor("minio/minio")
       );
 
       // this enables virtual-host-style requests. see
