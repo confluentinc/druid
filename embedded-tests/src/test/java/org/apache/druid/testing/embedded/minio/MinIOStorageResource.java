@@ -38,7 +38,7 @@ import org.testcontainers.utility.DockerImageName;
 public class MinIOStorageResource extends TestcontainerResource<MinIOContainer>
 {
   private static final DockerImageName MINIO_IMAGE =
-      DockerImageName.parse("quay.io/minio/minio:latest").asCompatibleSubstituteFor("minio/minio");
+      DockerImageName.parse("public.ecr.aws/chainguard/minio:latest").asCompatibleSubstituteFor("minio/minio");
   private static final String DEFAULT_BUCKET = "druid-deep-storage";
   private static final String DEFAULT_BASE_KEY = "druid/segments";
   private static final String ACCESS_KEY = "minioadmin";
