@@ -32,7 +32,9 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -326,6 +328,7 @@ public class DimensionValueSetShardSpecTest
   public void testUnsortedValues_matchAndPrune()
   {
     final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of("tenant_c", "tenant_a", "tenant_b")));
+    Assert.assertFalse(s.hasSortedValues());
     Assert.assertTrue(s.possibleInDomain(domain(TENANT, "tenant_a")));
     Assert.assertTrue(s.possibleInDomain(domain(TENANT, "tenant_c")));
     Assert.assertFalse(s.possibleInDomain(domain(TENANT, "tenant_d")));
@@ -335,6 +338,7 @@ public class DimensionValueSetShardSpecTest
   public void testDuplicateValues_openLowerBoundStillMatchesLaterValue()
   {
     final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of("b", "b", "c")));
+    Assert.assertFalse(s.hasSortedValues());
     Assert.assertTrue(s.possibleInDomain(rangeSet(TENANT, Range.openClosed("b", "c"))));
     Assert.assertFalse(s.possibleInDomain(rangeSet(TENANT, Range.open("b", "c"))));
   }
@@ -343,6 +347,7 @@ public class DimensionValueSetShardSpecTest
   public void testRangeBoundTypes()
   {
     final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of("b", "d")));
+    Assert.assertTrue(s.hasSortedValues());
     Assert.assertTrue(s.possibleInDomain(rangeSet(TENANT, Range.closedOpen("b", "c"))));
     Assert.assertFalse(s.possibleInDomain(rangeSet(TENANT, Range.open("b", "d"))));
     Assert.assertTrue(s.possibleInDomain(rangeSet(TENANT, Range.openClosed("b", "d"))));
@@ -372,13 +377,66 @@ public class DimensionValueSetShardSpecTest
     for (int i = 0; i < 30_000; i++) {
       values.add("lkc-" + i);
     }
-    Collections.shuffle(values, new Random(7));
-    final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, values));
+    Collections.sort(values);
+    final DimensionValueSetShardSpec sorted = spec(ImmutableMap.of(TENANT, values));
+    Assert.assertTrue(sorted.hasSortedValues());
+    assertLargeValueSetPruning(sorted);
+
+    final List<String> shuffled = new ArrayList<>(values);
+    Collections.shuffle(shuffled, new Random(7));
+    final DimensionValueSetShardSpec unsorted = spec(ImmutableMap.of(TENANT, shuffled));
+    Assert.assertFalse(unsorted.hasSortedValues());
+    assertLargeValueSetPruning(unsorted);
+  }
+
+  private static void assertLargeValueSetPruning(DimensionValueSetShardSpec s)
+  {
     Assert.assertTrue(s.possibleInDomain(domain(TENANT, "lkc-0")));
     Assert.assertTrue(s.possibleInDomain(domain(TENANT, "lkc-29999")));
     Assert.assertTrue(s.possibleInDomain(domain(TENANT, "lkc-missing", "lkc-123")));
     Assert.assertFalse(s.possibleInDomain(domain(TENANT, "lkc-30000")));
     Assert.assertFalse(s.possibleInDomain(domain(TENANT, "lkc-missing", "other")));
+  }
+
+  @Test
+  public void testManyQueryTenantsAgainstSmallSegment()
+  {
+    final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of("lkc-1", "lkc-5", "lkc-9")));
+    Assert.assertTrue(s.hasSortedValues());
+    final String[] many = new String[1_000];
+    for (int i = 0; i < many.length; i++) {
+      many[i] = "lkc-x" + i;
+    }
+    Assert.assertFalse(s.possibleInDomain(domain(TENANT, many)));
+    many[500] = "lkc-5";
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, many)));
+  }
+
+  @Test
+  public void testPublisherLayoutWithLeadingNull_usesSortedLookup()
+  {
+    final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, Arrays.asList(null, "", "tenant_a", "tenant_b")));
+    Assert.assertTrue(s.hasSortedValues());
+    Assert.assertTrue(s.possibleInDomain(nullDomain(TENANT)));
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, "")));
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, "tenant_b")));
+    Assert.assertFalse(s.possibleInDomain(domain(TENANT, "tenant_c")));
+  }
+
+  @Test
+  public void testNonPublisherLayouts_fallBackToScan()
+  {
+    Assert.assertFalse(spec(ImmutableMap.of(TENANT, Arrays.asList("tenant_a", null))).hasSortedValues());
+    Assert.assertFalse(spec(ImmutableMap.of(TENANT, Arrays.asList(null, null))).hasSortedValues());
+  }
+
+  @Test
+  public void testOneUnsortedDimension_fallsBackForAllDimensions()
+  {
+    final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of("a", "b"), REGION, List.of("y", "x")));
+    Assert.assertFalse(s.hasSortedValues());
+    Assert.assertTrue(s.possibleInDomain(ImmutableMap.of(TENANT, points("b"), REGION, points("x"))));
+    Assert.assertFalse(s.possibleInDomain(ImmutableMap.of(TENANT, points("b"), REGION, points("z"))));
   }
 
   @Test
@@ -408,12 +466,25 @@ public class DimensionValueSetShardSpecTest
       if (random.nextBoolean()) {
         domain.put(REGION, randomRangeSet(random));
       }
-      Assert.assertEquals(
-          "values=" + values + ", domain=" + domain,
-          linearScan(values, domain),
-          spec(values).possibleInDomain(domain)
-      );
+      final boolean expected = linearScan(values, domain);
+      Assert.assertEquals("values=" + values + ", domain=" + domain, expected, spec(values).possibleInDomain(domain));
+
+      final Map<String, List<String>> published = publisherLayout(values);
+      final DimensionValueSetShardSpec publishedSpec = spec(published);
+      Assert.assertTrue("values=" + published, publishedSpec.hasSortedValues());
+      Assert.assertEquals("values=" + published + ", domain=" + domain, expected, publishedSpec.possibleInDomain(domain));
     }
+  }
+
+  private static Map<String, List<String>> publisherLayout(Map<String, List<String>> values)
+  {
+    final Map<String, List<String>> published = new HashMap<>();
+    for (Map.Entry<String, List<String>> entry : values.entrySet()) {
+      final List<String> distinct = new ArrayList<>(new HashSet<>(entry.getValue()));
+      distinct.sort(Comparator.nullsFirst(Comparator.naturalOrder()));
+      published.put(entry.getKey(), distinct);
+    }
+    return published;
   }
 
   private static Map<String, RangeSet<String>> rangeSet(String dimension, Range<String> range)

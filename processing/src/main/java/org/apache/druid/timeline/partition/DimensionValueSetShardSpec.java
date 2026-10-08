@@ -21,18 +21,18 @@ package org.apache.druid.timeline.partition;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 
 import javax.annotation.Nullable;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * A {@link NumberedShardSpec} that additionally declares, per dimension, the set of values a streaming segment
@@ -52,7 +52,7 @@ public class DimensionValueSetShardSpec extends NumberedShardSpec
   private final List<String> domainDimensions;
 
   @Nullable
-  private volatile Map<String, SortedValues> sortedValuesByDimension;
+  private volatile Boolean valuesSortedAndDistinct;
 
   @JsonCreator
   public DimensionValueSetShardSpec(
@@ -96,12 +96,17 @@ public class DimensionValueSetShardSpec extends NumberedShardSpec
       return true;
     }
 
-    for (Map.Entry<String, SortedValues> entry : getSortedValuesByDimension().entrySet()) {
+    final boolean sorted = hasSortedValues();
+    for (Map.Entry<String, List<String>> entry : partitionDimensionValues.entrySet()) {
       final RangeSet<String> domainRangeSet = domain.get(entry.getKey());
       if (domainRangeSet == null || domainRangeSet.isEmpty()) {
+        // Query doesn't constrain this dimension — cannot prune on it.
         continue;
       }
-      if (!entry.getValue().intersects(domainRangeSet)) {
+      final boolean anyMatch = sorted
+                               ? anySortedValueInDomain(entry.getValue(), domainRangeSet)
+                               : anyValueInDomain(entry.getValue(), domainRangeSet);
+      if (!anyMatch) {
         return false;
       }
     }
@@ -109,58 +114,93 @@ public class DimensionValueSetShardSpec extends NumberedShardSpec
     return true;
   }
 
-  // Built on first use so only services that prune (the broker) pay for the sorted copy; the race is benign
-  // because every thread builds an identical immutable index.
-  private Map<String, SortedValues> getSortedValuesByDimension()
+  // Checked once per segment; the race is benign because every thread computes the same answer.
+  @VisibleForTesting
+  boolean hasSortedValues()
   {
-    Map<String, SortedValues> index = sortedValuesByDimension;
-    if (index == null) {
-      index = new HashMap<>();
-      for (Map.Entry<String, List<String>> entry : partitionDimensionValues.entrySet()) {
-        index.put(entry.getKey(), new SortedValues(entry.getValue()));
-      }
-      sortedValuesByDimension = index;
+    Boolean sorted = valuesSortedAndDistinct;
+    if (sorted == null) {
+      sorted = partitionDimensionValues.values().stream().allMatch(DimensionValueSetShardSpec::isSortedAndDistinct);
+      valuesSortedAndDistinct = sorted;
     }
-    return index;
+    return sorted;
   }
 
-  private static final class SortedValues
+  // The publisher's layout: at most one leading null, then strictly ascending values.
+  private static boolean isSortedAndDistinct(List<String> values)
   {
-    private final String[] nonNullValues;
-    private final boolean hasNull;
-
-    private SortedValues(List<String> values)
-    {
-      this.nonNullValues = values.stream().filter(Objects::nonNull).distinct().sorted().toArray(String[]::new);
-      this.hasNull = values.stream().anyMatch(Objects::isNull);
-    }
-
-    private boolean intersects(RangeSet<String> domain)
-    {
-      if (hasNull && domain.intersects(NULL_RANGE)) {
-        return true;
+    final int start = firstNonNullIndex(values);
+    for (int i = start; i < values.size(); i++) {
+      final String value = values.get(i);
+      if (value == null || (i > start && values.get(i - 1).compareTo(value) >= 0)) {
+        return false;
       }
-      for (Range<String> range : domain.asRanges()) {
-        final int index = range.hasLowerBound() ? ceilingIndex(range.lowerEndpoint(), range.lowerBoundType()) : 0;
-        if (index == nonNullValues.length) {
-          // asRanges() is ascending, so no later range can contain a value either.
-          break;
-        }
-        if (range.contains(nonNullValues[index])) {
+    }
+    return true;
+  }
+
+  private static int firstNonNullIndex(List<String> values)
+  {
+    return !values.isEmpty() && values.get(0) == null ? 1 : 0;
+  }
+
+  private static boolean anySortedValueInDomain(List<String> values, RangeSet<String> domain)
+  {
+    final int start = firstNonNullIndex(values);
+    if (start == 1 && domain.intersects(NULL_RANGE)) {
+      return true;
+    }
+    // Loop over the smaller side: O(min(r, n) * log(max(r, n))).
+    final Set<Range<String>> ranges = domain.asRanges();
+    if (ranges.size() > values.size() - start) {
+      for (int i = start; i < values.size(); i++) {
+        if (domain.contains(values.get(i))) {
           return true;
         }
       }
       return false;
     }
-
-    private int ceilingIndex(String endpoint, BoundType boundType)
-    {
-      final int index = Arrays.binarySearch(nonNullValues, endpoint);
-      if (index < 0) {
-        return -index - 1;
+    for (Range<String> range : ranges) {
+      final int index = range.hasLowerBound()
+                        ? ceilingIndex(values, start, range.lowerEndpoint(), range.lowerBoundType())
+                        : start;
+      if (index == values.size()) {
+        // asRanges() is ascending, so no later range can contain a value either.
+        break;
       }
-      return boundType == BoundType.CLOSED ? index : index + 1;
+      if (range.contains(values.get(index))) {
+        return true;
+      }
     }
+    return false;
+  }
+
+  private static int ceilingIndex(List<String> values, int start, String endpoint, BoundType boundType)
+  {
+    int low = start;
+    int high = values.size();
+    while (low < high) {
+      final int mid = (low + high) >>> 1;
+      final int cmp = values.get(mid).compareTo(endpoint);
+      if (cmp < 0 || (cmp == 0 && boundType == BoundType.OPEN)) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low;
+  }
+
+  private static boolean anyValueInDomain(List<String> values, RangeSet<String> domain)
+  {
+    for (String value : values) {
+      // Null is represented in the domain as the range (-inf, ""); any other value as a singleton point.
+      final Range<String> valueRange = value == null ? NULL_RANGE : Range.singleton(value);
+      if (!domain.subRangeSet(valueRange).isEmpty()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
