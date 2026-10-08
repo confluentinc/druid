@@ -21,6 +21,7 @@ package org.apache.druid.timeline.partition;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
@@ -28,14 +29,26 @@ import com.google.common.collect.TreeRangeSet;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 public class DimensionValueSetShardSpecTest
 {
   private static final String TENANT = "tenant";
+  private static final String REGION = "region";
+
+  private static final List<String> UNIVERSE =
+      List.of("", "a", "aa", "ab", "b", "ba", "bb", "c", "lkc-1", "lkc-10", "lkc-2");
+
+  private static final List<String> ENDPOINTS =
+      List.of("", "a", "a0", "aa", "ab", "az", "b", "ba", "bb", "bz", "c", "lkc-1", "lkc-10", "lkc-2", "z");
 
   private static DimensionValueSetShardSpec spec(Map<String, List<String>> filters)
   {
@@ -309,5 +322,250 @@ public class DimensionValueSetShardSpecTest
     // An empty allowed list means no values were observed for the dimension, so any constraining query is pruned.
     final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of()));
     Assert.assertFalse(s.possibleInDomain(domain(TENANT, "tenant_a")));
+  }
+
+  @Test
+  public void testUnsortedValues_matchAndPrune()
+  {
+    final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of("tenant_c", "tenant_a", "tenant_b")));
+    Assert.assertFalse(s.hasSortedValues());
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, "tenant_a")));
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, "tenant_c")));
+    Assert.assertFalse(s.possibleInDomain(domain(TENANT, "tenant_d")));
+  }
+
+  @Test
+  public void testDuplicateValues_openLowerBoundStillMatchesLaterValue()
+  {
+    final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of("b", "b", "c")));
+    Assert.assertFalse(s.hasSortedValues());
+    Assert.assertTrue(s.possibleInDomain(rangeSet(TENANT, Range.openClosed("b", "c"))));
+    Assert.assertFalse(s.possibleInDomain(rangeSet(TENANT, Range.open("b", "c"))));
+  }
+
+  @Test
+  public void testRangeBoundTypes()
+  {
+    final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of("b", "d")));
+    Assert.assertTrue(s.hasSortedValues());
+    Assert.assertTrue(s.possibleInDomain(rangeSet(TENANT, Range.closedOpen("b", "c"))));
+    Assert.assertFalse(s.possibleInDomain(rangeSet(TENANT, Range.open("b", "d"))));
+    Assert.assertTrue(s.possibleInDomain(rangeSet(TENANT, Range.openClosed("b", "d"))));
+    Assert.assertTrue(s.possibleInDomain(rangeSet(TENANT, Range.atMost("b"))));
+    Assert.assertFalse(s.possibleInDomain(rangeSet(TENANT, Range.lessThan("b"))));
+    Assert.assertTrue(s.possibleInDomain(rangeSet(TENANT, Range.atLeast("d"))));
+    Assert.assertFalse(s.possibleInDomain(rangeSet(TENANT, Range.greaterThan("d"))));
+    Assert.assertTrue(s.possibleInDomain(rangeSet(TENANT, Range.all())));
+  }
+
+  @Test
+  public void testMultipleDomainRanges_matchOnlyInLaterRange()
+  {
+    final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of("m")));
+    final RangeSet<String> rangeSet = TreeRangeSet.create();
+    rangeSet.add(Range.closed("a", "c"));
+    rangeSet.add(Range.closed("x", "z"));
+    Assert.assertFalse(s.possibleInDomain(ImmutableMap.of(TENANT, rangeSet)));
+    rangeSet.add(Range.singleton("m"));
+    Assert.assertTrue(s.possibleInDomain(ImmutableMap.of(TENANT, rangeSet)));
+  }
+
+  @Test
+  public void testLargeValueSet()
+  {
+    final List<String> values = new ArrayList<>();
+    for (int i = 0; i < 30_000; i++) {
+      values.add("lkc-" + i);
+    }
+    Collections.sort(values);
+    final DimensionValueSetShardSpec sorted = spec(ImmutableMap.of(TENANT, values));
+    Assert.assertTrue(sorted.hasSortedValues());
+    assertLargeValueSetPruning(sorted);
+
+    final List<String> shuffled = new ArrayList<>(values);
+    Collections.shuffle(shuffled, new Random(7));
+    final DimensionValueSetShardSpec unsorted = spec(ImmutableMap.of(TENANT, shuffled));
+    Assert.assertFalse(unsorted.hasSortedValues());
+    assertLargeValueSetPruning(unsorted);
+  }
+
+  private static void assertLargeValueSetPruning(DimensionValueSetShardSpec s)
+  {
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, "lkc-0")));
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, "lkc-29999")));
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, "lkc-missing", "lkc-123")));
+    Assert.assertFalse(s.possibleInDomain(domain(TENANT, "lkc-30000")));
+    Assert.assertFalse(s.possibleInDomain(domain(TENANT, "lkc-missing", "other")));
+  }
+
+  @Test
+  public void testManyQueryTenantsAgainstSmallSegment()
+  {
+    final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of("lkc-1", "lkc-5", "lkc-9")));
+    Assert.assertTrue(s.hasSortedValues());
+    final String[] many = new String[1_000];
+    for (int i = 0; i < many.length; i++) {
+      many[i] = "lkc-x" + i;
+    }
+    Assert.assertFalse(s.possibleInDomain(domain(TENANT, many)));
+    many[500] = "lkc-5";
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, many)));
+  }
+
+  @Test
+  public void testPublisherLayoutWithLeadingNull_usesSortedLookup()
+  {
+    final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, Arrays.asList(null, "", "tenant_a", "tenant_b")));
+    Assert.assertTrue(s.hasSortedValues());
+    Assert.assertTrue(s.possibleInDomain(nullDomain(TENANT)));
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, "")));
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, "tenant_b")));
+    Assert.assertFalse(s.possibleInDomain(domain(TENANT, "tenant_c")));
+  }
+
+  @Test
+  public void testNonPublisherLayouts_fallBackToScan()
+  {
+    Assert.assertFalse(spec(ImmutableMap.of(TENANT, Arrays.asList("tenant_a", null))).hasSortedValues());
+    Assert.assertFalse(spec(ImmutableMap.of(TENANT, Arrays.asList(null, null))).hasSortedValues());
+  }
+
+  @Test
+  public void testOneUnsortedDimension_fallsBackForAllDimensions()
+  {
+    final DimensionValueSetShardSpec s = spec(ImmutableMap.of(TENANT, List.of("a", "b"), REGION, List.of("y", "x")));
+    Assert.assertFalse(s.hasSortedValues());
+    Assert.assertTrue(s.possibleInDomain(ImmutableMap.of(TENANT, points("b"), REGION, points("x"))));
+    Assert.assertFalse(s.possibleInDomain(ImmutableMap.of(TENANT, points("b"), REGION, points("z"))));
+  }
+
+  @Test
+  public void testJsonUnchangedAfterPruning() throws Exception
+  {
+    final ObjectMapper mapper = newMapper();
+    final DimensionValueSetShardSpec s =
+        new DimensionValueSetShardSpec(0, 1, ImmutableMap.of(TENANT, Arrays.asList("tenant_b", null, "tenant_a")));
+    final String before = mapper.writeValueAsString(s);
+    Assert.assertTrue(s.possibleInDomain(domain(TENANT, "tenant_a")));
+    Assert.assertEquals(before, mapper.writeValueAsString(s));
+    Assert.assertEquals(Arrays.asList("tenant_b", null, "tenant_a"), s.getPartitionDimensionValues().get(TENANT));
+  }
+
+  @Test
+  public void testRandomizedEquivalenceWithLinearScan()
+  {
+    final Random random = new Random(42);
+    for (int i = 0; i < 20_000; i++) {
+      final Map<String, List<String>> values = new HashMap<>();
+      values.put(TENANT, randomValues(random));
+      if (random.nextBoolean()) {
+        values.put(REGION, randomValues(random));
+      }
+      final Map<String, RangeSet<String>> domain = new HashMap<>();
+      domain.put(TENANT, randomRangeSet(random));
+      if (random.nextBoolean()) {
+        domain.put(REGION, randomRangeSet(random));
+      }
+      final boolean expected = linearScan(values, domain);
+      Assert.assertEquals("values=" + values + ", domain=" + domain, expected, spec(values).possibleInDomain(domain));
+
+      final Map<String, List<String>> published = publisherLayout(values);
+      final DimensionValueSetShardSpec publishedSpec = spec(published);
+      Assert.assertTrue("values=" + published, publishedSpec.hasSortedValues());
+      Assert.assertEquals("values=" + published + ", domain=" + domain, expected, publishedSpec.possibleInDomain(domain));
+    }
+  }
+
+  private static Map<String, List<String>> publisherLayout(Map<String, List<String>> values)
+  {
+    final Map<String, List<String>> published = new HashMap<>();
+    for (Map.Entry<String, List<String>> entry : values.entrySet()) {
+      final List<String> distinct = new ArrayList<>(new HashSet<>(entry.getValue()));
+      distinct.sort(Comparator.nullsFirst(Comparator.naturalOrder()));
+      published.put(entry.getKey(), distinct);
+    }
+    return published;
+  }
+
+  private static Map<String, RangeSet<String>> rangeSet(String dimension, Range<String> range)
+  {
+    final RangeSet<String> rangeSet = TreeRangeSet.create();
+    rangeSet.add(range);
+    return ImmutableMap.of(dimension, rangeSet);
+  }
+
+  private static List<String> randomValues(Random random)
+  {
+    final List<String> values = new ArrayList<>();
+    final int size = random.nextInt(7);
+    for (int i = 0; i < size; i++) {
+      values.add(random.nextInt(10) == 0 ? null : UNIVERSE.get(random.nextInt(UNIVERSE.size())));
+    }
+    return values;
+  }
+
+  private static RangeSet<String> randomRangeSet(Random random)
+  {
+    final RangeSet<String> rangeSet = TreeRangeSet.create();
+    final int size = random.nextInt(4);
+    for (int i = 0; i < size; i++) {
+      rangeSet.add(randomRange(random));
+    }
+    return rangeSet;
+  }
+
+  private static Range<String> randomRange(Random random)
+  {
+    final String a = ENDPOINTS.get(random.nextInt(ENDPOINTS.size()));
+    final String b = ENDPOINTS.get(random.nextInt(ENDPOINTS.size()));
+    switch (random.nextInt(8)) {
+      case 0:
+        return Range.singleton(a);
+      case 1:
+        return Range.lessThan("");
+      case 2:
+        return Range.atLeast(a);
+      case 3:
+        return Range.greaterThan(a);
+      case 4:
+        return Range.atMost(a);
+      case 5:
+        return Range.lessThan(a);
+      case 6:
+        return Range.all();
+      default:
+        final int cmp = a.compareTo(b);
+        if (cmp == 0) {
+          return Range.singleton(a);
+        }
+        return Range.range(
+            cmp < 0 ? a : b,
+            random.nextBoolean() ? BoundType.OPEN : BoundType.CLOSED,
+            cmp < 0 ? b : a,
+            random.nextBoolean() ? BoundType.OPEN : BoundType.CLOSED
+        );
+    }
+  }
+
+  private static boolean linearScan(Map<String, List<String>> values, Map<String, RangeSet<String>> domain)
+  {
+    for (Map.Entry<String, List<String>> entry : values.entrySet()) {
+      final RangeSet<String> rangeSet = domain.get(entry.getKey());
+      if (rangeSet == null || rangeSet.isEmpty()) {
+        continue;
+      }
+      boolean anyMatch = false;
+      for (String value : entry.getValue()) {
+        final Range<String> valueRange = value == null ? Range.lessThan("") : Range.singleton(value);
+        if (!rangeSet.subRangeSet(valueRange).isEmpty()) {
+          anyMatch = true;
+          break;
+        }
+      }
+      if (!anyMatch) {
+        return false;
+      }
+    }
+    return true;
   }
 }
