@@ -21,12 +21,15 @@ package org.apache.druid.timeline.partition;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,11 +41,18 @@ import java.util.Objects;
  */
 public class DimensionValueSetShardSpec extends NumberedShardSpec
 {
+  private static final Range<String> NULL_RANGE = Range.lessThan("");
+
   /**
    * Maps dimension name → exhaustive list of values that can appear in this shard for that dimension.
    * An absent dimension means "all values possible" (no pruning on that dimension).
    */
   private final Map<String, List<String>> partitionDimensionValues;
+
+  private final List<String> domainDimensions;
+
+  @Nullable
+  private volatile Map<String, SortedValues> sortedValuesByDimension;
 
   @JsonCreator
   public DimensionValueSetShardSpec(
@@ -53,6 +63,7 @@ public class DimensionValueSetShardSpec extends NumberedShardSpec
   {
     super(partitionNum, partitions);
     this.partitionDimensionValues = partitionDimensionValues == null ? Collections.emptyMap() : partitionDimensionValues;
+    this.domainDimensions = ImmutableList.copyOf(this.partitionDimensionValues.keySet());
   }
 
   @JsonProperty("partitionDimensionValues")
@@ -64,7 +75,7 @@ public class DimensionValueSetShardSpec extends NumberedShardSpec
   @Override
   public List<String> getDomainDimensions()
   {
-    return ImmutableList.copyOf(partitionDimensionValues.keySet());
+    return domainDimensions;
   }
 
   /**
@@ -85,31 +96,71 @@ public class DimensionValueSetShardSpec extends NumberedShardSpec
       return true;
     }
 
-    for (Map.Entry<String, List<String>> entry : partitionDimensionValues.entrySet()) {
-      final String dimension = entry.getKey();
-      final List<String> allowedValues = entry.getValue();
-
-      final RangeSet<String> domainRangeSet = domain.get(dimension);
+    for (Map.Entry<String, SortedValues> entry : getSortedValuesByDimension().entrySet()) {
+      final RangeSet<String> domainRangeSet = domain.get(entry.getKey());
       if (domainRangeSet == null || domainRangeSet.isEmpty()) {
-        // Query doesn't constrain this dimension — cannot prune on it.
         continue;
       }
-
-      boolean anyMatch = false;
-      for (String value : allowedValues) {
-        // Null is represented in the domain as the range (-inf, ""); any other value as a singleton point.
-        final Range<String> valueRange = value == null ? Range.lessThan("") : Range.singleton(value);
-        if (!domainRangeSet.subRangeSet(valueRange).isEmpty()) {
-          anyMatch = true;
-          break;
-        }
-      }
-      if (!anyMatch) {
+      if (!entry.getValue().intersects(domainRangeSet)) {
         return false;
       }
     }
 
     return true;
+  }
+
+  // Built on first use so only services that prune (the broker) pay for the sorted copy; the race is benign
+  // because every thread builds an identical immutable index.
+  private Map<String, SortedValues> getSortedValuesByDimension()
+  {
+    Map<String, SortedValues> index = sortedValuesByDimension;
+    if (index == null) {
+      index = new HashMap<>();
+      for (Map.Entry<String, List<String>> entry : partitionDimensionValues.entrySet()) {
+        index.put(entry.getKey(), new SortedValues(entry.getValue()));
+      }
+      sortedValuesByDimension = index;
+    }
+    return index;
+  }
+
+  private static final class SortedValues
+  {
+    private final String[] nonNullValues;
+    private final boolean hasNull;
+
+    private SortedValues(List<String> values)
+    {
+      this.nonNullValues = values.stream().filter(Objects::nonNull).distinct().sorted().toArray(String[]::new);
+      this.hasNull = values.stream().anyMatch(Objects::isNull);
+    }
+
+    private boolean intersects(RangeSet<String> domain)
+    {
+      if (hasNull && domain.intersects(NULL_RANGE)) {
+        return true;
+      }
+      for (Range<String> range : domain.asRanges()) {
+        final int index = range.hasLowerBound() ? ceilingIndex(range.lowerEndpoint(), range.lowerBoundType()) : 0;
+        if (index == nonNullValues.length) {
+          // asRanges() is ascending, so no later range can contain a value either.
+          break;
+        }
+        if (range.contains(nonNullValues[index])) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    private int ceilingIndex(String endpoint, BoundType boundType)
+    {
+      final int index = Arrays.binarySearch(nonNullValues, endpoint);
+      if (index < 0) {
+        return -index - 1;
+      }
+      return boundType == BoundType.CLOSED ? index : index + 1;
+    }
   }
 
   @Override
