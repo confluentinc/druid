@@ -279,13 +279,20 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
       while (lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS)) {
         try {
           WatchResult iter =
-              k8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, nextResourceVersion, nodeRole);
+              k8sApiClient.watchPods(
+                  podInfo.getPodNamespace(),
+                  labelSelector,
+                  nextResourceVersion,
+                  nodeRole,
+                  discoveryConfig.getTerminatingStateCheckDuration()
+              );
 
           if (iter == null) {
             // history not available, we need to start from scratch
             return;
           }
 
+          boolean restartWatch = false;
           try {
             while (iter.hasNext()) {
               Watch.Response<DiscoveryDruidNodeAndResourceVersion> item = iter.next();
@@ -295,7 +302,12 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
                     baseNodeRoleWatcher.childAdded(item.object.getNode());
                     break;
                   case WatchResult.DELETED:
-                    baseNodeRoleWatcher.childRemoved(item.object.getNode());
+                  case WatchResult.NOT_READY:
+                    // Use skipIfUnknown=true for all k8s discovery removals.
+                    // DELETED can fire after NOT_READY (so the service is already removed), or before ADDED (pod deleted before becoming ready).
+                    // NOT_READY can repeat during CrashLoopBackOff. None of these warrant the error-level logging that
+                    // comes with trying to remove an unknown service.
+                    baseNodeRoleWatcher.childRemoved(item.object.getNode(), true);
                     break;
                   default:
                 }
@@ -307,12 +319,19 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
                 // Try again by starting the watch from the beginning. This can happen if the
                 // watch goes bad.
                 LOGGER.debug("Received NULL item while watching role[%s]. Restarting watch.", this.nodeRole);
-                return;
+                restartWatch = true;
+                break;
               }
             }
           }
           finally {
             iter.close();
+          }
+
+          if (restartWatch) {
+            // Back off so a pod with an undeserializable announcement can't drive a tight relist loop.
+            sleep(watcherErrorRetryWaitMS);
+            return;
           }
 
         }
