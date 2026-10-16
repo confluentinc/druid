@@ -286,6 +286,7 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
             return;
           }
 
+          boolean restartWatch = false;
           try {
             while (iter.hasNext()) {
               Watch.Response<DiscoveryDruidNodeAndResourceVersion> item = iter.next();
@@ -312,12 +313,19 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
                 // Try again by starting the watch from the beginning. This can happen if the
                 // watch goes bad.
                 LOGGER.debug("Received NULL item while watching role[%s]. Restarting watch.", this.nodeRole);
-                return;
+                restartWatch = true;
+                break;
               }
             }
           }
           finally {
             iter.close();
+          }
+
+          if (restartWatch) {
+            // Back off so a pod with an undeserializable announcement can't drive a tight relist loop.
+            sleep(watcherErrorRetryWaitMS);
+            return;
           }
 
         }

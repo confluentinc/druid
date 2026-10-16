@@ -38,7 +38,7 @@ This extension works together with HTTP-based segment and task management in Dru
 `druid.indexer.runner.type=httpRemote`
 `druid.discovery.type=k8s`
 
-For node discovery, each Druid process running inside a pod "announces" itself by adding labels and annotations to the pod spec. A pod is discoverable by other Druid processes when it has the required labels and annotations and Kubernetes considers the container ready. Without a readiness probe, Kubernetes marks a container as ready the moment the process starts — see [Readiness Probes](#readiness-probes) for why you should configure one.
+For node discovery, each Druid process running inside a pod "announces" itself by adding labels and annotations to the pod spec. A pod is discoverable by other Druid processes when it has the required labels and annotations, its `Ready` condition is `True`, and every container in it (including sidecars) is ready. Without a readiness probe, Kubernetes marks a container as ready the moment the process starts — see [Readiness Probes](#readiness-probes) for why you should configure one.
 
 Each Druid process needs to be aware of its own pod name and namespace, which it reads from environment variables `POD_NAME` and `POD_NAMESPACE`. These variable names can be changed (see configuration below), but every pod must have its own name and namespace available as environment variables.
 
@@ -61,13 +61,14 @@ Additionally, this extension has the following configuration.
 Readiness probe configuration directly affects discovery behavior. If a probe is too aggressive (low timeout, low failure threshold), a pod under heavy load could temporarily fail its probe, be removed from discovery, and shift its load onto other pods — potentially causing a cascade. To avoid this, tune your probes to tolerate brief periods of high load.
 :::
 
-This extension uses Kubernetes container readiness, in addition to labels and annotations, to decide whether a pod is available for service discovery.
+This extension uses the pod's `Ready` condition and the readiness of every container in the pod, in addition to labels and annotations, to decide whether a pod is available for service discovery.
 
 You should configure [readiness probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) on all Druid pods. Without a readiness probe, Kubernetes marks a container as ready the moment the process starts, which may be before the Druid service is fully initialized and able to handle requests.
 
 A container may become unready if:
 * The process is killed or crashes. It will be immediately marked as unready without waiting for the readiness probe to cross its failure threshold.
 * The process is alive but not healthy. It will be marked as unready after it fails its readiness probe a configured number of times (`failureThreshold`).
+* The pod's node stops reporting. The node controller sets the pod's `Ready` condition to `False` even though its container statuses still read as ready.
 
 Once marked as unready, a container must pass its readiness probe `successThreshold` times (default: 1) before it is considered ready again and re-enters discovery.
 

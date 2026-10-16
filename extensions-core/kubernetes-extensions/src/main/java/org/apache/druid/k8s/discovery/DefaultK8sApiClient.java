@@ -30,6 +30,7 @@ import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodCondition;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.util.Watch;
 import org.apache.druid.discovery.DiscoveryDruidNode;
@@ -130,14 +131,16 @@ public class DefaultK8sApiClient implements K8sApiClient
     }
   }
 
-  /**
-   * Check whether a pod's containers are all running and ready. This is used to filter out pods
-   * whose containers have been OOM-killed or are otherwise not serving traffic, even though the
-   * pod itself still exists and retains its Druid announcement labels.
-   */
+  // Ready condition catches node loss (container statuses go stale); container check catches not-ready sidecars.
   static boolean isPodReady(V1Pod pod)
   {
     if (pod.getStatus() == null) {
+      return false;
+    }
+    List<V1PodCondition> conditions = pod.getStatus().getConditions();
+    boolean readyCondition = conditions != null
+                             && conditions.stream().anyMatch(c -> "Ready".equals(c.getType()) && "True".equals(c.getStatus()));
+    if (!readyCondition) {
       return false;
     }
     List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
@@ -248,7 +251,11 @@ public class DefaultK8sApiClient implements K8sApiClient
               } else if (item != null && item.type != null && item.type.equals(WatchResult.BOOKMARK)) {
                 // Events with type BOOKMARK will only contain resourceVersion and no metadata. See
                 // Kubernetes API documentation for details.
-                LOGGER.debug("BOOKMARK event fired, no nothing, only update resourceVersion");
+                LOGGER.debug("BOOKMARK event fired, only updating resourceVersion");
+                obj = new Watch.Response<>(
+                    WatchResult.BOOKMARK,
+                    new DiscoveryDruidNodeAndResourceVersion(item.object.getMetadata().getResourceVersion(), null)
+                );
                 return true;
               } else {
                 LOGGER.error("WTH! item or item.type is NULL");

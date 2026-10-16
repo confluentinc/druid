@@ -40,6 +40,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class K8sDruidNodeDiscoveryProviderTest
 {
@@ -419,6 +421,99 @@ public class K8sDruidNodeDiscoveryProviderTest
 
     nodeDiscovery.start();
 
+    testListener.assertSuccess();
+
+    discoveryProvider.stop();
+  }
+
+  @Test(timeout = 60_000)
+  public void testNullItemBacksOffBeforeRelisting() throws Exception
+  {
+    final long retryWaitMs = 1_000;
+    String labelSelector = "druidDiscoveryAnnouncement-cluster-identifier=druid-cluster,druidDiscoveryAnnouncement-router=true";
+    List<Long> listPodsNanos = Collections.synchronizedList(new ArrayList<>());
+    CountDownLatch relisted = new CountDownLatch(2);
+
+    K8sApiClient mockK8sApiClient = EasyMock.createMock(K8sApiClient.class);
+    EasyMock.expect(mockK8sApiClient.listPods(podInfo.getPodNamespace(), labelSelector, NodeRole.ROUTER, Duration.millis(30000)))
+            .andAnswer(() -> {
+              listPodsNanos.add(System.nanoTime());
+              relisted.countDown();
+              return new DiscoveryDruidNodeList(
+                  "v1",
+                  ImmutableMap.of(testNode1.getDruidNode().getHostAndPortToUse(), testNode1)
+              );
+            })
+            .times(2);
+    // A null object is what watchPods surfaces when a pod's announcement fails to deserialize.
+    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER))
+            .andReturn(new MockWatchResult(ImmutableList.of(new Watch.Response<>(WatchResult.ADDED, null)), false, false));
+    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER))
+            .andReturn(new MockWatchResult(Collections.emptyList(), false, false));
+    EasyMock.replay(mockK8sApiClient);
+
+    K8sDruidNodeDiscoveryProvider discoveryProvider = new K8sDruidNodeDiscoveryProvider(
+        podInfo,
+        discoveryConfig,
+        mockK8sApiClient,
+        retryWaitMs
+    );
+    discoveryProvider.start();
+    discoveryProvider.getForNodeRole(NodeRole.ROUTER, false).start();
+
+    Assert.assertTrue(relisted.await(30, TimeUnit.SECONDS));
+    long elapsedMs = TimeUnit.NANOSECONDS.toMillis(listPodsNanos.get(1) - listPodsNanos.get(0));
+    Assert.assertTrue("relisted after only " + elapsedMs + "ms", elapsedMs >= retryWaitMs);
+
+    discoveryProvider.stop();
+  }
+
+  @Test(timeout = 60_000)
+  public void testBookmarkAdvancesWatchResourceVersion() throws Exception
+  {
+    String labelSelector = "druidDiscoveryAnnouncement-cluster-identifier=druid-cluster,druidDiscoveryAnnouncement-router=true";
+    CountDownLatch rewatchedFromBookmark = new CountDownLatch(1);
+
+    K8sApiClient mockK8sApiClient = EasyMock.createMock(K8sApiClient.class);
+    EasyMock.expect(mockK8sApiClient.listPods(podInfo.getPodNamespace(), labelSelector, NodeRole.ROUTER, Duration.millis(30000)))
+            .andReturn(new DiscoveryDruidNodeList(
+                "v1",
+                ImmutableMap.of(testNode1.getDruidNode().getHostAndPortToUse(), testNode1)
+            ));
+    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER))
+            .andReturn(new MockWatchResult(
+                ImmutableList.of(
+                    new Watch.Response<>(WatchResult.BOOKMARK, new DiscoveryDruidNodeAndResourceVersion("v5", null))
+                ),
+                false,
+                true
+            ));
+    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v5", NodeRole.ROUTER))
+            .andAnswer(() -> {
+              rewatchedFromBookmark.countDown();
+              return new MockWatchResult(Collections.emptyList(), false, false);
+            });
+    EasyMock.replay(mockK8sApiClient);
+
+    K8sDruidNodeDiscoveryProvider discoveryProvider = new K8sDruidNodeDiscoveryProvider(
+        podInfo,
+        discoveryConfig,
+        mockK8sApiClient,
+        1
+    );
+    discoveryProvider.start();
+    K8sDruidNodeDiscoveryProvider.NodeRoleWatcher nodeDiscovery = discoveryProvider.getForNodeRole(NodeRole.ROUTER, false);
+
+    MockListener testListener = new MockListener(
+        ImmutableList.of(
+            MockListener.Event.added(testNode1),
+            MockListener.Event.inited()
+        )
+    );
+    nodeDiscovery.registerListener(testListener);
+    nodeDiscovery.start();
+
+    Assert.assertTrue(rewatchedFromBookmark.await(30, TimeUnit.SECONDS));
     testListener.assertSuccess();
 
     discoveryProvider.stop();
