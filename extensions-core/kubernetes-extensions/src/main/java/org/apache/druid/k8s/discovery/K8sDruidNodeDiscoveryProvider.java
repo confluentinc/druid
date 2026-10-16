@@ -279,7 +279,13 @@ public class K8sDruidNodeDiscoveryProvider extends DruidNodeDiscoveryProvider
       while (lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS)) {
         try {
           WatchResult iter =
-              k8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, nextResourceVersion, nodeRole);
+              k8sApiClient.watchPods(
+                  podInfo.getPodNamespace(),
+                  labelSelector,
+                  nextResourceVersion,
+                  nodeRole,
+                  discoveryConfig.getTerminatingStateCheckDuration()
+              );
 
           if (iter == null) {
             // history not available, we need to start from scratch

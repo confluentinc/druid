@@ -101,24 +101,14 @@ public class DefaultK8sApiClient implements K8sApiClient
           continue;
         }
 
-        // irrespective of the grace period, we skip the pod if it has been in termination for more than terminatingStateCheckDuration
-        if (podDef.getMetadata() != null && podDef.getMetadata().getDeletionTimestamp() != null) {
-          long deletionTimestamp = podDef.getMetadata().getDeletionTimestamp().toInstant().toEpochMilli();
-          long currentTimestamp = System.currentTimeMillis();
-          long terminationGracePeriod = podDef.getSpec().getTerminationGracePeriodSeconds() != null ?
-              podDef.getSpec().getTerminationGracePeriodSeconds() * 1000L : 30 * 1000L; // Default to 30s if graceperiod is not set
-          long checkDuration = terminatingStateCheckDuration != null ?
-              terminatingStateCheckDuration.getMillis() : 30 * 1000L; // Default to 30s if not specified
-
-          if (currentTimestamp - deletionTimestamp + terminationGracePeriod > checkDuration) {
-            LOGGER.info(
-                "Skipping pod %s/%s from discovery as it has been in termination for more than grace period + %d seconds",
-                podDef.getMetadata().getNamespace(),
-                podDef.getMetadata().getName(),
-                checkDuration / 1000
-            );
-            continue;
-          }
+        if (isTerminatingBeyondCheckDuration(podDef, terminatingStateCheckDuration)) {
+          LOGGER.info(
+              "Skipping pod %s/%s from discovery as it has been in termination for more than grace period + %d seconds",
+              podDef.getMetadata().getNamespace(),
+              podDef.getMetadata().getName(),
+              checkDurationMillis(terminatingStateCheckDuration) / 1000
+          );
+          continue;
         }
 
         DiscoveryDruidNode node = getDiscoveryDruidNodeFromPodDef(nodeRole, podDef);
@@ -129,6 +119,24 @@ public class DefaultK8sApiClient implements K8sApiClient
     catch (ApiException ex) {
       throw new RE(ex, "Expection in listing pods, code[%d] and error[%s].", ex.getCode(), ex.getResponseBody());
     }
+  }
+
+  // Irrespective of the grace period, a pod terminating for longer than terminatingStateCheckDuration is not discoverable.
+  static boolean isTerminatingBeyondCheckDuration(V1Pod pod, @Nullable Duration terminatingStateCheckDuration)
+  {
+    if (pod.getMetadata() == null || pod.getMetadata().getDeletionTimestamp() == null) {
+      return false;
+    }
+    long deletionTimestamp = pod.getMetadata().getDeletionTimestamp().toInstant().toEpochMilli();
+    long terminationGracePeriod = pod.getSpec() != null && pod.getSpec().getTerminationGracePeriodSeconds() != null ?
+        pod.getSpec().getTerminationGracePeriodSeconds() * 1000L : 30 * 1000L; // Default to 30s if graceperiod is not set
+    return System.currentTimeMillis() - deletionTimestamp + terminationGracePeriod
+           > checkDurationMillis(terminatingStateCheckDuration);
+  }
+
+  private static long checkDurationMillis(@Nullable Duration terminatingStateCheckDuration)
+  {
+    return terminatingStateCheckDuration != null ? terminatingStateCheckDuration.getMillis() : 30 * 1000L; // Default to 30s if not specified
   }
 
   // Ready condition catches node loss (container statuses go stale); container check catches not-ready sidecars.
@@ -162,7 +170,13 @@ public class DefaultK8sApiClient implements K8sApiClient
   }
 
   @Override
-  public WatchResult watchPods(String namespace, String labelSelector, String lastKnownResourceVersion, NodeRole nodeRole)
+  public WatchResult watchPods(
+      String namespace,
+      String labelSelector,
+      String lastKnownResourceVersion,
+      NodeRole nodeRole,
+      @Nullable Duration terminatingStateCheckDuration
+  )
   {
     try {
       Watch<V1Pod> watch =
@@ -191,29 +205,32 @@ public class DefaultK8sApiClient implements K8sApiClient
                 String effectiveType = item.type;
 
                 if (item.object != null) {
-                  if (!isPodReady(item.object)) {
+                  boolean terminating = isTerminatingBeyondCheckDuration(item.object, terminatingStateCheckDuration);
+                  if (!isPodReady(item.object) || terminating) {
                     if (WatchResult.MODIFIED.equals(item.type)) {
-                      // Pod was previously ready but is now unready (e.g., OOM-killed container).
+                      // Pod was previously eligible but is now unready (e.g., OOM-killed container) or stuck terminating.
                       // Remap to NOT_READY to ensure the host is removed from discovery cache if is cached
                       LOGGER.info(
-                          "Pod[%s] for role[%s] notified that it was modified and is now showing as not ready, "
-                          + "treating as removed for discovery purposes.",
+                          terminating
+                          ? "Pod[%s] for role[%s] notified that it was modified and has been terminating beyond the "
+                            + "check duration, treating as removed for discovery purposes."
+                          : "Pod[%s] for role[%s] notified that it was modified and is now showing as not ready, "
+                            + "treating as removed for discovery purposes.",
                           item.object.getMetadata().getName(),
                           nodeRole
                       );
                       effectiveType = WatchResult.NOT_READY;
                     } else if (WatchResult.ADDED.equals(item.type)) {
-                      // Pod is not ready yet (e.g., still starting up). Skip this event entirely.
-                      // It will appear via a MODIFIED event that remaps to ADDED for discovery, once it becomes ready.
+                      // Skip unready or stuck-terminating pods; a starting pod is added later via MODIFIED once ready.
                       LOGGER.debug(
-                          "Pod[%s] for role[%s] is not ready on ADDED event, skipping until it becomes ready.",
+                          "Pod[%s] for role[%s] is not ready or is terminating beyond the check duration on ADDED event, skipping.",
                           item.object.getMetadata().getName(),
                           nodeRole
                       );
                       continue;
                     }
                   } else if (WatchResult.MODIFIED.equals(item.type)) {
-                    // Remap MODIFIED (pod ready) events to ADDED for discovery cache purposes.
+                    // Remap MODIFIED (pod ready, not stuck terminating) events to ADDED for discovery cache purposes.
                     // This is safe even if the node is already in the cache because BaseNodeRoleWatcher.childAdded() uses
                     // putIfAbsent, so duplicates are silently ignored.
                     effectiveType = WatchResult.ADDED;

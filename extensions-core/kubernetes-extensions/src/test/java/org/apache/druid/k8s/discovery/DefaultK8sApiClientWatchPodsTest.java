@@ -31,12 +31,16 @@ import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.server.DruidNode;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -46,6 +50,7 @@ import java.util.Map;
 public class DefaultK8sApiClientWatchPodsTest
 {
   private static final ObjectMapper JSON_MAPPER = new DefaultObjectMapper();
+  private static final Duration DEFAULT_CHECK_DURATION = Duration.millis(30_000);
 
   static {
     // DiscoveryDruidNode's @JsonCreator injects the ObjectMapper itself.
@@ -81,7 +86,7 @@ public class DefaultK8sApiClientWatchPodsTest
   {
     enqueueWatchStream(bookmarkLine("100"));
 
-    WatchResult result = client.watchPods("testns", null, "99", NodeRole.ROUTER);
+    WatchResult result = client.watchPods("testns", null, "99", NodeRole.ROUTER, DEFAULT_CHECK_DURATION);
     try {
       Assert.assertTrue(result.hasNext());
       Watch.Response<DiscoveryDruidNodeAndResourceVersion> bookmark = result.next();
@@ -100,7 +105,7 @@ public class DefaultK8sApiClientWatchPodsTest
   {
     enqueueWatchStream(podLine(WatchResult.ADDED, "200", true, true, nodeAnnotation()) + bookmarkLine("201"));
 
-    WatchResult result = client.watchPods("testns", null, "99", NodeRole.ROUTER);
+    WatchResult result = client.watchPods("testns", null, "99", NodeRole.ROUTER, DEFAULT_CHECK_DURATION);
     try {
       Assert.assertTrue(result.hasNext());
       Watch.Response<DiscoveryDruidNodeAndResourceVersion> added = result.next();
@@ -163,6 +168,40 @@ public class DefaultK8sApiClientWatchPodsTest
   }
 
   @Test
+  public void testModifiedReadyPodTerminatingBeyondCheckDurationIsRemappedToNotReady() throws Exception
+  {
+    enqueueWatchStream(podLine("MODIFIED", "200", "True", true, true, nodeAnnotation(), deletedSecondsAgo(600)));
+
+    Watch.Response<DiscoveryDruidNodeAndResourceVersion> response = readSingleEvent(DEFAULT_CHECK_DURATION);
+    Assert.assertEquals(WatchResult.NOT_READY, response.type);
+    Assert.assertEquals("200", response.object.getResourceVersion());
+    Assert.assertEquals(testNode, response.object.getNode());
+  }
+
+  @Test
+  public void testModifiedReadyPodTerminatingWithinCheckDurationIsRemappedToAdded() throws Exception
+  {
+    enqueueWatchStream(podLine("MODIFIED", "200", "True", true, true, nodeAnnotation(), deletedSecondsAgo(60)));
+
+    Watch.Response<DiscoveryDruidNodeAndResourceVersion> response = readSingleEvent(Duration.standardMinutes(10));
+    Assert.assertEquals(WatchResult.ADDED, response.type);
+    Assert.assertEquals(testNode, response.object.getNode());
+  }
+
+  @Test
+  public void testAddedReadyPodTerminatingBeyondCheckDurationIsSkipped() throws Exception
+  {
+    enqueueWatchStream(
+        podLine(WatchResult.ADDED, "200", "True", true, true, nodeAnnotation(), deletedSecondsAgo(600))
+        + podLine("MODIFIED", "201", true, true, nodeAnnotation())
+    );
+
+    Watch.Response<DiscoveryDruidNodeAndResourceVersion> response = readSingleEvent(DEFAULT_CHECK_DURATION);
+    Assert.assertEquals(WatchResult.ADDED, response.type);
+    Assert.assertEquals("201", response.object.getResourceVersion());
+  }
+
+  @Test
   public void testDeletedNotReadyPodIsNotRemapped() throws Exception
   {
     enqueueWatchStream(podLine(WatchResult.DELETED, "200", false, false, nodeAnnotation()));
@@ -184,7 +223,12 @@ public class DefaultK8sApiClientWatchPodsTest
 
   private Watch.Response<DiscoveryDruidNodeAndResourceVersion> readSingleEvent() throws Exception
   {
-    WatchResult result = client.watchPods("testns", null, "99", NodeRole.ROUTER);
+    return readSingleEvent(DEFAULT_CHECK_DURATION);
+  }
+
+  private Watch.Response<DiscoveryDruidNodeAndResourceVersion> readSingleEvent(Duration checkDuration) throws Exception
+  {
+    WatchResult result = client.watchPods("testns", null, "99", NodeRole.ROUTER, checkDuration);
     try {
       Assert.assertTrue(result.hasNext());
       Watch.Response<DiscoveryDruidNodeAndResourceVersion> response = result.next();
@@ -233,6 +277,11 @@ public class DefaultK8sApiClientWatchPodsTest
     return podLine(type, resourceVersion, readyCondition, druidReady, sidecarReady, nodeAnnotation);
   }
 
+  private static String deletedSecondsAgo(long seconds)
+  {
+    return Instant.now().minusSeconds(seconds).toString();
+  }
+
   private static String podLine(
       String type,
       String resourceVersion,
@@ -242,17 +291,30 @@ public class DefaultK8sApiClientWatchPodsTest
       String nodeAnnotation
   ) throws Exception
   {
+    return podLine(type, resourceVersion, readyCondition, druidReady, sidecarReady, nodeAnnotation, null);
+  }
+
+  private static String podLine(
+      String type,
+      String resourceVersion,
+      String readyCondition,
+      boolean druidReady,
+      boolean sidecarReady,
+      String nodeAnnotation,
+      @Nullable String deletionTimestamp
+  ) throws Exception
+  {
     Map<String, Object> pod = new HashMap<>();
     pod.put("kind", "Pod");
     pod.put("apiVersion", "v1");
-    pod.put(
-        "metadata",
-        ImmutableMap.of(
-            "name", "test-pod",
-            "resourceVersion", resourceVersion,
-            "annotations", ImmutableMap.of(K8sDruidNodeAnnouncer.getInfoAnnotation(NodeRole.ROUTER), nodeAnnotation)
-        )
-    );
+    Map<String, Object> metadata = new HashMap<>();
+    metadata.put("name", "test-pod");
+    metadata.put("resourceVersion", resourceVersion);
+    metadata.put("annotations", ImmutableMap.of(K8sDruidNodeAnnouncer.getInfoAnnotation(NodeRole.ROUTER), nodeAnnotation));
+    if (deletionTimestamp != null) {
+      metadata.put("deletionTimestamp", deletionTimestamp);
+    }
+    pod.put("metadata", metadata);
     pod.put(
         "status",
         ImmutableMap.of(

@@ -96,7 +96,7 @@ public class K8sDruidNodeDiscoveryProviderTest
         )
     );
     EasyMock.expect(mockK8sApiClient.watchPods(
-        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER)).andReturn(null);
+        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER, Duration.millis(30000))).andReturn(null);
     EasyMock.expect(mockK8sApiClient.listPods(podInfo.getPodNamespace(), labelSelector, NodeRole.ROUTER, Duration.millis(30000))).andReturn(
         new DiscoveryDruidNodeList(
             "v2",
@@ -107,11 +107,11 @@ public class K8sDruidNodeDiscoveryProviderTest
         )
     );
     EasyMock.expect(mockK8sApiClient.watchPods(
-        podInfo.getPodNamespace(), labelSelector, "v2", NodeRole.ROUTER)).andReturn(
+        podInfo.getPodNamespace(), labelSelector, "v2", NodeRole.ROUTER, Duration.millis(30000))).andReturn(
             new MockWatchResult(Collections.emptyList(), true, false)
     );
     EasyMock.expect(mockK8sApiClient.watchPods(
-        podInfo.getPodNamespace(), labelSelector, "v2", NodeRole.ROUTER)).andReturn(
+        podInfo.getPodNamespace(), labelSelector, "v2", NodeRole.ROUTER, Duration.millis(30000))).andReturn(
         new MockWatchResult(
             ImmutableList.of(
                   new Watch.Response<>(WatchResult.ADDED, new DiscoveryDruidNodeAndResourceVersion("v3", testNode4)),
@@ -122,7 +122,7 @@ public class K8sDruidNodeDiscoveryProviderTest
             )
     );
     EasyMock.expect(mockK8sApiClient.watchPods(
-        podInfo.getPodNamespace(), labelSelector, "v4", NodeRole.ROUTER)).andReturn(
+        podInfo.getPodNamespace(), labelSelector, "v4", NodeRole.ROUTER, Duration.millis(30000))).andReturn(
         new MockWatchResult(
             ImmutableList.of(
                 new Watch.Response<>(WatchResult.ADDED, new DiscoveryDruidNodeAndResourceVersion("v5", testNode5)),
@@ -181,7 +181,7 @@ public class K8sDruidNodeDiscoveryProviderTest
         )
     );
     EasyMock.expect(mockK8sApiClient.watchPods(
-        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER)).andReturn(
+        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER, Duration.millis(30000))).andReturn(
         new MockWatchResult(
             ImmutableList.of(
                   new Watch.Response<>(WatchResult.ADDED, null)
@@ -248,7 +248,7 @@ public class K8sDruidNodeDiscoveryProviderTest
 
     // Watch returns: testNode1 becomes NOT_READY (OOM), then comes back as ADDED (recovered)
     EasyMock.expect(mockK8sApiClient.watchPods(
-        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER)).andReturn(
+        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER, Duration.millis(30000))).andReturn(
         new MockWatchResult(
             ImmutableList.of(
                 new Watch.Response<>(WatchResult.NOT_READY, new DiscoveryDruidNodeAndResourceVersion("v2", testNode1)),
@@ -313,7 +313,7 @@ public class K8sDruidNodeDiscoveryProviderTest
 
     // Watch: testNode1 goes NOT_READY, then DELETED arrives (node already removed from cache)
     EasyMock.expect(mockK8sApiClient.watchPods(
-        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER)).andReturn(
+        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER, Duration.millis(30000))).andReturn(
         new MockWatchResult(
             ImmutableList.of(
                 new Watch.Response<>(WatchResult.NOT_READY, new DiscoveryDruidNodeAndResourceVersion("v2", testNode1)),
@@ -372,7 +372,7 @@ public class K8sDruidNodeDiscoveryProviderTest
     List<Watch.Response<DiscoveryDruidNodeAndResourceVersion>> nullList = new ArrayList<>();
     nullList.add(null);
     EasyMock.expect(mockK8sApiClient.watchPods(
-        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER)).andReturn(
+        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER, Duration.millis(30000))).andReturn(
         new MockWatchResult(
             nullList,
             false,
@@ -380,7 +380,7 @@ public class K8sDruidNodeDiscoveryProviderTest
             )
     );
     EasyMock.expect(mockK8sApiClient.watchPods(
-        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER)).andReturn(
+        podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER, Duration.millis(30000))).andReturn(
         new MockWatchResult(
             ImmutableList.of(
                   new Watch.Response<>(null, new DiscoveryDruidNodeAndResourceVersion("v2", testNode4))
@@ -390,7 +390,7 @@ public class K8sDruidNodeDiscoveryProviderTest
             )
     );
     EasyMock.expect(mockK8sApiClient.watchPods(
-        podInfo.getPodNamespace(), labelSelector, "v2", NodeRole.ROUTER)).andReturn(
+        podInfo.getPodNamespace(), labelSelector, "v2", NodeRole.ROUTER, Duration.millis(30000))).andReturn(
         new MockWatchResult(
             ImmutableList.of(
                   new Watch.Response<>(WatchResult.ADDED, new DiscoveryDruidNodeAndResourceVersion("v2", testNode4))
@@ -446,9 +446,9 @@ public class K8sDruidNodeDiscoveryProviderTest
             })
             .times(2);
     // A null object is what watchPods surfaces when a pod's announcement fails to deserialize.
-    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER))
+    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER, Duration.millis(30000)))
             .andReturn(new MockWatchResult(ImmutableList.of(new Watch.Response<>(WatchResult.ADDED, null)), false, false));
-    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER))
+    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER, Duration.millis(30000)))
             .andReturn(new MockWatchResult(Collections.emptyList(), false, false));
     EasyMock.replay(mockK8sApiClient);
 
@@ -480,7 +480,7 @@ public class K8sDruidNodeDiscoveryProviderTest
                 "v1",
                 ImmutableMap.of(testNode1.getDruidNode().getHostAndPortToUse(), testNode1)
             ));
-    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER))
+    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v1", NodeRole.ROUTER, Duration.millis(30000)))
             .andReturn(new MockWatchResult(
                 ImmutableList.of(
                     new Watch.Response<>(WatchResult.BOOKMARK, new DiscoveryDruidNodeAndResourceVersion("v5", null))
@@ -488,7 +488,7 @@ public class K8sDruidNodeDiscoveryProviderTest
                 false,
                 true
             ));
-    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v5", NodeRole.ROUTER))
+    EasyMock.expect(mockK8sApiClient.watchPods(podInfo.getPodNamespace(), labelSelector, "v5", NodeRole.ROUTER, Duration.millis(30000)))
             .andAnswer(() -> {
               rewatchedFromBookmark.countDown();
               return new MockWatchResult(Collections.emptyList(), false, false);

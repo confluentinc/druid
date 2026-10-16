@@ -20,14 +20,19 @@
 package org.apache.druid.k8s.discovery;
 
 import io.kubernetes.client.openapi.models.V1ContainerStatus;
+import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodCondition;
+import io.kubernetes.client.openapi.models.V1PodSpec;
 import io.kubernetes.client.openapi.models.V1PodStatus;
+import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -106,6 +111,38 @@ public class DefaultK8sApiClientTest
     V1Pod pod = pod(null, true);
     pod.getStatus().setConditions(Collections.singletonList(new V1PodCondition().type("ContainersReady").status("True")));
     Assert.assertFalse(DefaultK8sApiClient.isPodReady(pod));
+  }
+
+  @Test
+  public void testIsTerminatingBeyondCheckDuration_noDeletionTimestamp()
+  {
+    Assert.assertFalse(DefaultK8sApiClient.isTerminatingBeyondCheckDuration(terminatingPod(null), Duration.standardMinutes(10)));
+  }
+
+  @Test
+  public void testIsTerminatingBeyondCheckDuration_pastThreshold()
+  {
+    V1Pod pod = terminatingPod(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(10));
+    Assert.assertTrue(DefaultK8sApiClient.isTerminatingBeyondCheckDuration(pod, Duration.standardMinutes(1)));
+  }
+
+  @Test
+  public void testIsTerminatingBeyondCheckDuration_withinThreshold()
+  {
+    V1Pod pod = terminatingPod(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1));
+    Assert.assertFalse(DefaultK8sApiClient.isTerminatingBeyondCheckDuration(pod, Duration.standardMinutes(10)));
+  }
+
+  @Test
+  public void testIsTerminatingBeyondCheckDuration_nullDurationDefaultsTo30Seconds()
+  {
+    Assert.assertTrue(DefaultK8sApiClient.isTerminatingBeyondCheckDuration(terminatingPod(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(10)), null));
+    Assert.assertFalse(DefaultK8sApiClient.isTerminatingBeyondCheckDuration(terminatingPod(OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(10)), null));
+  }
+
+  private static V1Pod terminatingPod(@Nullable OffsetDateTime deletionTimestamp)
+  {
+    return new V1Pod().metadata(new V1ObjectMeta().deletionTimestamp(deletionTimestamp)).spec(new V1PodSpec());
   }
 
   private static V1Pod pod(@Nullable String readyCondition, Boolean... containerReady)
