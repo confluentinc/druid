@@ -34,6 +34,7 @@ import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.data.input.kafka.KafkaRecordEntity;
+import org.apache.druid.data.input.opentelemetry.protobuf.OpenTelemetryMetricsProtobufInputFormat;
 import org.apache.druid.indexing.common.task.FilteringCloseableInputRowIterator;
 import org.apache.druid.indexing.seekablestream.SettableByteEntity;
 import org.apache.druid.indexing.seekablestream.common.OrderedPartitionableRecord;
@@ -54,6 +55,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -147,7 +149,9 @@ public class OpenCensusProtobufReaderTest
         "metric.name",
         null,
         "descriptor.",
-        "custom."
+        "custom.",
+        null,
+        null
     );
 
     SettableByteEntity<KafkaRecordEntity> entity = new SettableByteEntity<>();
@@ -190,7 +194,9 @@ public class OpenCensusProtobufReaderTest
     OpenCensusProtobufInputFormat inputFormat = new OpenCensusProtobufInputFormat("metric.name",
         null,
         "descriptor.",
-        "custom.");
+        "custom.",
+        null,
+        null);
     SettableByteEntity<KafkaRecordEntity> entity = new SettableByteEntity<>();
     InputEntityReader reader = inputFormat.createReader(new InputRowSchema(
         new TimestampSpec("timestamp", "iso", null),
@@ -256,7 +262,9 @@ public class OpenCensusProtobufReaderTest
     OpenCensusProtobufInputFormat inputFormat = new OpenCensusProtobufInputFormat("metric.name",
         null,
          "descriptor.",
-        "custom.");
+        "custom.",
+        null,
+        null);
     SettableByteEntity<KafkaRecordEntity> entity = new SettableByteEntity<>();
     InputEntityReader reader = inputFormat.createReader(new InputRowSchema(
         new TimestampSpec("timestamp", "iso", null),
@@ -319,7 +327,9 @@ public class OpenCensusProtobufReaderTest
     OpenCensusProtobufInputFormat inputFormat = new OpenCensusProtobufInputFormat("metric.name",
         null,
         "descriptor.",
-        "custom.");
+        "custom.",
+        null,
+        null);
 
     SettableByteEntity<KafkaRecordEntity> entity = new SettableByteEntity<>();
     InputEntityReader reader = inputFormat.createReader(new InputRowSchema(
@@ -357,7 +367,9 @@ public class OpenCensusProtobufReaderTest
     OpenCensusProtobufInputFormat inputFormat = new OpenCensusProtobufInputFormat("metric.name",
         null,
         "descriptor.",
-        "custom.");
+        "custom.",
+        null,
+        null);
 
     SettableByteEntity<KafkaRecordEntity> entity = new SettableByteEntity<>();
     InputEntityReader reader = inputFormat.createReader(new InputRowSchema(
@@ -399,7 +411,9 @@ public class OpenCensusProtobufReaderTest
     OpenCensusProtobufInputFormat inputFormat = new OpenCensusProtobufInputFormat("metric.name",
             null,
             "descriptor.",
-            "custom.");
+            "custom.",
+        null,
+        null);
     for (OrderedPartitionableRecord<Integer, Long, KafkaRecordEntity> record : records) {
 
       SettableByteEntity<ByteEntity> entity = new SettableByteEntity<>();
@@ -433,6 +447,95 @@ public class OpenCensusProtobufReaderTest
       recordsProcessed += 1;
     }
     Assert.assertEquals(recordsProcessed, 2);
+  }
+
+  @Test
+  public void testOtelRecordsReadKafkaHeaders() throws IOException
+  {
+    metricBuilder.setName("example_gauge")
+        .getGaugeBuilder()
+        .addDataPointsBuilder()
+        .setAsInt(6)
+        .setTimeUnixNano(TIMESTAMP);
+
+    Headers headers = new RecordHeaders(new Header[]{
+        HEADERV1,
+        new RecordHeader("metric.name", "example_gauge".getBytes(StandardCharsets.UTF_16LE))
+    });
+    ConsumerRecord<byte[], byte[]> consumerRecord = new ConsumerRecord<>(TOPIC, PARTITION, OFFSET, TS, TSTYPE, -1, -1,
+        null, metricsDataBuilder.build().toByteArray(), headers, Optional.empty());
+    OpenCensusProtobufInputFormat inputFormat = new OpenCensusProtobufInputFormat(
+        "name",
+        null,
+        "descriptor.",
+        "custom.",
+        ImmutableList.of("metric.name"),
+        "UTF-16LE"
+    );
+
+    SettableByteEntity<KafkaRecordEntity> entity = new SettableByteEntity<>();
+    InputEntityReader reader = inputFormat.createReader(new InputRowSchema(
+        new TimestampSpec("timestamp", "iso", null),
+        DimensionsSpec.builder().build(),
+        ColumnsFilter.all()
+    ), entity, null);
+
+    entity.setEntity(new KafkaRecordEntity(consumerRecord));
+    try (CloseableIterator<InputRow> rows = reader.read()) {
+      Assert.assertTrue(rows.hasNext());
+      InputRow row = rows.next();
+
+      assertDimensionEquals(row, "name", "example_gauge");
+      assertDimensionEquals(row, "metric.name", "example_gauge");
+      Assert.assertNull(row.getRaw("v"));
+    }
+  }
+
+  @Test
+  public void testOtelFormatReadsKafkaHeaders() throws IOException
+  {
+    metricBuilder.setName("example_gauge")
+        .getGaugeBuilder()
+        .addDataPointsBuilder()
+        .setAsInt(6)
+        .setTimeUnixNano(TIMESTAMP);
+
+    Headers headers = new RecordHeaders(new Header[]{
+        HEADERV1,
+        new RecordHeader("metric.name", "example_gauge".getBytes(StandardCharsets.UTF_16LE))
+    });
+    ConsumerRecord<byte[], byte[]> consumerRecord = new ConsumerRecord<>(TOPIC, PARTITION, OFFSET, TS, TSTYPE, -1, -1,
+        null, metricsDataBuilder.build().toByteArray(), headers, Optional.empty());
+    OpenTelemetryMetricsProtobufInputFormat inputFormat = new OpenTelemetryMetricsProtobufInputFormat(
+        "name",
+        null,
+        "descriptor.",
+        "custom.",
+        ImmutableList.of("metric.name"),
+        "UTF-16LE"
+    );
+
+    SettableByteEntity<KafkaRecordEntity> entity = new SettableByteEntity<>();
+    InputEntityReader reader = inputFormat.createReader(new InputRowSchema(
+        new TimestampSpec("timestamp", "iso", null),
+        DimensionsSpec.builder().build(),
+        ColumnsFilter.all()
+    ), entity, null);
+
+    entity.setEntity(new KafkaRecordEntity(consumerRecord));
+    try (CloseableIterator<InputRow> rows = reader.read()) {
+      Assert.assertTrue(rows.hasNext());
+      InputRow row = rows.next();
+
+      long deviatedSeconds = (TS - (TIMESTAMP / 1_000_000)) / 1000;
+      long deviatedMinutes = deviatedSeconds / 60;
+
+      assertDimensionEquals(row, "metric.name", "example_gauge");
+      Assert.assertNull(row.getRaw("v"));
+      Assert.assertEquals(TimeUnit.NANOSECONDS.toMillis(TIMESTAMP), row.getTimestampFromEpoch());
+      assertDimensionEquals(row, "deviated_seconds", Long.toString(deviatedSeconds));
+      assertDimensionEquals(row, "deviated_minutes", Long.toString(deviatedMinutes));
+    }
   }
 
   private void assertDimensionEquals(InputRow row, String dimension, Object expected)
