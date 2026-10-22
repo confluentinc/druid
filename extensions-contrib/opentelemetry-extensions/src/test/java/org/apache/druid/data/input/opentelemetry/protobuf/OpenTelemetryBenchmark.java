@@ -79,7 +79,9 @@ public class OpenTelemetryBenchmark
       new OpenTelemetryMetricsProtobufInputFormat("name",
           "value",
           "",
-          "resource.");
+          "resource.",
+          null,
+          null);
 
   private ByteBuffer createMetricBuffer()
   {
