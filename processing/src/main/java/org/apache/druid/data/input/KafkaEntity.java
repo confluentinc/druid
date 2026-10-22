@@ -22,7 +22,7 @@ package org.apache.druid.data.input;
 import javax.annotation.Nullable;
 
 /**
- * Interface for record entities that contain timestamp information.
+ * Interface for Kafka record entities, exposing the record timestamp and headers.
  */
 public interface KafkaEntity
 {

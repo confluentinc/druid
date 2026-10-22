@@ -134,8 +134,9 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
   List<InputRow> readAsList()
   {
     ByteBuffer buffer = source.getEntity().getBuffer();
+    Map<String, Object> headerColumns = readHeaders();
     try {
-      return parseMetricsData(MetricsData.parseFrom(buffer), readHeaders());
+      return parseMetricsData(MetricsData.parseFrom(buffer), headerColumns);
     }
     catch (InvalidProtocolBufferException e) {
       throw new ParseException(null, e, "Protobuf message could not be parsed");
@@ -150,14 +151,16 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
 
   private Map<String, Object> readHeaders()
   {
-    Map<String, Object> headerColumns = new HashMap<>();
     Object entity = source.getEntity();
-    if (entity instanceof KafkaEntity) {
-      for (String header : headers) {
-        byte[] value = ((KafkaEntity) entity).getHeader(header);
-        if (value != null) {
-          headerColumns.put(header, new String(value, headerEncoding));
-        }
+    if (!(entity instanceof KafkaEntity)) {
+      return Collections.emptyMap();
+    }
+    KafkaEntity kafkaEntity = (KafkaEntity) entity;
+    Map<String, Object> headerColumns = new HashMap<>();
+    for (String key : headers) {
+      byte[] value = kafkaEntity.getHeader(key);
+      if (value != null) {
+        headerColumns.put(key, new String(value, headerEncoding));
       }
     }
     return headerColumns;
