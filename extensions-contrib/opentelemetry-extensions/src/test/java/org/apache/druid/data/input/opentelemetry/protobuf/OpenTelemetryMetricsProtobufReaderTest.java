@@ -20,6 +20,7 @@
 package org.apache.druid.data.input.opentelemetry.protobuf;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.common.v1.KeyValueList;
@@ -27,6 +28,7 @@ import io.opentelemetry.proto.metrics.v1.DataPointFlags;
 import io.opentelemetry.proto.metrics.v1.Metric;
 import io.opentelemetry.proto.metrics.v1.MetricsData;
 import org.apache.druid.data.input.InputRow;
+import org.apache.druid.data.input.KafkaEntity;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
@@ -40,9 +42,13 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 
@@ -430,6 +436,140 @@ public class OpenTelemetryMetricsProtobufReaderTest
     ).read();
 
     Assert.assertFalse(rows.hasNext());
+  }
+
+  @Test
+  public void testHeaderAddedToEveryRow()
+  {
+    metricBuilder.setName("example_gauge")
+        .getGaugeBuilder()
+        .addDataPointsBuilder()
+        .setAsInt(6)
+        .setTimeUnixNano(TIMESTAMP);
+    metricsDataBuilder.getResourceMetricsBuilder(0)
+        .getScopeMetricsBuilder(0)
+        .addMetricsBuilder()
+        .setName("second_gauge")
+        .getGaugeBuilder()
+        .addDataPointsBuilder()
+        .setAsInt(8)
+        .setTimeUnixNano(TIMESTAMP + TimeUnit.MINUTES.toNanos(1));
+
+    byte[] versionHeader = ByteBuffer.allocate(Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN).putInt(1).array();
+    List<InputRow> rows = readWithHeaders(
+        new TestKafkaEntity(
+            metricsDataBuilder.build().toByteArray(),
+            ImmutableMap.of("metric.name", utf16("m1"), "v", versionHeader)
+        ),
+        ImmutableList.of("metric.name")
+    );
+
+    Assert.assertEquals(2, rows.size());
+    for (InputRow row : rows) {
+      Assert.assertEquals("m1", row.getRaw("metric.name"));
+      Assert.assertTrue(row.getDimensions().contains("metric.name"));
+      Assert.assertNull(row.getRaw("v"));
+    }
+    Assert.assertEquals(TimeUnit.NANOSECONDS.toMillis(TIMESTAMP), rows.get(0).getTimestampFromEpoch());
+    Assert.assertEquals(
+        TimeUnit.NANOSECONDS.toMillis(TIMESTAMP) + TimeUnit.MINUTES.toMillis(1),
+        rows.get(1).getTimestampFromEpoch()
+    );
+  }
+
+  @Test
+  public void testMissingHeaderIsAbsent()
+  {
+    buildSingleGauge();
+    List<InputRow> rows = readWithHeaders(
+        new TestKafkaEntity(metricsDataBuilder.build().toByteArray(), ImmutableMap.of("metric.name", utf16("m1"))),
+        ImmutableList.of("metric.name", "tenant")
+    );
+
+    Assert.assertEquals(1, rows.size());
+    Assert.assertNull(rows.get(0).getRaw("tenant"));
+    Assert.assertFalse(rows.get(0).getDimensions().contains("tenant"));
+  }
+
+  @Test
+  public void testPayloadWinsOverHeader()
+  {
+    buildSingleGauge();
+    List<InputRow> rows = readWithHeaders(
+        new TestKafkaEntity(metricsDataBuilder.build().toByteArray(), ImmutableMap.of("name", utf16("from-header"))),
+        ImmutableList.of("name")
+    );
+
+    Assert.assertEquals(1, rows.size());
+    Assert.assertEquals("example_gauge", rows.get(0).getRaw("name"));
+  }
+
+  @Test
+  public void testNonKafkaEntitySkipsHeaders()
+  {
+    buildSingleGauge();
+    List<InputRow> rows = readWithHeaders(
+        new ByteEntity(metricsDataBuilder.build().toByteArray()),
+        ImmutableList.of("metric.name")
+    );
+
+    Assert.assertEquals(1, rows.size());
+    Assert.assertNull(rows.get(0).getRaw("metric.name"));
+  }
+
+  private void buildSingleGauge()
+  {
+    metricBuilder.setName("example_gauge")
+        .getGaugeBuilder()
+        .addDataPointsBuilder()
+        .setAsInt(6)
+        .setTimeUnixNano(TIMESTAMP);
+  }
+
+  private static List<InputRow> readWithHeaders(ByteEntity entity, List<String> headers)
+  {
+    SettableByteEntity<ByteEntity> settableByteEntity = new SettableByteEntity<>();
+    settableByteEntity.setEntity(entity);
+    List<InputRow> rows = new ArrayList<>();
+    new OpenTelemetryMetricsProtobufReader(
+        DimensionsSpec.builder().build(),
+        settableByteEntity,
+        "name",
+        "value",
+        "descriptor.",
+        "custom.",
+        headers,
+        StandardCharsets.UTF_16LE
+    ).read().forEachRemaining(rows::add);
+    return rows;
+  }
+
+  private static byte[] utf16(String value)
+  {
+    return value.getBytes(StandardCharsets.UTF_16LE);
+  }
+
+  private static class TestKafkaEntity extends ByteEntity implements KafkaEntity
+  {
+    private final Map<String, byte[]> headers;
+
+    TestKafkaEntity(byte[] payload, Map<String, byte[]> headers)
+    {
+      super(payload);
+      this.headers = headers;
+    }
+
+    @Override
+    public long getRecordTimestampMillis()
+    {
+      return 0;
+    }
+
+    @Override
+    public byte[] getHeader(String key)
+    {
+      return headers.get(key);
+    }
   }
 
   private void assertDimensionEquals(InputRow row, String dimension, Object expected)
