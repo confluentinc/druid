@@ -312,6 +312,58 @@ public class KafkaInputFormatTest
   }
 
   @Test
+  public void testHeaderWinsOnNameCollision() throws IOException
+  {
+    final KafkaInputFormat collidingFormat = new KafkaInputFormat(
+        new KafkaStringHeaderFormat(null),
+        null,
+        new JsonInputFormat(new JSONPathSpec(true, ImmutableList.of()), null, null, false, false),
+        // empty prefix so header name "foo" collides with payload column "foo"
+        "",
+        "kafka.newkey.key",
+        "kafka.newts.timestamp",
+        "kafka.newtopic.topic"
+    );
+    final Headers headers = new RecordHeaders(
+        ImmutableList.of(
+            new Header()
+            {
+              @Override
+              public String key()
+              {
+                return "foo";
+              }
+
+              @Override
+              public byte[] value()
+              {
+                return "fromHeader".getBytes(StandardCharsets.UTF_8);
+              }
+            }
+        )
+    );
+    final InputEntityReader reader = collidingFormat.createReader(
+        new InputRowSchema(
+            new TimestampSpec("timestamp", "iso", null),
+            new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("foo", "baz"))),
+            ColumnsFilter.all()
+        ),
+        newSettableByteEntity(makeInputEntity(null, SIMPLE_JSON_VALUE_BYTES, headers)),
+        null
+    );
+
+    try (CloseableIterator<InputRow> iterator = reader.read()) {
+      Assert.assertTrue(iterator.hasNext());
+      final InputRow row = iterator.next();
+      Assert.assertEquals("fromHeader", Iterables.getOnlyElement(row.getDimension("foo")));
+      // payload-only column and payload timestamp are unaffected
+      Assert.assertEquals("4", Iterables.getOnlyElement(row.getDimension("baz")));
+      Assert.assertEquals(DateTimes.of("2021-06-25"), row.getTimestamp());
+      Assert.assertFalse(iterator.hasNext());
+    }
+  }
+
+  @Test
   public void testTimestampFromHeader() throws IOException
   {
     final Iterable<Header> sampleHeaderWithTs = Iterables.unmodifiableIterable(
