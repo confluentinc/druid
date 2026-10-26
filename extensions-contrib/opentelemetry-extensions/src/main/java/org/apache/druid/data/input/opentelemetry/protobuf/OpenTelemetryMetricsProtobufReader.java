@@ -44,6 +44,8 @@ import org.apache.druid.java.util.common.parsers.ParseException;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -63,6 +65,8 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
   private final String metricAttributePrefix;
   private final String resourceAttributePrefix;
   private final DimensionsSpec dimensionsSpec;
+  private final List<String> headers;
+  private final Charset headerEncoding;
 
   private static final long NANOS_TO_MILLIS = 1_000_000L;
   private static final long MILLIS_PER_SECOND = 1_000L;
@@ -76,12 +80,37 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
       String resourceAttributePrefix
   )
   {
+    this(
+        dimensionsSpec,
+        source,
+        metricDimension,
+        valueDimension,
+        metricAttributePrefix,
+        resourceAttributePrefix,
+        Collections.emptyList(),
+        StandardCharsets.UTF_8
+    );
+  }
+
+  public OpenTelemetryMetricsProtobufReader(
+      DimensionsSpec dimensionsSpec,
+      SettableByteEntity<? extends ByteEntity> source,
+      String metricDimension,
+      String valueDimension,
+      String metricAttributePrefix,
+      String resourceAttributePrefix,
+      List<String> headers,
+      Charset headerEncoding
+  )
+  {
     this.dimensionsSpec = dimensionsSpec;
     this.source = source;
     this.metricDimension = metricDimension;
     this.valueDimension = valueDimension;
     this.metricAttributePrefix = metricAttributePrefix;
     this.resourceAttributePrefix = resourceAttributePrefix;
+    this.headers = headers;
+    this.headerEncoding = headerEncoding;
   }
 
   @Override
@@ -105,8 +134,9 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
   List<InputRow> readAsList()
   {
     ByteBuffer buffer = source.getEntity().getBuffer();
+    Map<String, Object> headerColumns = readHeaders();
     try {
-      return parseMetricsData(MetricsData.parseFrom(buffer));
+      return parseMetricsData(MetricsData.parseFrom(buffer), headerColumns);
     }
     catch (InvalidProtocolBufferException e) {
       throw new ParseException(null, e, "Protobuf message could not be parsed");
@@ -119,7 +149,24 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
     }
   }
 
-  private List<InputRow> parseMetricsData(final MetricsData metricsData)
+  private Map<String, Object> readHeaders()
+  {
+    Object entity = source.getEntity();
+    if (!(entity instanceof KafkaEntity)) {
+      return Collections.emptyMap();
+    }
+    KafkaEntity kafkaEntity = (KafkaEntity) entity;
+    Map<String, Object> headerColumns = new HashMap<>();
+    for (String key : headers) {
+      byte[] value = kafkaEntity.getHeader(key);
+      if (value != null) {
+        headerColumns.put(key, new String(value, headerEncoding));
+      }
+    }
+    return headerColumns;
+  }
+
+  private List<InputRow> parseMetricsData(final MetricsData metricsData, final Map<String, Object> headerColumns)
   {
     return metricsData.getResourceMetricsList()
         .stream()
@@ -139,12 +186,12 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
               .stream()
               .flatMap(scopeMetrics -> scopeMetrics.getMetricsList()
                   .stream()
-                  .flatMap(metric -> parseMetric(metric, resourceAttributes).stream()));
+                  .flatMap(metric -> parseMetric(metric, resourceAttributes, headerColumns).stream()));
         })
         .collect(Collectors.toList());
   }
 
-  private List<InputRow> parseMetric(Metric metric, Map<String, Object> resourceAttributes)
+  private List<InputRow> parseMetric(Metric metric, Map<String, Object> resourceAttributes, Map<String, Object> headerColumns)
   {
     final List<InputRow> inputRows;
     String metricName = metric.getName();
@@ -155,7 +202,7 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
             .getDataPointsList()
             .forEach(dataPoint -> {
               if (hasRecordedValue(dataPoint)) {
-                inputRows.add(parseNumberDataPoint(dataPoint, resourceAttributes, metricName));
+                inputRows.add(parseNumberDataPoint(dataPoint, resourceAttributes, headerColumns, metricName));
               }
             });
         break;
@@ -166,7 +213,7 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
             .getDataPointsList()
             .forEach(dataPoint -> {
               if (hasRecordedValue(dataPoint)) {
-                inputRows.add(parseNumberDataPoint(dataPoint, resourceAttributes, metricName));
+                inputRows.add(parseNumberDataPoint(dataPoint, resourceAttributes, headerColumns, metricName));
               }
             });
         break;
@@ -189,11 +236,13 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
 
   private InputRow parseNumberDataPoint(NumberDataPoint dataPoint,
                                         Map<String, Object> resourceAttributes,
+                                        Map<String, Object> headerColumns,
                                         String metricName)
   {
 
     int capacity = resourceAttributes.size()
           + dataPoint.getAttributesCount()
+          + headerColumns.size()
           + 4; // metric name + value columns + deviated_seconds + deviated_minutes
     Map<String, Object> event = Maps.newHashMapWithExpectedSize(capacity);
     event.put(metricDimension, metricName);
@@ -229,6 +278,7 @@ public class OpenTelemetryMetricsProtobufReader implements InputEntityReader
     catch (Exception e) {
       log.error(e, "Could not extract timestamp from record entity");
     }
+    headerColumns.forEach(event::putIfAbsent);
     return createRow(TimeUnit.NANOSECONDS.toMillis(dataPoint.getTimeUnixNano()), event);
   }
 

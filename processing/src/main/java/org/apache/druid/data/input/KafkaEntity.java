@@ -19,8 +19,10 @@
 
 package org.apache.druid.data.input;
 
+import javax.annotation.Nullable;
+
 /**
- * Interface for record entities that contain timestamp information.
+ * Interface for Kafka record entities, exposing the record timestamp and headers.
  */
 public interface KafkaEntity
 {
@@ -30,4 +32,12 @@ public interface KafkaEntity
    * @return the timestamp in milliseconds
    */
   long getRecordTimestampMillis();
+
+  /**
+   * Returns the value of the last header with the given key.
+   *
+   * @return the header value, or null if the record has no such header
+   */
+  @Nullable
+  byte[] getHeader(String key);
 }
