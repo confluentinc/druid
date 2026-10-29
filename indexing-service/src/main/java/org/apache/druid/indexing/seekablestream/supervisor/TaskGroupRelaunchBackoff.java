@@ -25,17 +25,19 @@ import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.DoubleSupplier;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 
 /**
  * Delays task creation for a task group whose tasks keep failing, using exponential backoff with jitter.
- * The first failure is not delayed. The backoff of a group is reset once one of its tasks succeeds or has been
- * running for {@link #HEALTHY_RUN_MILLIS}.
+ * The first failure is not delayed. The backoff of a group is reset once one of its tasks succeeds, or once a task
+ * that started after the last failure has been running for {@link #HEALTHY_RUN_MILLIS}.
  * <p>
  * Not thread-safe: {@link SeekableStreamSupervisor} uses it only from its notice-handling thread.
  */
@@ -46,6 +48,7 @@ class TaskGroupRelaunchBackoff
   static final long MAX_DELAY_MILLIS = 300_000;
   static final double JITTER = 0.2;
   static final long HEALTHY_RUN_MILLIS = 300_000;
+  static final int MAX_STATUS_CHECKS = 3;
 
   private static final Logger log = new Logger(TaskGroupRelaunchBackoff.class);
 
@@ -54,7 +57,7 @@ class TaskGroupRelaunchBackoff
   private final LongSupplier clock;
   private final DoubleSupplier random;
   private final Map<Integer, GroupBackoff> groupBackoffs = new HashMap<>();
-  private final Map<String, Integer> launchedTaskGroupIds = new HashMap<>();
+  private final Map<String, LaunchedTask> launchedTasks = new HashMap<>();
 
   TaskGroupRelaunchBackoff(String supervisorId, boolean enabled)
   {
@@ -70,16 +73,23 @@ class TaskGroupRelaunchBackoff
     this.random = random;
   }
 
+  boolean isEnabled()
+  {
+    return enabled;
+  }
+
   void recordFailure(int groupId)
   {
     if (!enabled) {
       return;
     }
 
+    final long nowMillis = clock.getAsLong();
     final GroupBackoff backoff = groupBackoffs.computeIfAbsent(groupId, id -> new GroupBackoff());
     backoff.consecutiveFailures++;
+    backoff.lastFailureMillis = nowMillis;
     final long delayMillis = computeDelayMillis(backoff.consecutiveFailures);
-    backoff.nextLaunchTimeMillis = clock.getAsLong() + delayMillis;
+    backoff.nextLaunchTimeMillis = nowMillis + delayMillis;
 
     if (delayMillis > 0) {
       log.warn(
@@ -95,25 +105,44 @@ class TaskGroupRelaunchBackoff
   void recordLaunch(int groupId, List<String> taskIds)
   {
     if (enabled) {
-      taskIds.forEach(taskId -> launchedTaskGroupIds.put(taskId, groupId));
+      taskIds.forEach(taskId -> launchedTasks.put(taskId, new LaunchedTask(groupId)));
     }
   }
 
   /**
-   * Stops tracking all launched tasks and returns those that are no longer active, mapped to their task group.
-   * The supervisor discovers active tasks itself; the returned ones may have completed before it could.
+   * Returns the tracked launched tasks, mapped to their task group, so that the supervisor can find the ones that
+   * complete before it discovers them. A task stays tracked until {@link #forgetLaunchedTask} is called for it, once
+   * the supervisor has discovered the task or found its final status, but it is returned at most
+   * {@link #MAX_STATUS_CHECKS} times.
    */
-  Map<String, Integer> removeLaunchedTasks(Set<String> activeTaskIds)
+  Map<String, Integer> pollLaunchedTasks()
   {
-    final Map<String, Integer> completedTasks = new HashMap<>(launchedTaskGroupIds);
-    completedTasks.keySet().removeAll(activeTaskIds);
-    launchedTaskGroupIds.clear();
-    return completedTasks;
+    final Map<String, Integer> tasks = new HashMap<>();
+    final Iterator<Map.Entry<String, LaunchedTask>> iterator = launchedTasks.entrySet().iterator();
+    while (iterator.hasNext()) {
+      final Map.Entry<String, LaunchedTask> entry = iterator.next();
+      final LaunchedTask task = entry.getValue();
+      if (task.statusChecks >= MAX_STATUS_CHECKS) {
+        iterator.remove();
+      } else {
+        task.statusChecks++;
+        tasks.put(entry.getKey(), task.groupId);
+      }
+    }
+    return tasks;
   }
 
-  boolean hasGroupsInBackoff()
+  void forgetLaunchedTask(String taskId)
   {
-    return groupBackoffs.values().stream().anyMatch(backoff -> backoff.consecutiveFailures > 1);
+    launchedTasks.remove(taskId);
+  }
+
+  /**
+   * Stops tracking the launched tasks of the group, for example because the supervisor killed them.
+   */
+  void forgetLaunchedTasks(int groupId)
+  {
+    launchedTasks.values().removeIf(task -> task.groupId == groupId);
   }
 
   void reset(int groupId)
@@ -122,29 +151,61 @@ class TaskGroupRelaunchBackoff
     forgetLaunchedTasks(groupId);
   }
 
-  /**
-   * Stops tracking the launched tasks of the group, for example because the supervisor killed them.
-   */
-  void forgetLaunchedTasks(int groupId)
-  {
-    launchedTaskGroupIds.values().removeIf(id -> id == groupId);
-  }
-
   void clear()
   {
     groupBackoffs.clear();
-    launchedTaskGroupIds.clear();
+    launchedTasks.clear();
   }
 
-  boolean isHealthy(@Nullable DateTime taskStartTime)
+  /**
+   * Moves the backoff of each task group to the groups that get its partitions after a task count change, so that the
+   * change does not relaunch failing partitions at once. A group that gets the partitions of several groups gets the
+   * longest backoff among them. Launched tasks are no longer tracked, since the supervisor stops all tasks for the
+   * change.
+   *
+   * @param newGroupIds maps the ID of a task group to the IDs of the task groups that get its partitions
+   */
+  void remapTaskGroups(Function<Integer, Set<Integer>> newGroupIds)
   {
-    return taskStartTime != null && clock.getAsLong() - taskStartTime.getMillis() >= HEALTHY_RUN_MILLIS;
+    final Map<Integer, GroupBackoff> remapped = new HashMap<>();
+    groupBackoffs.forEach(
+        (groupId, backoff) -> newGroupIds.apply(groupId).forEach(
+            newGroupId -> remapped.merge(newGroupId, backoff.copy(), GroupBackoff::keepLongest)
+        )
+    );
+    groupBackoffs.clear();
+    groupBackoffs.putAll(remapped);
+    launchedTasks.clear();
   }
 
-  long getRemainingDelayMillis(int groupId)
+  /**
+   * Whether a task of the group shows that the group has recovered: the task started after the last failure of the
+   * group and has been running for {@link #HEALTHY_RUN_MILLIS}. A task that started earlier, such as a replica that
+   * kept running while another replica failed, does not count.
+   */
+  boolean hasRecovered(int groupId, @Nullable DateTime taskStartTime)
   {
     final GroupBackoff backoff = groupBackoffs.get(groupId);
-    return backoff == null ? 0 : Math.max(0, backoff.nextLaunchTimeMillis - clock.getAsLong());
+    return backoff != null
+           && taskStartTime != null
+           && taskStartTime.getMillis() > backoff.lastFailureMillis
+           && clock.getAsLong() - taskStartTime.getMillis() >= HEALTHY_RUN_MILLIS;
+  }
+
+  /**
+   * Returns the task groups whose next launch is delayed, mapped to the remaining delay. The supervisor takes one
+   * snapshot per run, so that a delay that ends during the run does not change how the run treats the group.
+   */
+  Map<Integer, Long> getRemainingDelaysMillis()
+  {
+    final long nowMillis = clock.getAsLong();
+    final Map<Integer, Long> delaysMillis = new HashMap<>();
+    groupBackoffs.forEach((groupId, backoff) -> {
+      if (backoff.nextLaunchTimeMillis > nowMillis) {
+        delaysMillis.put(groupId, backoff.nextLaunchTimeMillis - nowMillis);
+      }
+    });
+    return delaysMillis;
   }
 
   private long computeDelayMillis(int consecutiveFailures)
@@ -153,14 +214,48 @@ class TaskGroupRelaunchBackoff
       return 0;
     }
 
+    // The cap applies before the jitter, so that delays at the cap are still spread out. It leaves room for the
+    // jitter, so that no delay exceeds MAX_DELAY_MILLIS.
+    final double delayMillis = Math.min(
+        MAX_DELAY_MILLIS / (1 + JITTER),
+        INITIAL_DELAY_MILLIS * Math.pow(MULTIPLIER, consecutiveFailures - 2)
+    );
     final double jitterFactor = 1 - JITTER + 2 * JITTER * random.getAsDouble();
-    final double delayMillis = INITIAL_DELAY_MILLIS * Math.pow(MULTIPLIER, consecutiveFailures - 2) * jitterFactor;
-    return (long) Math.min(MAX_DELAY_MILLIS, delayMillis);
+    return Math.round(delayMillis * jitterFactor);
   }
 
   private static class GroupBackoff
   {
     int consecutiveFailures;
+    long lastFailureMillis;
     long nextLaunchTimeMillis;
+
+    GroupBackoff copy()
+    {
+      final GroupBackoff copy = new GroupBackoff();
+      copy.consecutiveFailures = consecutiveFailures;
+      copy.lastFailureMillis = lastFailureMillis;
+      copy.nextLaunchTimeMillis = nextLaunchTimeMillis;
+      return copy;
+    }
+
+    GroupBackoff keepLongest(GroupBackoff other)
+    {
+      consecutiveFailures = Math.max(consecutiveFailures, other.consecutiveFailures);
+      lastFailureMillis = Math.max(lastFailureMillis, other.lastFailureMillis);
+      nextLaunchTimeMillis = Math.max(nextLaunchTimeMillis, other.nextLaunchTimeMillis);
+      return this;
+    }
+  }
+
+  private static class LaunchedTask
+  {
+    final int groupId;
+    int statusChecks;
+
+    LaunchedTask(int groupId)
+    {
+      this.groupId = groupId;
+    }
   }
 }

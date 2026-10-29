@@ -42,25 +42,26 @@ public class TaskGroupRelaunchBackoffTest
 
     backoff.recordFailure(GROUP_ID);
 
-    Assert.assertEquals(0, backoff.getRemainingDelayMillis(GROUP_ID));
+    Assert.assertEquals(0, getRemainingDelayMillis(backoff, GROUP_ID));
   }
 
   @Test
-  public void testDelayGrowsExponentiallyUpToMax()
+  public void testDelayGrowsExponentiallyUpToCap()
   {
     final TaskGroupRelaunchBackoff backoff = newBackoff(NO_JITTER);
     backoff.recordFailure(GROUP_ID);
 
-    final long[] expectedDelays = {1000, 1600, 2560, 4096, 6553};
+    final long[] expectedDelays = {1000, 1600, 2560, 4096, 6554};
     for (long expectedDelay : expectedDelays) {
       backoff.recordFailure(GROUP_ID);
-      Assert.assertEquals(expectedDelay, backoff.getRemainingDelayMillis(GROUP_ID), 1.0);
+      Assert.assertEquals(expectedDelay, getRemainingDelayMillis(backoff, GROUP_ID), 1.0);
     }
 
+    // The cap leaves room for the jitter
     for (int i = 0; i < 20; i++) {
       backoff.recordFailure(GROUP_ID);
     }
-    Assert.assertEquals(TaskGroupRelaunchBackoff.MAX_DELAY_MILLIS, backoff.getRemainingDelayMillis(GROUP_ID));
+    Assert.assertEquals(250_000, getRemainingDelayMillis(backoff, GROUP_ID));
   }
 
   @Test
@@ -69,23 +70,26 @@ public class TaskGroupRelaunchBackoffTest
     final TaskGroupRelaunchBackoff lowest = newBackoff(0.0);
     lowest.recordFailure(GROUP_ID);
     lowest.recordFailure(GROUP_ID);
-    Assert.assertEquals(800, lowest.getRemainingDelayMillis(GROUP_ID), 1.0);
+    Assert.assertEquals(800, getRemainingDelayMillis(lowest, GROUP_ID), 1.0);
 
     final TaskGroupRelaunchBackoff highest = newBackoff(1.0);
     highest.recordFailure(GROUP_ID);
     highest.recordFailure(GROUP_ID);
-    Assert.assertEquals(1200, highest.getRemainingDelayMillis(GROUP_ID), 1.0);
+    Assert.assertEquals(1200, getRemainingDelayMillis(highest, GROUP_ID), 1.0);
   }
 
   @Test
-  public void testJitterDoesNotExceedMaxDelay()
+  public void testJitterSpreadsDelaysAtCapWithoutExceedingMaxDelay()
   {
-    final TaskGroupRelaunchBackoff backoff = newBackoff(1.0);
+    final TaskGroupRelaunchBackoff lowest = newBackoff(0.0);
+    final TaskGroupRelaunchBackoff highest = newBackoff(1.0);
     for (int i = 0; i < 30; i++) {
-      backoff.recordFailure(GROUP_ID);
+      lowest.recordFailure(GROUP_ID);
+      highest.recordFailure(GROUP_ID);
     }
 
-    Assert.assertEquals(TaskGroupRelaunchBackoff.MAX_DELAY_MILLIS, backoff.getRemainingDelayMillis(GROUP_ID));
+    Assert.assertEquals(200_000, getRemainingDelayMillis(lowest, GROUP_ID));
+    Assert.assertEquals(TaskGroupRelaunchBackoff.MAX_DELAY_MILLIS, getRemainingDelayMillis(highest, GROUP_ID));
   }
 
   @Test
@@ -96,10 +100,11 @@ public class TaskGroupRelaunchBackoffTest
     backoff.recordFailure(GROUP_ID);
 
     now.addAndGet(400);
-    Assert.assertEquals(600, backoff.getRemainingDelayMillis(GROUP_ID), 1.0);
+    Assert.assertEquals(600, getRemainingDelayMillis(backoff, GROUP_ID), 1.0);
 
     now.addAndGet(600);
-    Assert.assertEquals(0, backoff.getRemainingDelayMillis(GROUP_ID));
+    Assert.assertEquals(0, getRemainingDelayMillis(backoff, GROUP_ID));
+    Assert.assertEquals(Map.of(), backoff.getRemainingDelaysMillis());
   }
 
   @Test
@@ -109,8 +114,8 @@ public class TaskGroupRelaunchBackoffTest
     backoff.recordFailure(GROUP_ID);
     backoff.recordFailure(GROUP_ID);
 
-    Assert.assertTrue(backoff.getRemainingDelayMillis(GROUP_ID) > 0);
-    Assert.assertEquals(0, backoff.getRemainingDelayMillis(GROUP_ID + 1));
+    Assert.assertTrue(getRemainingDelayMillis(backoff, GROUP_ID) > 0);
+    Assert.assertEquals(0, getRemainingDelayMillis(backoff, GROUP_ID + 1));
   }
 
   @Test
@@ -121,10 +126,10 @@ public class TaskGroupRelaunchBackoffTest
     backoff.recordFailure(GROUP_ID);
 
     backoff.reset(GROUP_ID);
-    Assert.assertEquals(0, backoff.getRemainingDelayMillis(GROUP_ID));
+    Assert.assertEquals(0, getRemainingDelayMillis(backoff, GROUP_ID));
 
     backoff.recordFailure(GROUP_ID);
-    Assert.assertEquals(0, backoff.getRemainingDelayMillis(GROUP_ID));
+    Assert.assertEquals(0, getRemainingDelayMillis(backoff, GROUP_ID));
   }
 
   @Test
@@ -138,33 +143,50 @@ public class TaskGroupRelaunchBackoffTest
 
     backoff.clear();
 
-    for (int groupId = 0; groupId < 3; groupId++) {
-      Assert.assertEquals(0, backoff.getRemainingDelayMillis(groupId));
-    }
+    Assert.assertEquals(Map.of(), backoff.getRemainingDelaysMillis());
   }
 
   @Test
-  public void testIsHealthy()
+  public void testHasRecoveredOnlyWithTaskStartedAfterLastFailure()
   {
     final TaskGroupRelaunchBackoff backoff = newBackoff(NO_JITTER);
+    final long failureMillis = now.get();
 
-    Assert.assertFalse(backoff.isHealthy(null));
-    Assert.assertFalse(backoff.isHealthy(DateTimes.utc(now.get() - TaskGroupRelaunchBackoff.HEALTHY_RUN_MILLIS + 1)));
-    Assert.assertTrue(backoff.isHealthy(DateTimes.utc(now.get() - TaskGroupRelaunchBackoff.HEALTHY_RUN_MILLIS)));
+    // No failure, so nothing to recover from
+    Assert.assertFalse(backoff.hasRecovered(GROUP_ID, DateTimes.utc(failureMillis - 1)));
+
+    backoff.recordFailure(GROUP_ID);
+    now.addAndGet(2 * TaskGroupRelaunchBackoff.HEALTHY_RUN_MILLIS);
+
+    // A replica that was already running when the failure happened
+    Assert.assertFalse(backoff.hasRecovered(GROUP_ID, DateTimes.utc(failureMillis - 1)));
+    Assert.assertFalse(backoff.hasRecovered(GROUP_ID, null));
+
+    final long startMillis = failureMillis + 1;
+    now.set(startMillis + TaskGroupRelaunchBackoff.HEALTHY_RUN_MILLIS - 1);
+    Assert.assertFalse(backoff.hasRecovered(GROUP_ID, DateTimes.utc(startMillis)));
+    now.set(startMillis + TaskGroupRelaunchBackoff.HEALTHY_RUN_MILLIS);
+    Assert.assertTrue(backoff.hasRecovered(GROUP_ID, DateTimes.utc(startMillis)));
+    Assert.assertFalse(backoff.hasRecovered(GROUP_ID + 1, DateTimes.utc(startMillis)));
   }
 
   @Test
-  public void testRemoveLaunchedTasksReturnsOnlyInactiveTasks()
+  public void testPollLaunchedTasksReturnsTasksUntilForgottenOrChecked()
   {
     final TaskGroupRelaunchBackoff backoff = newBackoff(NO_JITTER);
     backoff.recordLaunch(GROUP_ID, List.of("task-a", "task-b"));
     backoff.recordLaunch(GROUP_ID + 1, List.of("task-c"));
 
     Assert.assertEquals(
-        Map.of("task-a", GROUP_ID, "task-c", GROUP_ID + 1),
-        backoff.removeLaunchedTasks(Set.of("task-b"))
+        Map.of("task-a", GROUP_ID, "task-b", GROUP_ID, "task-c", GROUP_ID + 1),
+        backoff.pollLaunchedTasks()
     );
-    Assert.assertEquals(Map.of(), backoff.removeLaunchedTasks(Set.of()));
+
+    backoff.forgetLaunchedTask("task-a");
+    for (int i = 1; i < TaskGroupRelaunchBackoff.MAX_STATUS_CHECKS; i++) {
+      Assert.assertEquals(Map.of("task-b", GROUP_ID, "task-c", GROUP_ID + 1), backoff.pollLaunchedTasks());
+    }
+    Assert.assertEquals(Map.of(), backoff.pollLaunchedTasks());
   }
 
   @Test
@@ -175,11 +197,11 @@ public class TaskGroupRelaunchBackoffTest
     backoff.recordLaunch(GROUP_ID + 1, List.of("task-b"));
 
     backoff.reset(GROUP_ID);
-    Assert.assertEquals(Map.of("task-b", GROUP_ID + 1), backoff.removeLaunchedTasks(Set.of()));
+    Assert.assertEquals(Map.of("task-b", GROUP_ID + 1), backoff.pollLaunchedTasks());
 
     backoff.recordLaunch(GROUP_ID, List.of("task-c"));
     backoff.clear();
-    Assert.assertEquals(Map.of(), backoff.removeLaunchedTasks(Set.of()));
+    Assert.assertEquals(Map.of(), backoff.pollLaunchedTasks());
   }
 
   @Test
@@ -193,25 +215,45 @@ public class TaskGroupRelaunchBackoffTest
 
     backoff.forgetLaunchedTasks(GROUP_ID);
 
-    Assert.assertTrue(backoff.getRemainingDelayMillis(GROUP_ID) > 0);
-    Assert.assertEquals(Map.of("task-b", GROUP_ID + 1), backoff.removeLaunchedTasks(Set.of()));
+    Assert.assertTrue(getRemainingDelayMillis(backoff, GROUP_ID) > 0);
+    Assert.assertEquals(Map.of("task-b", GROUP_ID + 1), backoff.pollLaunchedTasks());
   }
 
   @Test
-  public void testHasGroupsInBackoffAfterSecondFailure()
+  public void testRemapTaskGroupsMovesBackoffWithPartitions()
   {
     final TaskGroupRelaunchBackoff backoff = newBackoff(NO_JITTER);
-    backoff.recordFailure(GROUP_ID);
-    Assert.assertFalse(backoff.hasGroupsInBackoff());
+    backoff.recordFailure(0);
+    backoff.recordFailure(0);
+    backoff.recordLaunch(0, List.of("task-a"));
 
-    backoff.recordFailure(GROUP_ID);
-    Assert.assertTrue(backoff.hasGroupsInBackoff());
+    // The task count goes from 2 to 4: the partitions of group 0 go to groups 0 and 2, those of group 1 to 1 and 3
+    backoff.remapTaskGroups(groupId -> Set.of(groupId, groupId + 2));
 
-    now.addAndGet(TaskGroupRelaunchBackoff.MAX_DELAY_MILLIS);
-    Assert.assertTrue(backoff.hasGroupsInBackoff());
+    Assert.assertEquals(Map.of(0, 1000L, 2, 1000L), backoff.getRemainingDelaysMillis());
+    Assert.assertEquals(Map.of(), backoff.pollLaunchedTasks());
 
-    backoff.reset(GROUP_ID);
-    Assert.assertFalse(backoff.hasGroupsInBackoff());
+    // The new groups count failures on from the old group, independently of each other
+    backoff.recordFailure(0);
+    Assert.assertEquals(Map.of(0, 1600L, 2, 1000L), backoff.getRemainingDelaysMillis());
+  }
+
+  @Test
+  public void testRemapTaskGroupsKeepsLongestBackoff()
+  {
+    final TaskGroupRelaunchBackoff backoff = newBackoff(NO_JITTER);
+    backoff.recordFailure(0);
+    backoff.recordFailure(0);
+    for (int i = 0; i < 3; i++) {
+      backoff.recordFailure(1);
+    }
+
+    // The task count goes from 2 to 1
+    backoff.remapTaskGroups(groupId -> Set.of(0));
+
+    Assert.assertEquals(Map.of(0, 1600L), backoff.getRemainingDelaysMillis());
+    backoff.recordFailure(0);
+    Assert.assertEquals(2560, getRemainingDelayMillis(backoff, 0));
   }
 
   @Test
@@ -224,13 +266,18 @@ public class TaskGroupRelaunchBackoffTest
     }
     backoff.recordLaunch(GROUP_ID, List.of("task-a"));
 
-    Assert.assertEquals(0, backoff.getRemainingDelayMillis(GROUP_ID));
-    Assert.assertFalse(backoff.hasGroupsInBackoff());
-    Assert.assertEquals(Map.of(), backoff.removeLaunchedTasks(Set.of()));
+    Assert.assertFalse(backoff.isEnabled());
+    Assert.assertEquals(Map.of(), backoff.getRemainingDelaysMillis());
+    Assert.assertEquals(Map.of(), backoff.pollLaunchedTasks());
   }
 
   private TaskGroupRelaunchBackoff newBackoff(double random)
   {
     return new TaskGroupRelaunchBackoff("supervisor", true, now::get, () -> random);
+  }
+
+  private static long getRemainingDelayMillis(TaskGroupRelaunchBackoff backoff, int groupId)
+  {
+    return backoff.getRemainingDelaysMillis().getOrDefault(groupId, 0L);
   }
 }
