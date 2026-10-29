@@ -119,6 +119,14 @@ class TaskGroupRelaunchBackoff
   void reset(int groupId)
   {
     groupBackoffs.remove(groupId);
+    forgetLaunchedTasks(groupId);
+  }
+
+  /**
+   * Stops tracking the launched tasks of the group, for example because the supervisor killed them.
+   */
+  void forgetLaunchedTasks(int groupId)
+  {
     launchedTaskGroupIds.values().removeIf(id -> id == groupId);
   }
 

@@ -2966,6 +2966,8 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     }
 
     if (!partitionIds.equals(previousPartitionIds)) {
+      // task groups can now have other partitions, so the failures recorded for them no longer apply
+      taskGroupRelaunchBackoff.clear();
       assignRecordSupplierToPartitionIds();
       // the set of partition IDs has changed, have any running tasks stop early so that we can adjust to the
       // repartitioning quickly by creating new tasks
@@ -3690,6 +3692,8 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
               "No task in the corresponding pending completion taskGroup[%d] succeeded before completion timeout elapsed",
               groupId
           );
+          // the killed reading tasks are part of this failure, so they must not be counted again
+          taskGroupRelaunchBackoff.forgetLaunchedTasks(groupId);
           taskGroupRelaunchBackoff.recordFailure(groupId);
           toRemove.add(group);
         }
@@ -3705,7 +3709,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
   private void checkCurrentTaskState() throws ExecutionException, InterruptedException
   {
     Map<String, Task> activeTaskMap = getActiveTaskMap();
-    final Set<Integer> groupsWithUndiscoveredFailures = findGroupsWithUndiscoveredTaskFailures(activeTaskMap);
+    final Map<Integer, TaskState> undiscoveredTaskStates = getUndiscoveredTaskStates(activeTaskMap);
 
     List<ListenableFuture<Void>> futures = new ArrayList<>();
     Iterator<Entry<Integer, TaskGroup>> iTaskGroups = activelyReadingTaskGroups.entrySet().iterator();
@@ -3722,8 +3726,9 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
       log.debug("taskGroup[%d] pre-pruning: %s.", groupId, taskGroup.taskIds());
 
-      boolean taskFailed = groupsWithUndiscoveredFailures.remove(groupId);
-      boolean groupHealthy = false;
+      final TaskState undiscoveredTaskState = undiscoveredTaskStates.remove(groupId);
+      boolean taskFailed = undiscoveredTaskState == TaskState.FAILED;
+      boolean groupHealthy = undiscoveredTaskState == TaskState.SUCCESS;
       Iterator<Entry<String, TaskData>> iTasks = taskGroup.tasks.entrySet().iterator();
       while (iTasks.hasNext()) {
         Entry<String, TaskData> task = iTasks.next();
@@ -3769,7 +3774,13 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       log.debug("After pruning, taskGroup[%d] has tasks[%s].", groupId, taskGroup.taskIds());
     }
     // Groups that were already removed in this run, for example by checkPendingCompletionTasks()
-    groupsWithUndiscoveredFailures.forEach(taskGroupRelaunchBackoff::recordFailure);
+    undiscoveredTaskStates.forEach((groupId, state) -> {
+      if (state == TaskState.SUCCESS) {
+        taskGroupRelaunchBackoff.reset(groupId);
+      } else {
+        taskGroupRelaunchBackoff.recordFailure(groupId);
+      }
+    });
 
     // Ignore return value; just await.
     coalesceAndAwait(futures);
@@ -3777,12 +3788,15 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
   /**
    * A task joins its group only when {@link #discoverTasks()} finds it active, so the checks in
-   * {@link #checkCurrentTaskState()} never see a task that fails right after it is launched. This method finds such
-   * tasks by their status in task storage.
+   * {@link #checkCurrentTaskState()} never see a task that completes right after it is launched. This method finds
+   * such tasks by their status in task storage.
+   *
+   * @return task group IDs mapped to {@link TaskState#SUCCESS} if such a task of the group succeeded, else to
+   * {@link TaskState#FAILED}
    */
-  private Set<Integer> findGroupsWithUndiscoveredTaskFailures(Map<String, Task> activeTaskMap)
+  private Map<Integer, TaskState> getUndiscoveredTaskStates(Map<String, Task> activeTaskMap)
   {
-    final Set<Integer> groupIds = new HashSet<>();
+    final Map<Integer, TaskState> taskStates = new HashMap<>();
     taskGroupRelaunchBackoff.removeLaunchedTasks(activeTaskMap.keySet()).forEach((taskId, groupId) -> {
       final TaskGroup taskGroup = activelyReadingTaskGroups.get(groupId);
       if ((taskGroup != null && taskGroup.tasks.containsKey(taskId)) || isTaskInPendingCompletionGroups(taskId)) {
@@ -3790,12 +3804,14 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       }
 
       final Optional<TaskStatus> status = taskStorage.getStatus(taskId);
-      if (status.isPresent() && status.get().isFailure()) {
-        stateManager.recordCompletedTaskState(TaskState.FAILED);
-        groupIds.add(groupId);
+      if (status.isPresent() && status.get().isComplete()) {
+        final TaskState state = status.get().getStatusCode();
+        stateManager.recordCompletedTaskState(state);
+        // a success wins over failures of other replicas
+        taskStates.merge(groupId, state, (a, b) -> a == TaskState.SUCCESS ? a : b);
       }
     });
-    return groupIds;
+    return taskStates;
   }
 
   private void checkIfStreamInactiveAndTurnSupervisorIdle()
@@ -3868,12 +3884,10 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
   private void createNewTasks() throws JsonProcessingException
   {
     // update the checkpoints in the taskGroup to latest ones so that new tasks do not read what is already published
-    // groups in relaunch backoff get no new tasks in this run, so they are verified when the backoff ends
     verifyAndMergeCheckpoints(
         activelyReadingTaskGroups.values()
                                  .stream()
                                  .filter(taskGroup -> taskGroup.tasks.size() < ioConfig.getReplicas())
-                                 .filter(group -> taskGroupRelaunchBackoff.getRemainingDelayMillis(group.groupId) == 0)
                                  .collect(Collectors.toList())
     );
 

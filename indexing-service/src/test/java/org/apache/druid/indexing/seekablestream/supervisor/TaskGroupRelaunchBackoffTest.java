@@ -183,6 +183,21 @@ public class TaskGroupRelaunchBackoffTest
   }
 
   @Test
+  public void testForgetLaunchedTasksKeepsBackoff()
+  {
+    final TaskGroupRelaunchBackoff backoff = newBackoff(NO_JITTER);
+    backoff.recordFailure(GROUP_ID);
+    backoff.recordFailure(GROUP_ID);
+    backoff.recordLaunch(GROUP_ID, List.of("task-a"));
+    backoff.recordLaunch(GROUP_ID + 1, List.of("task-b"));
+
+    backoff.forgetLaunchedTasks(GROUP_ID);
+
+    Assert.assertTrue(backoff.getRemainingDelayMillis(GROUP_ID) > 0);
+    Assert.assertEquals(Map.of("task-b", GROUP_ID + 1), backoff.removeLaunchedTasks(Set.of()));
+  }
+
+  @Test
   public void testHasGroupsInBackoffAfterSecondFailure()
   {
     final TaskGroupRelaunchBackoff backoff = newBackoff(NO_JITTER);
