@@ -52,6 +52,10 @@ public class SupervisorStateManagerConfig
   @JsonProperty("idleConfig.inactiveAfterMillis")
   private long inactiveAfterMillis = 600_000L;
 
+  // Whether streaming supervisors delay relaunching task groups whose tasks keep failing
+  @JsonProperty("taskRelaunchBackoff.enabled")
+  private boolean taskRelaunchBackoffEnabled = false;
+
   public SupervisorStateManagerConfig()
   {
 
@@ -100,5 +104,10 @@ public class SupervisorStateManagerConfig
   public long getInactiveAfterMillis()
   {
     return inactiveAfterMillis;
+  }
+
+  public boolean isTaskRelaunchBackoffEnabled()
+  {
+    return taskRelaunchBackoffEnabled;
   }
 }

@@ -66,4 +66,18 @@ public class SupervisorStateManagerTest
     Assert.assertTrue(stateManagerConfig.isIdleConfigEnabled());
     Assert.assertEquals(60000, stateManagerConfig.getInactiveAfterMillis());
   }
+
+  @Test
+  public void testTaskRelaunchBackoffSerde()
+  {
+    Assert.assertFalse(new SupervisorStateManagerConfig().isTaskRelaunchBackoffEnabled());
+
+    ObjectMapper mapper = new DefaultObjectMapper();
+    stateManagerConfig = mapper.convertValue(
+        ImmutableMap.of("taskRelaunchBackoff.enabled", "true"),
+        SupervisorStateManagerConfig.class
+    );
+
+    Assert.assertTrue(stateManagerConfig.isTaskRelaunchBackoffEnabled());
+  }
 }
