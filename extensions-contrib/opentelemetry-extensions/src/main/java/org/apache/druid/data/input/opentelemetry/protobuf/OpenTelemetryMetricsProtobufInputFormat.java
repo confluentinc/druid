@@ -28,7 +28,12 @@ import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.indexing.seekablestream.SettableByteEntity;
 import org.apache.druid.java.util.common.StringUtils;
 
+import javax.annotation.Nullable;
 import java.io.File;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 public class OpenTelemetryMetricsProtobufInputFormat implements InputFormat
@@ -41,18 +46,24 @@ public class OpenTelemetryMetricsProtobufInputFormat implements InputFormat
   private final String valueDimension;
   private final String metricAttributePrefix;
   private final String resourceAttributePrefix;
+  private final List<String> headers;
+  private final Charset headerEncoding;
 
   public OpenTelemetryMetricsProtobufInputFormat(
       @JsonProperty("metricDimension") String metricDimension,
       @JsonProperty("valueDimension") String valueDimension,
       @JsonProperty("metricAttributePrefix") String metricAttributePrefix,
-      @JsonProperty("resourceAttributePrefix") String resourceAttributePrefix
+      @JsonProperty("resourceAttributePrefix") String resourceAttributePrefix,
+      @JsonProperty("headers") @Nullable List<String> headers,
+      @JsonProperty("headerEncoding") @Nullable String headerEncoding
   )
   {
     this.metricDimension = metricDimension != null ? metricDimension : DEFAULT_METRIC_DIMENSION;
     this.valueDimension = valueDimension != null ? valueDimension : DEFAULT_VALUE_DIMENSION;
     this.metricAttributePrefix = StringUtils.nullToEmptyNonDruidDataString(metricAttributePrefix);
     this.resourceAttributePrefix = resourceAttributePrefix != null ? resourceAttributePrefix : DEFAULT_RESOURCE_PREFIX;
+    this.headers = headers != null ? headers : Collections.emptyList();
+    this.headerEncoding = headerEncoding != null ? Charset.forName(headerEncoding) : StandardCharsets.UTF_8;
   }
 
   @Override
@@ -80,7 +91,9 @@ public class OpenTelemetryMetricsProtobufInputFormat implements InputFormat
             metricDimension,
             valueDimension,
             metricAttributePrefix,
-            resourceAttributePrefix
+            resourceAttributePrefix,
+            headers,
+            headerEncoding
     );
   }
 
@@ -108,6 +121,18 @@ public class OpenTelemetryMetricsProtobufInputFormat implements InputFormat
     return resourceAttributePrefix;
   }
 
+  @JsonProperty
+  public List<String> getHeaders()
+  {
+    return headers;
+  }
+
+  @JsonProperty
+  public String getHeaderEncoding()
+  {
+    return headerEncoding.name();
+  }
+
   @Override
   public boolean equals(Object o)
   {
@@ -121,12 +146,21 @@ public class OpenTelemetryMetricsProtobufInputFormat implements InputFormat
     return Objects.equals(metricDimension, that.metricDimension)
             && Objects.equals(valueDimension, that.valueDimension)
             && Objects.equals(metricAttributePrefix, that.metricAttributePrefix)
-            && Objects.equals(resourceAttributePrefix, that.resourceAttributePrefix);
+            && Objects.equals(resourceAttributePrefix, that.resourceAttributePrefix)
+            && Objects.equals(headers, that.headers)
+            && Objects.equals(headerEncoding, that.headerEncoding);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(metricDimension, valueDimension, metricAttributePrefix, resourceAttributePrefix);
+    return Objects.hash(
+        metricDimension,
+        valueDimension,
+        metricAttributePrefix,
+        resourceAttributePrefix,
+        headers,
+        headerEncoding
+    );
   }
 }

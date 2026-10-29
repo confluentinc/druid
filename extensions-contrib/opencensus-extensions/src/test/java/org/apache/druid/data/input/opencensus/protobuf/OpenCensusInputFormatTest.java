@@ -20,6 +20,7 @@
 package org.apache.druid.data.input.opencensus.protobuf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import org.apache.druid.data.input.InputFormat;
 import org.junit.Assert;
 import org.junit.Test;
@@ -29,7 +30,14 @@ public class OpenCensusInputFormatTest
   @Test
   public void testSerde() throws Exception
   {
-    OpenCensusProtobufInputFormat inputFormat = new OpenCensusProtobufInputFormat("metric.name", null, "descriptor.", "custom.");
+    OpenCensusProtobufInputFormat inputFormat = new OpenCensusProtobufInputFormat(
+        "metric.name",
+        null,
+        "descriptor.",
+        "custom.",
+        ImmutableList.of("metric.name"),
+        "UTF-16LE"
+    );
 
     final ObjectMapper jsonMapper = new ObjectMapper();
     jsonMapper.registerModules(new OpenCensusProtobufExtensionsModule().getJacksonModules());
@@ -42,15 +50,19 @@ public class OpenCensusInputFormatTest
     Assert.assertEquals("metric.name", actual.getMetricDimension());
     Assert.assertEquals("descriptor.", actual.getMetricLabelPrefix());
     Assert.assertEquals("custom.", actual.getResourceLabelPrefix());
+    Assert.assertEquals(ImmutableList.of("metric.name"), actual.getHeaders());
+    Assert.assertEquals("UTF-16LE", actual.getHeaderEncoding());
   }
 
   @Test
   public void testDefaults()
   {
-    OpenCensusProtobufInputFormat inputFormat = new OpenCensusProtobufInputFormat(null, null, null, null);
+    OpenCensusProtobufInputFormat inputFormat = new OpenCensusProtobufInputFormat(null, null, null, null, null, null);
 
     Assert.assertEquals("name", inputFormat.getMetricDimension());
     Assert.assertEquals("", inputFormat.getMetricLabelPrefix());
     Assert.assertEquals("resource.", inputFormat.getResourceLabelPrefix());
+    Assert.assertTrue(inputFormat.getHeaders().isEmpty());
+    Assert.assertEquals("UTF-8", inputFormat.getHeaderEncoding());
   }
 }

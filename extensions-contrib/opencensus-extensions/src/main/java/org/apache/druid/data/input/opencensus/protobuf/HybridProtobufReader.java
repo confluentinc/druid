@@ -34,6 +34,8 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandle;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.Charset;
+import java.util.List;
 
 public class HybridProtobufReader implements InputEntityReader
 {
@@ -46,6 +48,8 @@ public class HybridProtobufReader implements InputEntityReader
   private final String valueDimension;
   private final String metricLabelPrefix;
   private final String resourceLabelPrefix;
+  private final List<String> headers;
+  private final Charset headerEncoding;
 
   private volatile MethodHandle getHeaderMethod = null;
 
@@ -61,7 +65,9 @@ public class HybridProtobufReader implements InputEntityReader
       String metricDimension,
       String valueDimension,
       String metricLabelPrefix,
-      String resourceLabelPrefix
+      String resourceLabelPrefix,
+      List<String> headers,
+      Charset headerEncoding
   )
   {
     this.dimensionsSpec = dimensionsSpec;
@@ -70,6 +76,8 @@ public class HybridProtobufReader implements InputEntityReader
     this.valueDimension = valueDimension;
     this.metricLabelPrefix = metricLabelPrefix;
     this.resourceLabelPrefix = resourceLabelPrefix;
+    this.headers = headers;
+    this.headerEncoding = headerEncoding;
   }
 
   @Override
@@ -88,7 +96,9 @@ public class HybridProtobufReader implements InputEntityReader
             metricDimension,
             valueDimension,
             metricLabelPrefix,
-            resourceLabelPrefix
+            resourceLabelPrefix,
+            headers,
+            headerEncoding
         );
       case OPENCENSUS:
       default:
