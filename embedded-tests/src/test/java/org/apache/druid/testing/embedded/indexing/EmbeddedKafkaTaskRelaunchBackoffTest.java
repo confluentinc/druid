@@ -81,7 +81,7 @@ public class EmbeddedKafkaTaskRelaunchBackoffTest
 
       // A failure is seen about 5 s after the launch, and the delay (1, 1.6, 2.6, 4.1 s...) starts then.
       // Each delay is longer than the previous one even with jitter, so the gaps grow.
-      // Without a wake-up at the end of each delay, launches would wait for the 30 s supervisor period.
+      // Without a wake-up at the end of each delay, launches would wait for the 5 min supervisor period.
       Assertions.assertTrue(gaps.size() >= 4 && gaps.size() <= 7, "gaps: " + gaps);
       for (int i = 1; i < gaps.size(); i++) {
         Assertions.assertTrue(gaps.get(i) > gaps.get(i - 1), "gaps: " + gaps);
@@ -244,7 +244,8 @@ public class EmbeddedKafkaTaskRelaunchBackoffTest
               kafkaServer.consumerProperties(),
               null, null, null,
               Period.millis(10),
-              Period.seconds(30),
+              // Longer than the test, so that a failure is seen only by the run 5 s after its launch
+              Period.minutes(5),
               true,
               Period.minutes(30),
               null, null, null, null, null, null, null, null
