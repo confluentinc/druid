@@ -35,7 +35,9 @@ import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.data.input.kafka.KafkaRecordEntity;
 import org.apache.druid.data.input.kafka.KafkaTopicPartition;
+import org.apache.druid.error.DruidException;
 import org.apache.druid.indexer.TaskLocation;
+import org.apache.druid.indexer.TaskState;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexer.granularity.UniformGranularitySpec;
 import org.apache.druid.indexing.common.TaskInfoProvider;
@@ -177,6 +179,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
   private RowIngestionMetersFactory rowIngestionMetersFactory;
   private StubServiceEmitter serviceEmitter;
   private SupervisorStateManagerConfig supervisorConfig;
+  private final Capture<String> checkpointedTaskIds = Capture.newInstance(CaptureType.ALL);
   private KafkaSupervisorIngestionSpec ingestionSchema;
 
   private static String getTopic()
@@ -1642,6 +1645,290 @@ public class KafkaSupervisorTest extends EasyMockSupport
         iHaveFailed.getIOConfig().getBaseSequenceName(),
         ((KafkaIndexTask) aNewTaskCapture.getValue()).getIOConfig().getBaseSequenceName()
     );
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffDelaysTasksThatFailBeforeDiscovery() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+
+    final Task replacement = runSupervisor(List.of(), task, true);
+    runSupervisor(List.of(), replacement, false);
+
+    // A supervisor reset clears the backoff, so the task group is relaunched at once
+    EasyMock.reset(indexerMetadataStorageCoordinator, taskQueue);
+    EasyMock.expect(indexerMetadataStorageCoordinator.deleteDataSourceMetadata(DATASOURCE)).andReturn(true);
+    EasyMock.expect(indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(DATASOURCE))
+            .andReturn(new KafkaDataSourceMetadata(null))
+            .anyTimes();
+    EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(Map.of()).anyTimes();
+    EasyMock.expect(taskQueue.add(EasyMock.anyObject(Task.class))).andReturn(true);
+    EasyMock.replay(indexerMetadataStorageCoordinator, taskQueue);
+
+    supervisor.resetInternal(null);
+    supervisor.runInternal();
+    verifyAll();
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffDelaysDiscoveredTasksThatFail() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+
+    runSupervisor(List.of(task), null, false);
+    final Task replacement = runSupervisor(List.of(), task, true);
+    runSupervisor(List.of(replacement), null, false);
+    runSupervisor(List.of(), replacement, false);
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffDelaysReplicaThatFailsWhileOtherReplicaRuns() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final List<Task> tasks = startSupervisor(2);
+    final Task runningReplica = tasks.get(0);
+
+    final Task replacement = runSupervisor(List.of(runningReplica), tasks.get(1), true);
+    checkpointedTaskIds.reset();
+    runSupervisor(List.of(runningReplica), replacement, false);
+
+    // The task group is in backoff, and its checkpoints are still verified
+    Assert.assertTrue(checkpointedTaskIds.getValues().contains(runningReplica.getId()));
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffDoesNotDelayReplicaThatFailsWhileOtherReplicaIsHealthy() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    // A replica that has been running for 5 minutes makes its task group healthy
+    final List<Task> tasks = startSupervisor(2, DateTimes.nowUtc().minusMinutes(6));
+    final Task runningReplica = tasks.get(0);
+
+    Task failedReplica = tasks.get(1);
+    for (int i = 0; i < 3; i++) {
+      failedReplica = runSupervisor(List.of(runningReplica), failedReplica, true);
+    }
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffIgnoresTasksThatWereNotAdded() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    supervisor = getTestableSupervisor(1, 1, true, "PT1H", null, null);
+    addSomeEvents(1);
+    expectSupervisorCalls(DateTimes.nowUtc());
+    EasyMock.expect(taskQueue.add(EasyMock.anyObject(Task.class)))
+            .andThrow(DruidException.defensive("Task queue is full"))
+            .times(3);
+    replayAll();
+
+    supervisor.start();
+    for (int i = 0; i < 3; i++) {
+      supervisor.runInternal();
+    }
+    verifyAll();
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffResetsWhenTaskSucceedsBeforeDiscovery() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+
+    final Task replacement = runSupervisor(List.of(), task, true);
+    final Task next = runSupervisor(List.of(), replacement, TaskState.SUCCESS, true);
+
+    // The success reset the backoff, so this failure counts as the first one
+    runSupervisor(List.of(), next, true);
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffCountsFailedPublishOnce() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    supervisor = getTestableSupervisor(1, 1, true, "PT1H", null, null);
+    addSomeEvents(1);
+    final Task publishingTask = createKafkaIndexTask(
+        "publishing",
+        DATASOURCE,
+        0,
+        new SeekableStreamStartSequenceNumbers<>(
+            "topic",
+            singlePartitionMap(topic, 0, 0L, 1, 0L, 2, 0L),
+            ImmutableSet.of()
+        ),
+        new SeekableStreamEndSequenceNumbers<>(
+            "topic",
+            singlePartitionMap(topic, 0, Long.MAX_VALUE, 1, Long.MAX_VALUE, 2, Long.MAX_VALUE)
+        ),
+        null,
+        null,
+        supervisor.getTuningConfig()
+    );
+    final Map<KafkaTopicPartition, Long> publishedOffsets = singlePartitionMap(topic, 0, 10L, 1, 20L, 2, 30L);
+    EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(toMap(List.of(publishingTask)));
+    EasyMock.expect(taskStorage.getStatus(publishingTask.getId()))
+            .andReturn(Optional.of(TaskStatus.running(publishingTask.getId())))
+            .anyTimes();
+    EasyMock.expect(taskStorage.getTask(publishingTask.getId())).andReturn(Optional.of(publishingTask)).anyTimes();
+    EasyMock.expect(taskClient.getStatusAsync(publishingTask.getId()))
+            .andReturn(Futures.immediateFuture(Status.PUBLISHING));
+    EasyMock.expect(taskClient.getEndOffsetsAsync(publishingTask.getId()))
+            .andReturn(Futures.immediateFuture(publishedOffsets));
+    expectSupervisorCalls(DateTimes.nowUtc());
+    Capture<Task> reader = Capture.newInstance();
+    EasyMock.expect(taskQueue.add(EasyMock.capture(reader))).andReturn(true);
+    replayAll();
+
+    // The first run discovers the publishing task and launches a reader for the offsets that follow
+    supervisor.start();
+    supervisor.runInternal();
+    verifyAll();
+
+    // Both tasks fail. A failed publish kills the readers of the task group, so this is one failure and the task
+    // group is relaunched at once.
+    runSupervisorWithCompletedTasks(
+        List.of(),
+        Map.of(publishingTask, TaskState.FAILED, reader.getValue(), TaskState.FAILED),
+        true
+    );
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffIsClearedWhenPartitionsChange() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+
+    // The supervisor sees the new partition in one of the next two runs. Task groups then get other partitions,
+    // so their failures no longer count and the second failure is relaunched at once.
+    addMoreEvents(1, NUM_PARTITIONS + 1);
+    final Task replacement = runSupervisor(List.of(), task, true);
+    runSupervisor(List.of(), replacement, true);
+  }
+
+  @Test
+  public void testRepeatedTaskFailuresAreRelaunchedAtOnceWithoutBackoff() throws Exception
+  {
+    final Task task = startSupervisor(1).get(0);
+
+    final Task replacement = runSupervisor(List.of(), task, true);
+    runSupervisor(List.of(), replacement, true);
+  }
+
+  private void enableTaskRelaunchBackoff()
+  {
+    supervisorConfig = OBJECT_MAPPER.convertValue(
+        ImmutableMap.of("taskRelaunchBackoff.enabled", "true"),
+        SupervisorStateManagerConfig.class
+    );
+  }
+
+  /**
+   * Starts a supervisor with one task group and returns the tasks created by its first run.
+   */
+  private List<Task> startSupervisor(int replicas) throws Exception
+  {
+    return startSupervisor(replicas, DateTimes.nowUtc());
+  }
+
+  private List<Task> startSupervisor(int replicas, DateTime taskStartTime) throws Exception
+  {
+    supervisor = getTestableSupervisor(replicas, 1, true, "PT1H", null, null);
+    addSomeEvents(1);
+    expectSupervisorCalls(taskStartTime);
+    Capture<Task> captured = Capture.newInstance(CaptureType.ALL);
+    EasyMock.expect(taskQueue.add(EasyMock.capture(captured))).andReturn(true).times(replicas);
+    replayAll();
+
+    supervisor.start();
+    supervisor.runInternal();
+    verifyAll();
+
+    return captured.getValues();
+  }
+
+  private void expectSupervisorCalls(DateTime taskStartTime)
+  {
+    EasyMock.expect(taskMaster.getTaskQueue()).andReturn(Optional.of(taskQueue)).anyTimes();
+    EasyMock.expect(taskMaster.getTaskRunner()).andReturn(Optional.of(taskRunner)).anyTimes();
+    EasyMock.expect(taskRunner.getRunningTasks()).andReturn(Collections.emptyList()).anyTimes();
+    EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(Map.of()).anyTimes();
+    EasyMock.expect(taskClient.getStatusAsync(EasyMock.anyString()))
+            .andReturn(Futures.immediateFuture(Status.NOT_STARTED))
+            .anyTimes();
+    EasyMock.expect(taskClient.getStartTimeAsync(EasyMock.anyString()))
+            .andReturn(Futures.immediateFuture(taskStartTime))
+            .anyTimes();
+    EasyMock.expect(indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(DATASOURCE))
+            .andReturn(new KafkaDataSourceMetadata(null))
+            .anyTimes();
+    TreeMap<Integer, Map<KafkaTopicPartition, Long>> checkpoints = new TreeMap<>();
+    checkpoints.put(0, singlePartitionMap(topic, 0, 0L, 1, 0L, 2, 0L));
+    EasyMock.expect(taskClient.getCheckpointsAsync(EasyMock.capture(checkpointedTaskIds), EasyMock.anyBoolean()))
+            .andReturn(Futures.immediateFuture(checkpoints))
+            .anyTimes();
+    taskRunner.registerListener(EasyMock.anyObject(TaskRunnerListener.class), EasyMock.anyObject(Executor.class));
+  }
+
+  @Nullable
+  private Task runSupervisor(List<Task> runningTasks, @Nullable Task failedTask, boolean expectNewTask)
+  {
+    return runSupervisor(runningTasks, failedTask, TaskState.FAILED, expectNewTask);
+  }
+
+  @Nullable
+  private Task runSupervisor(
+      List<Task> runningTasks,
+      @Nullable Task completedTask,
+      TaskState completedTaskState,
+      boolean expectNewTask
+  )
+  {
+    return runSupervisorWithCompletedTasks(
+        runningTasks,
+        completedTask == null ? Map.of() : Map.of(completedTask, completedTaskState),
+        expectNewTask
+    );
+  }
+
+  /**
+   * Runs the supervisor once. The running tasks are active, so the supervisor discovers them. The completed tasks
+   * are no longer active. Returns the task created by this run, if one is expected.
+   */
+  @Nullable
+  private Task runSupervisorWithCompletedTasks(
+      List<Task> runningTasks,
+      Map<Task, TaskState> completedTasks,
+      boolean expectNewTask
+  )
+  {
+    EasyMock.reset(taskStorage, taskQueue);
+    EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(toMap(runningTasks)).anyTimes();
+    for (Task task : runningTasks) {
+      EasyMock.expect(taskStorage.getStatus(task.getId()))
+              .andReturn(Optional.of(TaskStatus.running(task.getId())))
+              .anyTimes();
+      EasyMock.expect(taskStorage.getTask(task.getId())).andReturn(Optional.of(task)).anyTimes();
+    }
+    completedTasks.forEach((task, state) -> {
+      EasyMock.expect(taskStorage.getStatus(task.getId()))
+              .andReturn(Optional.of(TaskStatus.fromCode(task.getId(), state)))
+              .anyTimes();
+      EasyMock.expect(taskStorage.getTask(task.getId())).andReturn(Optional.of(task)).anyTimes();
+    });
+    Capture<Task> newTask = Capture.newInstance();
+    if (expectNewTask) {
+      EasyMock.expect(taskQueue.add(EasyMock.capture(newTask))).andReturn(true);
+    }
+    EasyMock.replay(taskStorage, taskQueue);
+
+    supervisor.runInternal();
+    verifyAll();
+
+    return expectNewTask ? newTask.getValue() : null;
   }
 
   @Test
