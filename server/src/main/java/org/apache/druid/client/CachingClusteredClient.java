@@ -462,6 +462,9 @@ public class CachingClusteredClient implements QuerySegmentWalker
         filterFieldsForPruning = null;
       }
 
+      final boolean logPruning = trySecondaryPartititionPruning && log.isDebugEnabled();
+      int chunksBeforePruning = 0;
+
       // Filter unneeded chunks based on partition dimension
       for (TimelineObjectHolder<String, ServerSelector> holder : serversLookup) {
         final Set<PartitionChunk<ServerSelector>> filteredChunks;
@@ -473,6 +476,9 @@ public class CachingClusteredClient implements QuerySegmentWalker
               partitionChunk -> partitionChunk.getObject().getSegment().getShardSpec(),
               dimensionRangeCache
           );
+          if (logPruning) {
+            chunksBeforePruning += Iterables.size(holder.getObject());
+          }
         } else {
           filteredChunks = Sets.newLinkedHashSet(holder.getObject());
         }
@@ -485,6 +491,15 @@ public class CachingClusteredClient implements QuerySegmentWalker
           );
           segments.add(new SegmentServerSelector(server, segment));
         }
+      }
+      if (logPruning) {
+        log.debug(
+            "Secondary partition pruning for query[%s] on dataSource[%s] kept [%d] of [%d] segments.",
+            query.getId(),
+            query.getDataSource(),
+            segments.size(),
+            chunksBeforePruning
+        );
       }
       return segments;
     }
