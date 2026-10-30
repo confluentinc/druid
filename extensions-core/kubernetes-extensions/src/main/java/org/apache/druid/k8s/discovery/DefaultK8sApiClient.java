@@ -28,7 +28,9 @@ import io.kubernetes.client.custom.V1Patch;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodCondition;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.util.Watch;
 import org.apache.druid.discovery.DiscoveryDruidNode;
@@ -43,6 +45,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -89,24 +92,23 @@ public class DefaultK8sApiClient implements K8sApiClient
 
       Map<String, DiscoveryDruidNode> allNodes = new HashMap();
       for (V1Pod podDef : podList.getItems()) {
-        // irrespective of the grace period, we skip the pod if it has been in termination for more than terminatingStateCheckDuration
-        if (podDef.getMetadata() != null && podDef.getMetadata().getDeletionTimestamp() != null) {
-          long deletionTimestamp = podDef.getMetadata().getDeletionTimestamp().toInstant().toEpochMilli();
-          long currentTimestamp = System.currentTimeMillis();
-          long terminationGracePeriod = podDef.getSpec().getTerminationGracePeriodSeconds() != null ? 
-              podDef.getSpec().getTerminationGracePeriodSeconds() * 1000L : 30 * 1000L; // Default to 30s if graceperiod is not set
-          long checkDuration = terminatingStateCheckDuration != null ?
-              terminatingStateCheckDuration.getMillis() : 30 * 1000L; // Default to 30s if not specified
+        if (!isPodReady(podDef)) {
+          LOGGER.info(
+              "Ignoring pod[%s] for role[%s] during list: pod has discovery label but is not yet reporting as ready.",
+              podDef.getMetadata().getName(),
+              nodeRole
+          );
+          continue;
+        }
 
-          if (currentTimestamp - deletionTimestamp + terminationGracePeriod > checkDuration) {
-            LOGGER.info(
-                "Skipping pod %s/%s from discovery as it has been in termination for more than grace period + %d seconds",
-                podDef.getMetadata().getNamespace(),
-                podDef.getMetadata().getName(),
-                checkDuration / 1000
-            );
-            continue;
-          }
+        if (isTerminatingBeyondCheckDuration(podDef, terminatingStateCheckDuration)) {
+          LOGGER.info(
+              "Skipping pod %s/%s from discovery as it has been in termination for more than grace period + %d seconds",
+              podDef.getMetadata().getNamespace(),
+              podDef.getMetadata().getName(),
+              checkDurationMillis(terminatingStateCheckDuration) / 1000
+          );
+          continue;
         }
 
         DiscoveryDruidNode node = getDiscoveryDruidNodeFromPodDef(nodeRole, podDef);
@@ -117,6 +119,43 @@ public class DefaultK8sApiClient implements K8sApiClient
     catch (ApiException ex) {
       throw new RE(ex, "Expection in listing pods, code[%d] and error[%s].", ex.getCode(), ex.getResponseBody());
     }
+  }
+
+  // Irrespective of the grace period, a pod terminating for longer than terminatingStateCheckDuration is not discoverable.
+  static boolean isTerminatingBeyondCheckDuration(V1Pod pod, @Nullable Duration terminatingStateCheckDuration)
+  {
+    if (pod.getMetadata() == null || pod.getMetadata().getDeletionTimestamp() == null) {
+      return false;
+    }
+    long deletionTimestamp = pod.getMetadata().getDeletionTimestamp().toInstant().toEpochMilli();
+    long terminationGracePeriod = pod.getSpec() != null && pod.getSpec().getTerminationGracePeriodSeconds() != null ?
+        pod.getSpec().getTerminationGracePeriodSeconds() * 1000L : 30 * 1000L; // Default to 30s if graceperiod is not set
+    return System.currentTimeMillis() - deletionTimestamp + terminationGracePeriod
+           > checkDurationMillis(terminatingStateCheckDuration);
+  }
+
+  private static long checkDurationMillis(@Nullable Duration terminatingStateCheckDuration)
+  {
+    return terminatingStateCheckDuration != null ? terminatingStateCheckDuration.getMillis() : 30 * 1000L; // Default to 30s if not specified
+  }
+
+  // Ready condition catches node loss (container statuses go stale); container check catches not-ready sidecars.
+  static boolean isPodReady(V1Pod pod)
+  {
+    if (pod.getStatus() == null) {
+      return false;
+    }
+    List<V1PodCondition> conditions = pod.getStatus().getConditions();
+    boolean readyCondition = conditions != null
+                             && conditions.stream().anyMatch(c -> "Ready".equals(c.getType()) && "True".equals(c.getStatus()));
+    if (!readyCondition) {
+      return false;
+    }
+    List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
+    if (containerStatuses == null || containerStatuses.isEmpty()) {
+      return false;
+    }
+    return containerStatuses.stream().allMatch(cs -> Boolean.TRUE.equals(cs.getReady()));
   }
 
   private DiscoveryDruidNode getDiscoveryDruidNodeFromPodDef(NodeRole nodeRole, V1Pod podDef)
@@ -131,7 +170,13 @@ public class DefaultK8sApiClient implements K8sApiClient
   }
 
   @Override
-  public WatchResult watchPods(String namespace, String labelSelector, String lastKnownResourceVersion, NodeRole nodeRole)
+  public WatchResult watchPods(
+      String namespace,
+      String labelSelector,
+      String lastKnownResourceVersion,
+      NodeRole nodeRole,
+      @Nullable Duration terminatingStateCheckDuration
+  )
   {
     try {
       Watch<V1Pod> watch =
@@ -157,11 +202,57 @@ public class DefaultK8sApiClient implements K8sApiClient
               Watch.Response<V1Pod> item = watch.next();
               if (item != null && item.type != null && !item.type.equals(WatchResult.BOOKMARK)) {
                 DiscoveryDruidNodeAndResourceVersion result = null;
+                String effectiveType = item.type;
+
                 if (item.object != null) {
-                  result = new DiscoveryDruidNodeAndResourceVersion(
-                    item.object.getMetadata().getResourceVersion(),
-                    getDiscoveryDruidNodeFromPodDef(nodeRole, item.object)
-                  );
+                  boolean terminating = isTerminatingBeyondCheckDuration(item.object, terminatingStateCheckDuration);
+                  if (!isPodReady(item.object) || terminating) {
+                    if (WatchResult.MODIFIED.equals(item.type)) {
+                      // Pod was previously eligible but is now unready (e.g., OOM-killed container) or stuck terminating.
+                      // Remap to NOT_READY to ensure the host is removed from discovery cache if is cached
+                      LOGGER.info(
+                          terminating
+                          ? "Pod[%s] for role[%s] notified that it was modified and has been terminating beyond the "
+                            + "check duration, treating as removed for discovery purposes."
+                          : "Pod[%s] for role[%s] notified that it was modified and is now showing as not ready, "
+                            + "treating as removed for discovery purposes.",
+                          item.object.getMetadata().getName(),
+                          nodeRole
+                      );
+                      effectiveType = WatchResult.NOT_READY;
+                    } else if (WatchResult.ADDED.equals(item.type)) {
+                      // Skip unready or stuck-terminating pods; a starting pod is added later via MODIFIED once ready.
+                      LOGGER.debug(
+                          "Pod[%s] for role[%s] is not ready or is terminating beyond the check duration on ADDED event, skipping.",
+                          item.object.getMetadata().getName(),
+                          nodeRole
+                      );
+                      continue;
+                    }
+                  } else if (WatchResult.MODIFIED.equals(item.type)) {
+                    // Remap MODIFIED (pod ready, not stuck terminating) events to ADDED for discovery cache purposes.
+                    // This is safe even if the node is already in the cache because BaseNodeRoleWatcher.childAdded() uses
+                    // putIfAbsent, so duplicates are silently ignored.
+                    effectiveType = WatchResult.ADDED;
+                  }
+
+                  try {
+                    result = new DiscoveryDruidNodeAndResourceVersion(
+                        item.object.getMetadata().getResourceVersion(),
+                        getDiscoveryDruidNodeFromPodDef(nodeRole, item.object)
+                    );
+                  }
+                  catch (Exception ex) {
+                    LOGGER.warn(
+                        ex,
+                        "Failed to deserialize node info from pod[%s] for role[%s] on [%s] event. "
+                        + "Passing null to trigger watch restart and full resync.",
+                        item.object.getMetadata() != null ? item.object.getMetadata().getName() : "unknown",
+                        nodeRole,
+                        item.type
+                    );
+                    // result stays null, caller will restart the watch and do a full listPods resync
+                  }
                 } else {
                   // The item's object can be null in some cases -- likely due to a blip
                   // in the k8s watch. Handle that by passing the null upwards. The caller
@@ -170,14 +261,18 @@ public class DefaultK8sApiClient implements K8sApiClient
                 }
 
                 obj = new Watch.Response<>(
-                    item.type,
+                    effectiveType,
                     result
                 );
                 return true;
               } else if (item != null && item.type != null && item.type.equals(WatchResult.BOOKMARK)) {
                 // Events with type BOOKMARK will only contain resourceVersion and no metadata. See
                 // Kubernetes API documentation for details.
-                LOGGER.debug("BOOKMARK event fired, no nothing, only update resourceVersion");
+                LOGGER.debug("BOOKMARK event fired, only updating resourceVersion");
+                obj = new Watch.Response<>(
+                    WatchResult.BOOKMARK,
+                    new DiscoveryDruidNodeAndResourceVersion(item.object.getMetadata().getResourceVersion(), null)
+                );
                 return true;
               } else {
                 LOGGER.error("WTH! item or item.type is NULL");

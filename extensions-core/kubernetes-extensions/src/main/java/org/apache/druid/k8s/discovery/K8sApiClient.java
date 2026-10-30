@@ -36,5 +36,11 @@ public interface K8sApiClient
   /**
    * @return NULL if history not available or else return the {@link WatchResult} object
    */
-  WatchResult watchPods(String namespace, String labelSelector, String lastKnownResourceVersion, NodeRole nodeRole);
+  WatchResult watchPods(
+      String namespace,
+      String labelSelector,
+      String lastKnownResourceVersion,
+      NodeRole nodeRole,
+      @Nullable Duration terminatingStateCheckDuration
+  );
 }
