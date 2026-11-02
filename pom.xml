@@ -100,8 +100,8 @@
         <hamcrest.version>2.2</hamcrest.version>
         <jetty.version>12.1.10</jetty.version>
         <jersey.version>1.19.4</jersey.version>
-        <jackson.core.version>2.21.1</jackson.core.version>
-        <jackson.version>2.21.1</jackson.version>
+        <jackson.core.version>2.21.8</jackson.core.version>
+        <jackson.version>2.21.8</jackson.version>
         <codehaus.jackson.version>1.9.13</codehaus.jackson.version>
         <log4j.version>2.25.4</log4j.version>
         <mysql.version>8.2.0</mysql.version>
