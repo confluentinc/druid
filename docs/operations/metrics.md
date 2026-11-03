@@ -304,6 +304,7 @@ batch ingestion emit the following metrics. These metrics are deltas for each em
 |`ingest/handoff/time`|Total number of milliseconds taken to handoff a set of segments.|`dataSource`, `taskId`, `taskType`, `groupId`, `supervisorId`, `tags`|Depends on the coordinator cycle time.|
 |`task/autoScaler/requiredCount`|Count of required tasks based on the calculations of `lagBased` auto scaler.|`supervisorId`, `dataSource`, `stream`, `scalingSkipReason`|Depends on auto scaler config.|
 |`task/autoScaler/scaleActionTime`|Time taken in milliseconds to complete the scale action.|`supervisorId`, `dataSource`, `stream`|Depends on auto scaler config.|
+|`task/relaunchBackoff/delayedGroupCount`|Number of task groups whose task creation is delayed because their tasks keep failing. Emitted on every supervisor run when `druid.supervisor.taskRelaunchBackoff.enabled` is `true`.|`supervisorId`, `dataSource`, `stream`, `tags`|0|
 
 If the JVM does not support CPU time measurement for the current thread, `ingest/merge/cpu` and `ingest/persists/cpu` will be 0.
 

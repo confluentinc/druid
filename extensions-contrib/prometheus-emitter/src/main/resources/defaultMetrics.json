@@ -113,6 +113,7 @@
   "ingest/pause/time" : { "dimensions" : ["dataSource"], "type" : "timer", "conversionFactor": 1000.0, "help": "Seconds spent by a task in a paused state without ingesting." },
   "ingest/handoff/time" : { "dimensions" : ["dataSource"], "type" : "timer", "conversionFactor": 1000.0, "help": "Total number of seconds taken to handoff a set of segments." },
   "task/autoScaler/requiredCount" : { "dimensions" : ["dataSource"], "type" : "count", "help": "Count of required tasks based on the calculations of lagBased auto scaler." },
+  "task/relaunchBackoff/delayedGroupCount" : { "dimensions" : ["dataSource", "supervisorId"], "type" : "gauge", "help": "Number of task groups whose task creation is delayed because their tasks keep failing." },
 
   "task/run/time" : { "dimensions" : ["dataSource", "taskType"], "type" : "timer", "conversionFactor": 1000.0, "help": "Seconds taken to run a task."},
   "task/pending/time" : { "dimensions" : ["dataSource", "taskType"], "type" : "timer", "conversionFactor": 1000.0, "help": "Seconds taken for a task to wait for running."},

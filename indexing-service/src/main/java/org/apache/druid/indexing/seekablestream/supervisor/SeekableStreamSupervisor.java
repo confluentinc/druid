@@ -156,6 +156,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
   public static final String AUTOSCALER_SKIP_REASON_DIMENSION = "scalingSkipReason";
   public static final String AUTOSCALER_REQUIRED_TASKS_METRIC = "task/autoScaler/requiredCount";
   public static final String AUTOSCALER_SCALING_TIME_METRIC = "task/autoScaler/scaleActionTime";
+  public static final String RELAUNCH_BACKOFF_DELAYED_GROUPS_METRIC = "task/relaunchBackoff/delayedGroupCount";
 
   private static final long MINIMUM_GET_OFFSET_PERIOD_MILLIS = 5000;
   private static final long INITIAL_GET_OFFSET_DELAY_MILLIS = 15000;
@@ -603,6 +604,16 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
   private void clearAllocationInfo()
   {
+    // Partitions move to other task groups with the new task count. They keep the backoff of their old group, so that
+    // the change does not relaunch failing partitions at once. This runs before partitionIds is cleared, since Kinesis
+    // assigns task groups by the position of a shard in partitionIds.
+    taskGroupRelaunchBackoff.remapTaskGroups(
+        groupId -> partitionGroups.getOrDefault(groupId, Collections.emptySet())
+                                  .stream()
+                                  .map(this::getTaskGroupIdForPartition)
+                                  .filter(newGroupId -> newGroupId >= 0)
+                                  .collect(Collectors.toSet())
+    );
     activelyReadingTaskGroups.clear();
     partitionGroups.clear();
     partitionOffsets.clear();
@@ -907,6 +918,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
   private final Map<PartitionIdType, SequenceOffsetType> previousSequencesFromStream = new HashMap<>();
   private long lastActiveTimeMillis;
   private final IdleConfig idleConfig;
+  private final TaskGroupRelaunchBackoff taskGroupRelaunchBackoff;
 
   public SeekableStreamSupervisor(
       final String supervisorTag,
@@ -964,6 +976,11 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
           spec.getSupervisorStateManagerConfig().getInactiveAfterMillis()
       );
     }
+
+    this.taskGroupRelaunchBackoff = new TaskGroupRelaunchBackoff(
+        supervisorId,
+        spec.getSupervisorStateManagerConfig().isTaskRelaunchBackoffEnabled()
+    );
 
     final int workerThreads = calculateWorkerThreads(tuningConfig, ioConfig);
     ScheduledThreadPoolExecutor executor = ScheduledExecutors.fixedWithKeepAliveTime(
@@ -1838,6 +1855,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       activelyReadingTaskGroups.clear();
       partitionGroups.clear();
       partitionOffsets.clear();
+      taskGroupRelaunchBackoff.clear();
     } else {
       if (!checkSourceMetadataMatch(dataSourceMetadata)) {
         throw new IAE(
@@ -1920,6 +1938,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
                              "DataSourceMetadata is updated while reset"
                          );
                          activelyReadingTaskGroups.remove(groupId);
+                         taskGroupRelaunchBackoff.reset(groupId);
                          // killTaskGroupForPartitions() cleans up partitionGroups.
                          // Add the removed groups back.
                          partitionGroups.computeIfAbsent(groupId, k -> new HashSet<>());
@@ -1993,6 +2012,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
                        "DataSourceMetadata is updated while reset offsets is called"
                    );
                    activelyReadingTaskGroups.remove(groupId);
+                   taskGroupRelaunchBackoff.reset(groupId);
                    // killTaskGroupForPartitions() cleans up partitionGroups.
                    // Add the removed groups back.
                    partitionGroups.computeIfAbsent(groupId, k -> new HashSet<>());
@@ -2947,6 +2967,12 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     }
 
     if (!partitionIds.equals(previousPartitionIds)) {
+      // Task groups can now have other partitions, so the failures recorded for them no longer apply. No previous
+      // partitions means that the supervisor has just started or changed its task count, and a task count change has
+      // already moved the backoff of each partition to its new task group.
+      if (!previousPartitionIds.isEmpty()) {
+        taskGroupRelaunchBackoff.clear();
+      }
       assignRecordSupplierToPartitionIds();
       // the set of partition IDs has changed, have any running tasks stop early so that we can adjust to the
       // repartitioning quickly by creating new tasks
@@ -3627,6 +3653,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
             // we no longer need them to publish their segment.
             log.info("Task[%s] completed successfully, stopping tasks[%s]", taskId, group.taskIds());
             stateManager.recordCompletedTaskState(TaskState.SUCCESS);
+            taskGroupRelaunchBackoff.reset(groupId);
             futures.add(
                 stopTasksInGroup(group, "Task [%s] completed successfully, stopping tasks %s", taskId, group.taskIds())
             );
@@ -3670,6 +3697,9 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
               "No task in the corresponding pending completion taskGroup[%d] succeeded before completion timeout elapsed",
               groupId
           );
+          // the killed reading tasks are part of this failure, so they must not be counted again
+          taskGroupRelaunchBackoff.forgetLaunchedTasks(groupId);
+          taskGroupRelaunchBackoff.recordFailure(groupId);
           toRemove.add(group);
         }
       }
@@ -3684,6 +3714,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
   private void checkCurrentTaskState() throws ExecutionException, InterruptedException
   {
     Map<String, Task> activeTaskMap = getActiveTaskMap();
+    final Map<Integer, TaskState> undiscoveredTaskStates = getUndiscoveredTaskStates(activeTaskMap);
 
     List<ListenableFuture<Void>> futures = new ArrayList<>();
     Iterator<Entry<Integer, TaskGroup>> iTaskGroups = activelyReadingTaskGroups.entrySet().iterator();
@@ -3700,6 +3731,10 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
       log.debug("taskGroup[%d] pre-pruning: %s.", groupId, taskGroup.taskIds());
 
+      final TaskState undiscoveredTaskState = undiscoveredTaskStates.remove(groupId);
+      boolean taskFailed = undiscoveredTaskState == TaskState.FAILED;
+      boolean taskSucceeded = undiscoveredTaskState == TaskState.SUCCESS;
+      boolean groupRecovered = false;
       Iterator<Entry<String, TaskData>> iTasks = taskGroup.tasks.entrySet().iterator();
       while (iTasks.hasNext()) {
         Entry<String, TaskData> task = iTasks.next();
@@ -3720,6 +3755,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         if (taskData.status.isFailure()) {
           stateManager.recordCompletedTaskState(TaskState.FAILED);
           iTasks.remove();
+          taskFailed = true;
           continue;
         }
 
@@ -3729,14 +3765,77 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
           stateManager.recordCompletedTaskState(TaskState.SUCCESS);
           futures.add(stopTasksInGroup(taskGroup, "task[%s] succeeded in the same taskGroup", taskData.status.getId()));
           iTaskGroups.remove();
+          taskSucceeded = true;
           break;
         }
+
+        groupRecovered |= taskGroupRelaunchBackoff.hasRecovered(groupId, taskData.startTime);
+      }
+
+      // A recovery ends the earlier failures, so a failure in the same run counts as the first one. A success wins
+      // over failures of other replicas.
+      if (taskSucceeded || groupRecovered) {
+        taskGroupRelaunchBackoff.reset(groupId);
+      }
+      if (taskFailed && !taskSucceeded) {
+        taskGroupRelaunchBackoff.recordFailure(groupId);
       }
       log.debug("After pruning, taskGroup[%d] has tasks[%s].", groupId, taskGroup.taskIds());
     }
+    // Groups that were already removed in this run, for example by checkPendingCompletionTasks()
+    undiscoveredTaskStates.forEach((groupId, state) -> {
+      if (state == TaskState.SUCCESS) {
+        taskGroupRelaunchBackoff.reset(groupId);
+      } else {
+        taskGroupRelaunchBackoff.recordFailure(groupId);
+      }
+    });
 
     // Ignore return value; just await.
     coalesceAndAwait(futures);
+  }
+
+  /**
+   * A task joins its group only when {@link #discoverTasks()} finds it active, so the checks in
+   * {@link #checkCurrentTaskState()} never see a task that completes right after it is launched. This method finds
+   * such tasks by their status in task storage.
+   *
+   * @return task group IDs mapped to {@link TaskState#SUCCESS} if such a task of the group succeeded, else to
+   * {@link TaskState#FAILED}
+   */
+  private Map<Integer, TaskState> getUndiscoveredTaskStates(Map<String, Task> activeTaskMap)
+  {
+    final Map<Integer, TaskState> taskStates = new HashMap<>();
+    taskGroupRelaunchBackoff.pollLaunchedTasks().forEach((taskId, groupId) -> {
+      final TaskGroup taskGroup = activelyReadingTaskGroups.get(groupId);
+      if ((taskGroup != null && taskGroup.tasks.containsKey(taskId)) || isTaskInPendingCompletionGroups(taskId)) {
+        // the supervisor has discovered the task, so it sees the task complete like any other
+        taskGroupRelaunchBackoff.forgetLaunchedTask(taskId);
+        return;
+      }
+      if (activeTaskMap.containsKey(taskId)) {
+        // not discovered yet, so the next run looks at it again
+        return;
+      }
+
+      final Optional<TaskStatus> status;
+      try {
+        status = taskStorage.getStatus(taskId);
+      }
+      catch (Exception e) {
+        log.warn(e, "Failed to get the status of task[%s] for supervisor[%s]. Will try again.", taskId, supervisorId);
+        return;
+      }
+      // TaskQueue marks a task inactive before it stores its final status, so the task stays tracked until then
+      if (status.isPresent() && status.get().isComplete()) {
+        taskGroupRelaunchBackoff.forgetLaunchedTask(taskId);
+        final TaskState state = status.get().getStatusCode();
+        stateManager.recordCompletedTaskState(state);
+        // a success wins over failures of other replicas
+        taskStates.merge(groupId, state, (a, b) -> a == TaskState.SUCCESS ? a : b);
+      }
+    });
+    return taskStates;
   }
 
   private void checkIfStreamInactiveAndTurnSupervisorIdle()
@@ -3808,11 +3907,18 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
   private void createNewTasks() throws JsonProcessingException
   {
-    // update the checkpoints in the taskGroup to latest ones so that new tasks do not read what is already published
+    // One snapshot for the whole run: a delay that ends while the checkpoints below are verified must not let its
+    // group get tasks without having its checkpoints verified
+    final Map<Integer, Long> relaunchDelaysMillis = taskGroupRelaunchBackoff.getRemainingDelaysMillis();
+
+    // update the checkpoints in the taskGroup to latest ones so that new tasks do not read what is already published.
+    // Groups whose relaunch is delayed get no tasks in this run, so they are verified once their delay ends. Verifying
+    // an empty group would clear it, and the group would be created again from the stored offsets in every run.
     verifyAndMergeCheckpoints(
         activelyReadingTaskGroups.values()
                                  .stream()
                                  .filter(taskGroup -> taskGroup.tasks.size() < ioConfig.getReplicas())
+                                 .filter(taskGroup -> !relaunchDelaysMillis.containsKey(taskGroup.groupId))
                                  .collect(Collectors.toList())
     );
 
@@ -3901,6 +4007,8 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
     // iterate through all the current task groups and make sure each one has the desired number of replica tasks
     boolean createdTask = false;
+    long minRelaunchDelayMillis = Long.MAX_VALUE;
+    int delayedTaskGroups = 0;
     for (Entry<Integer, TaskGroup> entry : activelyReadingTaskGroups.entrySet()) {
       TaskGroup taskGroup = entry.getValue();
       Integer groupId = entry.getKey();
@@ -3913,11 +4021,20 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       }
 
       if (ioConfig.getReplicas() > taskGroup.tasks.size()) {
+        final Long relaunchDelayMillis = relaunchDelaysMillis.get(groupId);
+        if (relaunchDelayMillis != null) {
+          minRelaunchDelayMillis = Math.min(minRelaunchDelayMillis, relaunchDelayMillis);
+          delayedTaskGroups++;
+          continue;
+        }
+
         log.info(
             "Number of tasks[%d] does not match configured numReplicas[%d] in taskGroup[%d], creating more tasks.",
             taskGroup.tasks.size(), ioConfig.getReplicas(), groupId
         );
-        createTasksForGroup(groupId, ioConfig.getReplicas() - taskGroup.tasks.size());
+        final List<String> launchedTaskIds =
+            createTasksForGroup(groupId, ioConfig.getReplicas() - taskGroup.tasks.size());
+        taskGroupRelaunchBackoff.recordLaunch(groupId, launchedTaskIds);
         createdTask = true;
       }
     }
@@ -3926,6 +4043,27 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       // Schedule a run event after a short delay to update our internal data structures with the new tasks that were
       // just created. This is mainly for the benefit of the status API in situations where the run period is lengthy.
       scheduledExec.schedule(buildRunTask(), 5000, TimeUnit.MILLISECONDS);
+    }
+
+    if (minRelaunchDelayMillis < Long.MAX_VALUE && firstRunTime.isBeforeNow()) {
+      // Run again when the earliest backoff ends instead of waiting for the next period. Runs closer together than
+      // MAX_RUN_FREQUENCY_MILLIS are skipped, so never schedule one sooner than that.
+      scheduledExec.schedule(
+          buildRunTask(),
+          Math.max(minRelaunchDelayMillis, MAX_RUN_FREQUENCY_MILLIS),
+          TimeUnit.MILLISECONDS
+      );
+    }
+
+    if (taskGroupRelaunchBackoff.isEnabled()) {
+      emitter.emit(
+          ServiceMetricEvent.builder()
+                            .setDimension(DruidMetrics.SUPERVISOR_ID, supervisorId)
+                            .setDimension(DruidMetrics.DATASOURCE, dataSource)
+                            .setDimension(DruidMetrics.STREAM, getIoConfig().getStream())
+                            .setDimensionIfNotNull(DruidMetrics.TAGS, spec.getContextValue(DruidMetrics.TAGS))
+                            .setMetric(RELAUNCH_BACKOFF_DELAYED_GROUPS_METRIC, delayedTaskGroups)
+      );
     }
   }
 
@@ -4092,7 +4230,10 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     }
   }
 
-  private void createTasksForGroup(int groupId, int replicas)
+  /**
+   * @return IDs of the tasks that were added to the task queue
+   */
+  private List<String> createTasksForGroup(int groupId, int replicas)
       throws JsonProcessingException
   {
     TaskGroup group = activelyReadingTaskGroups.get(groupId);
@@ -4129,11 +4270,13 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         rowIngestionMetersFactory
     );
 
+    final List<String> addedTaskIds = new ArrayList<>();
     for (SeekableStreamIndexTask indexTask : taskList) {
       Optional<TaskQueue> taskQueue = taskMaster.getTaskQueue();
       if (taskQueue.isPresent()) {
         try {
           taskQueue.get().add(indexTask);
+          addedTaskIds.add(indexTask.getId());
         }
         catch (DruidException e) {
           stateManager.recordThrowableEvent(e);
@@ -4143,6 +4286,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         log.error("Failed to get task queue because I'm not the leader!");
       }
     }
+    return addedTaskIds;
   }
 
   /**

@@ -35,7 +35,9 @@ import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.data.input.kafka.KafkaRecordEntity;
 import org.apache.druid.data.input.kafka.KafkaTopicPartition;
+import org.apache.druid.error.DruidException;
 import org.apache.druid.indexer.TaskLocation;
+import org.apache.druid.indexer.TaskState;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexer.granularity.UniformGranularitySpec;
 import org.apache.druid.indexing.common.TaskInfoProvider;
@@ -71,10 +73,12 @@ import org.apache.druid.indexing.seekablestream.SeekableStreamIndexTaskTuningCon
 import org.apache.druid.indexing.seekablestream.SeekableStreamStartSequenceNumbers;
 import org.apache.druid.indexing.seekablestream.common.RecordSupplier;
 import org.apache.druid.indexing.seekablestream.supervisor.IdleConfig;
+import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisor;
 import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisorSpec;
 import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisorStateManager;
 import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisorTuningConfig;
 import org.apache.druid.indexing.seekablestream.supervisor.TaskReportData;
+import org.apache.druid.indexing.seekablestream.supervisor.autoscaler.AutoScalerConfig;
 import org.apache.druid.indexing.seekablestream.supervisor.autoscaler.LagBasedAutoScalerConfig;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
@@ -83,6 +87,7 @@ import org.apache.druid.java.util.common.parsers.JSONPathSpec;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.service.AlertBuilder;
 import org.apache.druid.java.util.emitter.service.AlertEvent;
+import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.metrics.DruidMonitorSchedulerConfig;
 import org.apache.druid.java.util.metrics.StubServiceEmitter;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
@@ -133,8 +138,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -152,6 +160,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
   private static final String TOPIC_PREFIX = "testTopic";
   private static final String DATASOURCE = "testDS";
   private static final int NUM_PARTITIONS = 3;
+  // the delay after the second failure in a row is at most 1.2 seconds
+  private static final long SECOND_FAILURE_DELAY_END_MILLIS = 1_300;
   private static final long TEST_CHAT_RETRIES = 9L;
   private static final Period TEST_HTTP_TIMEOUT = new Period("PT10S");
   private static final Period TEST_SHUTDOWN_TIMEOUT = new Period("PT80S");
@@ -177,6 +187,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
   private RowIngestionMetersFactory rowIngestionMetersFactory;
   private StubServiceEmitter serviceEmitter;
   private SupervisorStateManagerConfig supervisorConfig;
+  private final Capture<String> checkpointedTaskIds = Capture.newInstance(CaptureType.ALL);
   private KafkaSupervisorIngestionSpec ingestionSchema;
 
   private static String getTopic()
@@ -1642,6 +1653,481 @@ public class KafkaSupervisorTest extends EasyMockSupport
         iHaveFailed.getIOConfig().getBaseSequenceName(),
         ((KafkaIndexTask) aNewTaskCapture.getValue()).getIOConfig().getBaseSequenceName()
     );
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffDelaysTasksThatFailBeforeDiscovery() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+
+    final Task replacement = runSupervisor(List.of(), task, true);
+    runSupervisor(List.of(), replacement, false);
+
+    // A supervisor reset clears the backoff, so the task group is relaunched at once
+    EasyMock.reset(indexerMetadataStorageCoordinator, taskQueue);
+    EasyMock.expect(indexerMetadataStorageCoordinator.deleteDataSourceMetadata(DATASOURCE)).andReturn(true);
+    EasyMock.expect(indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(DATASOURCE))
+            .andReturn(new KafkaDataSourceMetadata(null))
+            .anyTimes();
+    EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(Map.of()).anyTimes();
+    EasyMock.expect(taskQueue.add(EasyMock.anyObject(Task.class))).andReturn(true);
+    EasyMock.replay(indexerMetadataStorageCoordinator, taskQueue);
+
+    supervisor.resetInternal(null);
+    supervisor.runInternal();
+    verifyAll();
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffDelaysDiscoveredTasksThatFail() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+
+    runSupervisor(List.of(task), null, false);
+    final Task replacement = runSupervisor(List.of(), task, true);
+    runSupervisor(List.of(replacement), null, false);
+    runSupervisor(List.of(), replacement, false);
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffDelaysReplicaThatFailsWhileOtherReplicaRuns() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final List<Task> tasks = startSupervisor(2);
+    final Task runningReplica = tasks.get(0);
+
+    final Task replacement = runSupervisor(List.of(runningReplica), tasks.get(1), true);
+    checkpointedTaskIds.reset();
+    runSupervisor(List.of(runningReplica), replacement, false);
+
+    // The checkpoints of the task group are verified when its delay ends, right before it gets a new task
+    Assert.assertFalse(checkpointedTaskIds.getValues().contains(runningReplica.getId()));
+    Thread.sleep(SECOND_FAILURE_DELAY_END_MILLIS);
+    runSupervisor(List.of(runningReplica), null, true);
+    Assert.assertTrue(checkpointedTaskIds.getValues().contains(runningReplica.getId()));
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffDelaysReplicaThatKeepsFailingWhileOtherReplicaIsHealthy() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    // This replica has been running for more than 5 minutes, but it started before the failures, so it does not show
+    // that the task group has recovered
+    final List<Task> tasks = startSupervisor(2, DateTimes.nowUtc().minusMinutes(6));
+    final Task runningReplica = tasks.get(0);
+
+    final Task replacement = runSupervisor(List.of(runningReplica), tasks.get(1), true);
+    runSupervisor(List.of(runningReplica), replacement, false);
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffKeepsWaitingTaskGroupAndRelaunchesItWhenDelayEnds() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+    final Task replacement = runSupervisor(List.of(), task, true);
+
+    // While the task group waits, it is kept as it is, not cleared and created again from the stored offsets
+    final int waitingRunReads = countDataSourceMetadataReads(() -> runSupervisor(List.of(), replacement, false));
+    Assert.assertEquals(waitingRunReads, countDataSourceMetadataReads(() -> runSupervisor(List.of(), null, false)));
+
+    // When the delay ends, the run reads the stored offsets twice more: to verify the group, which clears it, and to
+    // create it again. Then it relaunches the group.
+    Thread.sleep(SECOND_FAILURE_DELAY_END_MILLIS);
+    Assert.assertEquals(waitingRunReads + 2, countDataSourceMetadataReads(() -> runSupervisor(List.of(), null, true)));
+
+    Assert.assertEquals(
+        List.of(0, 0, 1, 1, 0),
+        serviceEmitter.getMetricValues(SeekableStreamSupervisor.RELAUNCH_BACKOFF_DELAYED_GROUPS_METRIC, Map.of())
+    );
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffCountsFailureThatIsStoredAfterTaskIsInactive() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+    final Task replacement = runSupervisor(List.of(), task, true);
+
+    // TaskQueue marks a failed task inactive before it stores the failure. Until then, the supervisor does not know
+    // that the task failed, so it relaunches the task group, but it keeps checking the task.
+    final Task next = runSupervisor(List.of(), replacement, TaskState.RUNNING, true);
+
+    // The stored failure is the second one in a row, so the task group waits
+    runSupervisorWithCompletedTasks(List.of(), Map.of(replacement, TaskState.FAILED, next, TaskState.RUNNING), false);
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffChecksTaskAgainWhenStatusLookupFails() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+    final Task replacement = runSupervisor(List.of(), task, true);
+
+    EasyMock.reset(taskStorage, taskQueue);
+    EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(Map.of()).anyTimes();
+    EasyMock.expect(taskStorage.getStatus(replacement.getId())).andThrow(new RuntimeException("Metadata store is down"));
+    final Capture<Task> next = Capture.newInstance();
+    EasyMock.expect(taskQueue.add(EasyMock.capture(next))).andReturn(true);
+    EasyMock.replay(taskStorage, taskQueue);
+    supervisor.runInternal();
+    verifyAll();
+
+    // The failure is found in the next run. It is the second one in a row, so the task group waits.
+    runSupervisorWithCompletedTasks(
+        List.of(),
+        Map.of(replacement, TaskState.FAILED, next.getValue(), TaskState.RUNNING),
+        false
+    );
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffIsResetWhenTaskGroupIsReset() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+    final Task replacement = runSupervisor(List.of(), task, true);
+    runSupervisor(List.of(), replacement, false);
+
+    // Resetting the offsets of one partition resets the backoff of its task group
+    EasyMock.reset(indexerMetadataStorageCoordinator);
+    EasyMock.expect(indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(DATASOURCE)).andReturn(
+        new KafkaDataSourceMetadata(
+            new SeekableStreamStartSequenceNumbers<>(
+                topic,
+                singlePartitionMap(topic, 0, 0L, 1, 0L, 2, 0L),
+                ImmutableSet.of()
+            )
+        )
+    );
+    EasyMock.expect(
+        indexerMetadataStorageCoordinator.resetDataSourceMetadata(EasyMock.eq(DATASOURCE), EasyMock.anyObject())
+    ).andReturn(true);
+    EasyMock.replay(indexerMetadataStorageCoordinator);
+    supervisor.resetInternal(
+        new KafkaDataSourceMetadata(
+            new SeekableStreamStartSequenceNumbers<>(topic, singlePartitionMap(topic, 0, 0L), ImmutableSet.of())
+        )
+    );
+    verifyAll();
+
+    EasyMock.reset(indexerMetadataStorageCoordinator);
+    EasyMock.expect(indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(DATASOURCE))
+            .andReturn(new KafkaDataSourceMetadata(null))
+            .anyTimes();
+    EasyMock.replay(indexerMetadataStorageCoordinator);
+    runSupervisor(List.of(), null, true);
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffKeepsDelaysWhenAutoScalerChangesTaskCount() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final AutoScalerConfig autoScalerConfig = OBJECT_MAPPER.convertValue(
+        Map.of("enableTaskAutoScaler", true, "taskCountMin", 1, "taskCountMax", NUM_PARTITIONS),
+        LagBasedAutoScalerConfig.class
+    );
+    final Task task = startSupervisor(getTestableSupervisorForBackoff(1, autoScalerConfig), 1, DateTimes.nowUtc()).get(0);
+    final Task replacement = runSupervisor(List.of(), task, true);
+    runSupervisor(List.of(), replacement, false);
+
+    // The autoscaler changes the task count while the task group waits
+    final CountDownLatch scaled = new CountDownLatch(1);
+    supervisor.buildDynamicAllocationTask(() -> NUM_PARTITIONS, scaled::countDown, serviceEmitter).run();
+    Assert.assertTrue(scaled.await(10, TimeUnit.SECONDS));
+    Assert.assertEquals(NUM_PARTITIONS, (int) supervisor.getIoConfig().getTaskCount());
+
+    // Each new task group gets one partition of the old group and keeps its delay, so none is launched at once
+    runSupervisorExpectingTasks(List.of(), Map.of(), 0);
+    Thread.sleep(SECOND_FAILURE_DELAY_END_MILLIS);
+    runSupervisorExpectingTasks(List.of(), Map.of(), NUM_PARTITIONS);
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffIgnoresTasksThatWereNotAdded() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    supervisor = getTestableSupervisor(1, 1, true, "PT1H", null, null);
+    addSomeEvents(1);
+    expectSupervisorCalls(DateTimes.nowUtc());
+    EasyMock.expect(taskQueue.add(EasyMock.anyObject(Task.class)))
+            .andThrow(DruidException.defensive("Task queue is full"))
+            .times(3);
+    replayAll();
+
+    supervisor.start();
+    for (int i = 0; i < 3; i++) {
+      supervisor.runInternal();
+    }
+    verifyAll();
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffResetsWhenTaskSucceedsBeforeDiscovery() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+
+    final Task replacement = runSupervisor(List.of(), task, true);
+    final Task next = runSupervisor(List.of(), replacement, TaskState.SUCCESS, true);
+
+    // The success reset the backoff, so this failure counts as the first one
+    runSupervisor(List.of(), next, true);
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffCountsFailedPublishOnce() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    supervisor = getTestableSupervisor(1, 1, true, "PT1H", null, null);
+    addSomeEvents(1);
+    final Task publishingTask = createKafkaIndexTask(
+        "publishing",
+        DATASOURCE,
+        0,
+        new SeekableStreamStartSequenceNumbers<>(
+            "topic",
+            singlePartitionMap(topic, 0, 0L, 1, 0L, 2, 0L),
+            ImmutableSet.of()
+        ),
+        new SeekableStreamEndSequenceNumbers<>(
+            "topic",
+            singlePartitionMap(topic, 0, Long.MAX_VALUE, 1, Long.MAX_VALUE, 2, Long.MAX_VALUE)
+        ),
+        null,
+        null,
+        supervisor.getTuningConfig()
+    );
+    final Map<KafkaTopicPartition, Long> publishedOffsets = singlePartitionMap(topic, 0, 10L, 1, 20L, 2, 30L);
+    EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(toMap(List.of(publishingTask)));
+    EasyMock.expect(taskStorage.getStatus(publishingTask.getId()))
+            .andReturn(Optional.of(TaskStatus.running(publishingTask.getId())))
+            .anyTimes();
+    EasyMock.expect(taskStorage.getTask(publishingTask.getId())).andReturn(Optional.of(publishingTask)).anyTimes();
+    EasyMock.expect(taskClient.getStatusAsync(publishingTask.getId()))
+            .andReturn(Futures.immediateFuture(Status.PUBLISHING));
+    EasyMock.expect(taskClient.getEndOffsetsAsync(publishingTask.getId()))
+            .andReturn(Futures.immediateFuture(publishedOffsets));
+    expectSupervisorCalls(DateTimes.nowUtc());
+    Capture<Task> reader = Capture.newInstance();
+    EasyMock.expect(taskQueue.add(EasyMock.capture(reader))).andReturn(true);
+    replayAll();
+
+    // The first run discovers the publishing task and launches a reader for the offsets that follow
+    supervisor.start();
+    supervisor.runInternal();
+    verifyAll();
+
+    // Both tasks fail. A failed publish kills the readers of the task group, so this is one failure and the task
+    // group is relaunched at once.
+    runSupervisorWithCompletedTasks(
+        List.of(),
+        Map.of(publishingTask, TaskState.FAILED, reader.getValue(), TaskState.FAILED),
+        true
+    );
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffIsClearedWhenPartitionsChange() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Task task = startSupervisor(1).get(0);
+
+    // The supervisor sees the new partition in one of the next two runs. Task groups then get other partitions,
+    // so their failures no longer count and the second failure is relaunched at once.
+    addMoreEvents(1, NUM_PARTITIONS + 1);
+    final Task replacement = runSupervisor(List.of(), task, true);
+    runSupervisor(List.of(), replacement, true);
+  }
+
+  @Test
+  public void testRepeatedTaskFailuresAreRelaunchedAtOnceWithoutBackoff() throws Exception
+  {
+    final Task task = startSupervisor(1).get(0);
+
+    final Task replacement = runSupervisor(List.of(), task, true);
+    runSupervisor(List.of(), replacement, true);
+  }
+
+  private void enableTaskRelaunchBackoff()
+  {
+    supervisorConfig = OBJECT_MAPPER.convertValue(
+        ImmutableMap.of("taskRelaunchBackoff.enabled", "true"),
+        SupervisorStateManagerConfig.class
+    );
+  }
+
+  /**
+   * Starts a supervisor with one task group and returns the tasks created by its first run.
+   */
+  private List<Task> startSupervisor(int replicas) throws Exception
+  {
+    return startSupervisor(replicas, DateTimes.nowUtc());
+  }
+
+  private List<Task> startSupervisor(int replicas, DateTime taskStartTime) throws Exception
+  {
+    return startSupervisor(getTestableSupervisorForBackoff(replicas, null), replicas, taskStartTime);
+  }
+
+  private List<Task> startSupervisor(
+      TestableKafkaSupervisor testableSupervisor,
+      int replicas,
+      DateTime taskStartTime
+  ) throws Exception
+  {
+    supervisor = testableSupervisor;
+    addSomeEvents(1);
+    expectSupervisorCalls(taskStartTime);
+    Capture<Task> captured = Capture.newInstance(CaptureType.ALL);
+    EasyMock.expect(taskQueue.add(EasyMock.capture(captured))).andReturn(true).times(replicas);
+    replayAll();
+
+    supervisor.start();
+    supervisor.runInternal();
+    verifyAll();
+
+    return captured.getValues();
+  }
+
+  /**
+   * Returns a supervisor with one task group, which emits its metrics to {@link #serviceEmitter}.
+   */
+  private TestableKafkaSupervisor getTestableSupervisorForBackoff(
+      int replicas,
+      @Nullable AutoScalerConfig autoScalerConfig
+  )
+  {
+    return getTestableSupervisor(
+        null,
+        replicas,
+        1,
+        true,
+        false,
+        "PT1H",
+        null,
+        null,
+        false,
+        kafkaHost,
+        null,
+        autoScalerConfig,
+        serviceEmitter
+    );
+  }
+
+  private void expectSupervisorCalls(DateTime taskStartTime)
+  {
+    EasyMock.expect(taskMaster.getTaskQueue()).andReturn(Optional.of(taskQueue)).anyTimes();
+    EasyMock.expect(taskMaster.getTaskRunner()).andReturn(Optional.of(taskRunner)).anyTimes();
+    EasyMock.expect(taskMaster.getSupervisorManager()).andReturn(Optional.absent()).anyTimes();
+    EasyMock.expect(taskRunner.getRunningTasks()).andReturn(Collections.emptyList()).anyTimes();
+    EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(Map.of()).anyTimes();
+    EasyMock.expect(taskClient.getStatusAsync(EasyMock.anyString()))
+            .andReturn(Futures.immediateFuture(Status.NOT_STARTED))
+            .anyTimes();
+    EasyMock.expect(taskClient.getStartTimeAsync(EasyMock.anyString()))
+            .andReturn(Futures.immediateFuture(taskStartTime))
+            .anyTimes();
+    EasyMock.expect(indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(DATASOURCE))
+            .andReturn(new KafkaDataSourceMetadata(null))
+            .anyTimes();
+    TreeMap<Integer, Map<KafkaTopicPartition, Long>> checkpoints = new TreeMap<>();
+    checkpoints.put(0, singlePartitionMap(topic, 0, 0L, 1, 0L, 2, 0L));
+    EasyMock.expect(taskClient.getCheckpointsAsync(EasyMock.capture(checkpointedTaskIds), EasyMock.anyBoolean()))
+            .andReturn(Futures.immediateFuture(checkpoints))
+            .anyTimes();
+    taskRunner.registerListener(EasyMock.anyObject(TaskRunnerListener.class), EasyMock.anyObject(Executor.class));
+  }
+
+  @Nullable
+  private Task runSupervisor(List<Task> runningTasks, @Nullable Task failedTask, boolean expectNewTask)
+  {
+    return runSupervisor(runningTasks, failedTask, TaskState.FAILED, expectNewTask);
+  }
+
+  @Nullable
+  private Task runSupervisor(
+      List<Task> runningTasks,
+      @Nullable Task completedTask,
+      TaskState completedTaskState,
+      boolean expectNewTask
+  )
+  {
+    return runSupervisorWithCompletedTasks(
+        runningTasks,
+        completedTask == null ? Map.of() : Map.of(completedTask, completedTaskState),
+        expectNewTask
+    );
+  }
+
+  /**
+   * Runs the supervisor once. The running tasks are active, so the supervisor discovers them. The completed tasks
+   * are no longer active. Returns the task created by this run, if one is expected.
+   */
+  @Nullable
+  private Task runSupervisorWithCompletedTasks(
+      List<Task> runningTasks,
+      Map<Task, TaskState> completedTasks,
+      boolean expectNewTask
+  )
+  {
+    final List<Task> newTasks = runSupervisorExpectingTasks(runningTasks, completedTasks, expectNewTask ? 1 : 0);
+    return expectNewTask ? newTasks.get(0) : null;
+  }
+
+  /**
+   * Runs the supervisor once, like {@link #runSupervisorWithCompletedTasks}, and returns the tasks created by this run.
+   */
+  private List<Task> runSupervisorExpectingTasks(
+      List<Task> runningTasks,
+      Map<Task, TaskState> completedTasks,
+      int expectedNewTasks
+  )
+  {
+    EasyMock.reset(taskStorage, taskQueue);
+    EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(toMap(runningTasks)).anyTimes();
+    for (Task task : runningTasks) {
+      EasyMock.expect(taskStorage.getStatus(task.getId()))
+              .andReturn(Optional.of(TaskStatus.running(task.getId())))
+              .anyTimes();
+      EasyMock.expect(taskStorage.getTask(task.getId())).andReturn(Optional.of(task)).anyTimes();
+    }
+    completedTasks.forEach((task, state) -> {
+      EasyMock.expect(taskStorage.getStatus(task.getId()))
+              .andReturn(Optional.of(TaskStatus.fromCode(task.getId(), state)))
+              .anyTimes();
+      EasyMock.expect(taskStorage.getTask(task.getId())).andReturn(Optional.of(task)).anyTimes();
+    });
+    Capture<Task> newTasks = Capture.newInstance(CaptureType.ALL);
+    if (expectedNewTasks > 0) {
+      EasyMock.expect(taskQueue.add(EasyMock.capture(newTasks))).andReturn(true).times(expectedNewTasks);
+    }
+    EasyMock.replay(taskStorage, taskQueue);
+
+    supervisor.runInternal();
+    verifyAll();
+
+    return newTasks.getValues();
+  }
+
+  /**
+   * Returns how many times the supervisor reads the stored offsets while running the given code.
+   */
+  private int countDataSourceMetadataReads(Runnable runnable)
+  {
+    final AtomicInteger reads = new AtomicInteger();
+    EasyMock.reset(indexerMetadataStorageCoordinator);
+    EasyMock.expect(indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(DATASOURCE))
+            .andAnswer(() -> {
+              reads.incrementAndGet();
+              return new KafkaDataSourceMetadata(null);
+            })
+            .anyTimes();
+    EasyMock.replay(indexerMetadataStorageCoordinator);
+    runnable.run();
+    return reads.get();
   }
 
   @Test
@@ -5323,6 +5809,39 @@ public class KafkaSupervisorTest extends EasyMockSupport
       IdleConfig idleConfig
   )
   {
+    return getTestableSupervisor(
+        id,
+        replicas,
+        taskCount,
+        useEarliestOffset,
+        resetOffsetAutomatically,
+        duration,
+        lateMessageRejectionPeriod,
+        earlyMessageRejectionPeriod,
+        suspended,
+        kafkaHost,
+        idleConfig,
+        null,
+        new NoopServiceEmitter()
+    );
+  }
+
+  private TestableKafkaSupervisor getTestableSupervisor(
+      @Nullable String id,
+      int replicas,
+      int taskCount,
+      boolean useEarliestOffset,
+      boolean resetOffsetAutomatically,
+      String duration,
+      Period lateMessageRejectionPeriod,
+      Period earlyMessageRejectionPeriod,
+      boolean suspended,
+      String kafkaHost,
+      IdleConfig idleConfig,
+      @Nullable AutoScalerConfig autoScalerConfig,
+      ServiceEmitter emitter
+  )
+  {
     final Map<String, Object> consumerProperties = KafkaConsumerConfigs.getConsumerProperties();
     consumerProperties.put("myCustomKey", "myCustomValue");
     consumerProperties.put("bootstrap.servers", kafkaHost);
@@ -5334,7 +5853,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
         taskCount,
         new Period(duration),
         consumerProperties,
-        null,
+        autoScalerConfig,
         null,
         KafkaSupervisorIOConfig.DEFAULT_POLL_TIMEOUT_MILLIS,
         new Period("P1D"),
@@ -5417,7 +5936,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
             indexerMetadataStorageCoordinator,
             taskClientFactory,
             OBJECT_MAPPER,
-            new NoopServiceEmitter(),
+            emitter,
             new DruidMonitorSchedulerConfig(),
             rowIngestionMetersFactory,
             supervisorConfig
