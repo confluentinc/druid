@@ -801,6 +801,10 @@ Should you require the needed permissions for interacting across Kubernetes name
 |------|-----------|----------|------------|
 | `k8s/peon/startup/time` | Metric indicating the milliseconds for peon pod to startup. | `dataSource`, `taskId`, `taskType`, `groupId`, `taskStatus`, `tags` |Varies|
 
+### Kubernetes API client identity
+
+Requests sent by the Overlord to the Kubernetes API server use the User-Agent `druid/<version> (<service name>; k8s-taskrunner)`. When `druid.indexer.runner.overlordNamespace` is set, it is appended as `; overlordNamespace=<namespace>`. Use it to identify Druid traffic in API server audit logs.
+
 ### Gotchas
 
 - With the exception of task pods, all Druid Pods belonging to one Druid cluster must be inside the same Kubernetes namespace.
