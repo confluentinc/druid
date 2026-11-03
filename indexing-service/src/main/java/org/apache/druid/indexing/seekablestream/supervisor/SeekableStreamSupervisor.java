@@ -156,7 +156,6 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
   public static final String AUTOSCALER_SKIP_REASON_DIMENSION = "scalingSkipReason";
   public static final String AUTOSCALER_REQUIRED_TASKS_METRIC = "task/autoScaler/requiredCount";
   public static final String AUTOSCALER_SCALING_TIME_METRIC = "task/autoScaler/scaleActionTime";
-  public static final String RELAUNCH_BACKOFF_DELAYED_GROUPS_METRIC = "task/relaunchBackoff/delayedGroupCount";
 
   private static final long MINIMUM_GET_OFFSET_PERIOD_MILLIS = 5000;
   private static final long INITIAL_GET_OFFSET_DELAY_MILLIS = 15000;
@@ -2023,6 +2022,8 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
   private void killTask(final String id, String reasonFormat, Object... args)
   {
+    // a task that the supervisor kills or stops is not a failure of its task group
+    taskGroupRelaunchBackoff.forgetLaunchedTask(id);
     Optional<TaskQueue> taskQueue = taskMaster.getTaskQueue();
     if (taskQueue.isPresent()) {
       taskQueue.get().shutdown(id, reasonFormat, args);
@@ -2690,6 +2691,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
   private ListenableFuture<Void> stopTask(final String id, final boolean publish)
   {
+    taskGroupRelaunchBackoff.forgetLaunchedTask(id);
     return Futures.transform(
         taskClient.stopAsync(id, publish), new Function<>()
         {
@@ -3368,6 +3370,8 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         // set a timeout and put this group in pendingCompletionTaskGroups so that it can be monitored for completion
         group.completionTimeout = DateTimes.nowUtc().plus(ioConfig.getCompletionTimeout());
         pendingCompletionTaskGroups.computeIfAbsent(groupId, k -> new CopyOnWriteArrayList<>()).add(group);
+        // A handoff shows that the group works, so its failures no longer delay the next group
+        taskGroupRelaunchBackoff.reset(groupId);
 
 
         boolean endOffsetsAreInvalid = false;
@@ -4008,7 +4012,6 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     // iterate through all the current task groups and make sure each one has the desired number of replica tasks
     boolean createdTask = false;
     long minRelaunchDelayMillis = Long.MAX_VALUE;
-    int delayedTaskGroups = 0;
     for (Entry<Integer, TaskGroup> entry : activelyReadingTaskGroups.entrySet()) {
       TaskGroup taskGroup = entry.getValue();
       Integer groupId = entry.getKey();
@@ -4024,7 +4027,6 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         final Long relaunchDelayMillis = relaunchDelaysMillis.get(groupId);
         if (relaunchDelayMillis != null) {
           minRelaunchDelayMillis = Math.min(minRelaunchDelayMillis, relaunchDelayMillis);
-          delayedTaskGroups++;
           continue;
         }
 
@@ -4052,17 +4054,6 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
           buildRunTask(),
           Math.max(minRelaunchDelayMillis, MAX_RUN_FREQUENCY_MILLIS),
           TimeUnit.MILLISECONDS
-      );
-    }
-
-    if (taskGroupRelaunchBackoff.isEnabled()) {
-      emitter.emit(
-          ServiceMetricEvent.builder()
-                            .setDimension(DruidMetrics.SUPERVISOR_ID, supervisorId)
-                            .setDimension(DruidMetrics.DATASOURCE, dataSource)
-                            .setDimension(DruidMetrics.STREAM, getIoConfig().getStream())
-                            .setDimensionIfNotNull(DruidMetrics.TAGS, spec.getContextValue(DruidMetrics.TAGS))
-                            .setMetric(RELAUNCH_BACKOFF_DELAYED_GROUPS_METRIC, delayedTaskGroups)
       );
     }
   }

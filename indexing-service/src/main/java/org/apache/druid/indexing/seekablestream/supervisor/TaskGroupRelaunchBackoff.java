@@ -29,6 +29,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.DoubleSupplier;
 import java.util.function.Function;
@@ -36,10 +37,11 @@ import java.util.function.LongSupplier;
 
 /**
  * Delays task creation for a task group whose tasks keep failing, using exponential backoff with jitter.
- * The first failure is not delayed. The backoff of a group is reset once one of its tasks succeeds, or once a task
- * that started after the last failure has been running for {@link #HEALTHY_RUN_MILLIS}.
+ * The first failure is not delayed. The backoff of a group is reset once one of its tasks succeeds or hands off, or
+ * once a task that started after the last failure has been running for {@link #HEALTHY_RUN_MILLIS}.
  * <p>
- * Not thread-safe: {@link SeekableStreamSupervisor} uses it only from its notice-handling thread.
+ * Not thread-safe, except for {@link #forgetLaunchedTask}: {@link SeekableStreamSupervisor} calls the other methods
+ * only from its notice-handling thread.
  */
 class TaskGroupRelaunchBackoff
 {
@@ -57,7 +59,7 @@ class TaskGroupRelaunchBackoff
   private final LongSupplier clock;
   private final DoubleSupplier random;
   private final Map<Integer, GroupBackoff> groupBackoffs = new HashMap<>();
-  private final Map<String, LaunchedTask> launchedTasks = new HashMap<>();
+  private final Map<String, LaunchedTask> launchedTasks = new ConcurrentHashMap<>();
 
   TaskGroupRelaunchBackoff(String supervisorId, boolean enabled)
   {
@@ -112,7 +114,7 @@ class TaskGroupRelaunchBackoff
   /**
    * Returns the tracked launched tasks, mapped to their task group, so that the supervisor can find the ones that
    * complete before it discovers them. A task stays tracked until {@link #forgetLaunchedTask} is called for it, once
-   * the supervisor has discovered the task or found its final status, but it is returned at most
+   * the supervisor has discovered, killed or stopped the task or found its final status, but it is returned at most
    * {@link #MAX_STATUS_CHECKS} times.
    */
   Map<String, Integer> pollLaunchedTasks()
@@ -132,6 +134,9 @@ class TaskGroupRelaunchBackoff
     return tasks;
   }
 
+  /**
+   * Thread-safe, since the supervisor also calls it when it kills a task from a task client callback.
+   */
   void forgetLaunchedTask(String taskId)
   {
     launchedTasks.remove(taskId);

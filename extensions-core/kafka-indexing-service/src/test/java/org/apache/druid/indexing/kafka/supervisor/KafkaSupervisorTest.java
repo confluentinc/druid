@@ -73,7 +73,6 @@ import org.apache.druid.indexing.seekablestream.SeekableStreamIndexTaskTuningCon
 import org.apache.druid.indexing.seekablestream.SeekableStreamStartSequenceNumbers;
 import org.apache.druid.indexing.seekablestream.common.RecordSupplier;
 import org.apache.druid.indexing.seekablestream.supervisor.IdleConfig;
-import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisor;
 import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisorSpec;
 import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisorStateManager;
 import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisorTuningConfig;
@@ -134,9 +133,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -188,6 +189,10 @@ public class KafkaSupervisorTest extends EasyMockSupport
   private StubServiceEmitter serviceEmitter;
   private SupervisorStateManagerConfig supervisorConfig;
   private final Capture<String> checkpointedTaskIds = Capture.newInstance(CaptureType.ALL);
+  /**
+   * Tasks that fail to return their status to the supervisor, see {@link #expectSupervisorCalls}
+   */
+  private final Set<String> unresponsiveTaskIds = new HashSet<>();
   private KafkaSupervisorIngestionSpec ingestionSchema;
 
   private static String getTopic()
@@ -1723,6 +1728,45 @@ public class KafkaSupervisorTest extends EasyMockSupport
   }
 
   @Test
+  public void testTaskRelaunchBackoffDoesNotDelayNextTaskGroupAfterHandoff() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Map<String, DateTime> taskStartTimes = new HashMap<>();
+    expectHandoff();
+    final List<Task> tasks = startSupervisor(2, taskStartTimes::get);
+    final Task healthyReplica = tasks.get(0);
+
+    final Task replacement = runSupervisor(List.of(healthyReplica), tasks.get(1), true);
+    runSupervisor(List.of(healthyReplica), replacement, false);
+
+    // The healthy replica reaches the end of its task duration and hands off while the other replica waits, so the
+    // next task group gets both its replicas at once
+    taskStartTimes.put(healthyReplica.getId(), DateTimes.nowUtc().minusHours(2));
+    runSupervisorExpectingTasks(List.of(healthyReplica), Map.of(), 2);
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffIgnoresTaskKilledBySupervisor() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final List<Task> tasks = startSupervisor(2);
+    final Task runningReplica = tasks.get(0);
+
+    // The supervisor kills a replica that fails to return its status, which is not a failure of the task group
+    unresponsiveTaskIds.add(tasks.get(1).getId());
+    final Task replacement = runSupervisorExpectingTasks(
+        List.of(runningReplica, tasks.get(1)),
+        Map.of(),
+        List.of(tasks.get(1)),
+        1
+    ).get(0);
+    runSupervisorWithCompletedTasks(List.of(runningReplica, replacement), Map.of(tasks.get(1), TaskState.FAILED), false);
+
+    // So this failure is the first one, and it is relaunched at once
+    runSupervisor(List.of(runningReplica), replacement, true);
+  }
+
+  @Test
   public void testTaskRelaunchBackoffKeepsWaitingTaskGroupAndRelaunchesItWhenDelayEnds() throws Exception
   {
     enableTaskRelaunchBackoff();
@@ -1737,11 +1781,6 @@ public class KafkaSupervisorTest extends EasyMockSupport
     // create it again. Then it relaunches the group.
     Thread.sleep(SECOND_FAILURE_DELAY_END_MILLIS);
     Assert.assertEquals(waitingRunReads + 2, countDataSourceMetadataReads(() -> runSupervisor(List.of(), null, true)));
-
-    Assert.assertEquals(
-        List.of(0, 0, 1, 1, 0),
-        serviceEmitter.getMetricValues(SeekableStreamSupervisor.RELAUNCH_BACKOFF_DELAYED_GROUPS_METRIC, Map.of())
-    );
   }
 
   @Test
@@ -1969,7 +2008,15 @@ public class KafkaSupervisorTest extends EasyMockSupport
 
   private List<Task> startSupervisor(int replicas, DateTime taskStartTime) throws Exception
   {
-    return startSupervisor(getTestableSupervisorForBackoff(replicas, null), replicas, taskStartTime);
+    return startSupervisor(replicas, taskId -> taskStartTime);
+  }
+
+  /**
+   * @param taskStartTimes the start time that each task reports, or null if it has not started yet
+   */
+  private List<Task> startSupervisor(int replicas, Function<String, DateTime> taskStartTimes) throws Exception
+  {
+    return startSupervisor(getTestableSupervisorForBackoff(replicas, null), replicas, taskStartTimes);
   }
 
   private List<Task> startSupervisor(
@@ -1978,9 +2025,18 @@ public class KafkaSupervisorTest extends EasyMockSupport
       DateTime taskStartTime
   ) throws Exception
   {
+    return startSupervisor(testableSupervisor, replicas, taskId -> taskStartTime);
+  }
+
+  private List<Task> startSupervisor(
+      TestableKafkaSupervisor testableSupervisor,
+      int replicas,
+      Function<String, DateTime> taskStartTimes
+  ) throws Exception
+  {
     supervisor = testableSupervisor;
     addSomeEvents(1);
-    expectSupervisorCalls(taskStartTime);
+    expectSupervisorCalls(taskStartTimes);
     Capture<Task> captured = Capture.newInstance(CaptureType.ALL);
     EasyMock.expect(taskQueue.add(EasyMock.capture(captured))).andReturn(true).times(replicas);
     replayAll();
@@ -2019,16 +2075,25 @@ public class KafkaSupervisorTest extends EasyMockSupport
 
   private void expectSupervisorCalls(DateTime taskStartTime)
   {
+    expectSupervisorCalls(taskId -> taskStartTime);
+  }
+
+  private void expectSupervisorCalls(Function<String, DateTime> taskStartTimes)
+  {
     EasyMock.expect(taskMaster.getTaskQueue()).andReturn(Optional.of(taskQueue)).anyTimes();
     EasyMock.expect(taskMaster.getTaskRunner()).andReturn(Optional.of(taskRunner)).anyTimes();
     EasyMock.expect(taskMaster.getSupervisorManager()).andReturn(Optional.absent()).anyTimes();
     EasyMock.expect(taskRunner.getRunningTasks()).andReturn(Collections.emptyList()).anyTimes();
     EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(Map.of()).anyTimes();
     EasyMock.expect(taskClient.getStatusAsync(EasyMock.anyString()))
-            .andReturn(Futures.immediateFuture(Status.NOT_STARTED))
+            .andAnswer(
+                () -> unresponsiveTaskIds.contains((String) EasyMock.getCurrentArguments()[0])
+                      ? Futures.immediateFailedFuture(new RuntimeException("Task is unresponsive"))
+                      : Futures.immediateFuture(Status.NOT_STARTED)
+            )
             .anyTimes();
     EasyMock.expect(taskClient.getStartTimeAsync(EasyMock.anyString()))
-            .andReturn(Futures.immediateFuture(taskStartTime))
+            .andAnswer(() -> Futures.immediateFuture(taskStartTimes.apply((String) EasyMock.getCurrentArguments()[0])))
             .anyTimes();
     EasyMock.expect(indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(DATASOURCE))
             .andReturn(new KafkaDataSourceMetadata(null))
@@ -2039,6 +2104,23 @@ public class KafkaSupervisorTest extends EasyMockSupport
             .andReturn(Futures.immediateFuture(checkpoints))
             .anyTimes();
     taskRunner.registerListener(EasyMock.anyObject(TaskRunnerListener.class), EasyMock.anyObject(Executor.class));
+  }
+
+  /**
+   * Lets the tasks of the task group hand off when they reach the end of their task duration.
+   */
+  private void expectHandoff()
+  {
+    final Map<KafkaTopicPartition, Long> endOffsets = singlePartitionMap(topic, 0, 0L, 1, 0L, 2, 0L);
+    EasyMock.expect(taskRunner.getTaskLocation(EasyMock.anyString()))
+            .andReturn(TaskLocation.create("testHost", 1234, -1))
+            .anyTimes();
+    EasyMock.expect(taskClient.pauseAsync(EasyMock.anyString()))
+            .andReturn(Futures.immediateFuture(endOffsets))
+            .anyTimes();
+    EasyMock.expect(taskClient.setEndOffsetsAsync(EasyMock.anyString(), EasyMock.eq(endOffsets), EasyMock.eq(true)))
+            .andReturn(Futures.immediateFuture(true))
+            .anyTimes();
   }
 
   @Nullable
@@ -2086,7 +2168,24 @@ public class KafkaSupervisorTest extends EasyMockSupport
       int expectedNewTasks
   )
   {
+    return runSupervisorExpectingTasks(runningTasks, completedTasks, List.of(), expectedNewTasks);
+  }
+
+  /**
+   * Runs the supervisor once, like {@link #runSupervisorWithCompletedTasks}, expecting it to kill the given tasks,
+   * and returns the tasks created by this run.
+   */
+  private List<Task> runSupervisorExpectingTasks(
+      List<Task> runningTasks,
+      Map<Task, TaskState> completedTasks,
+      List<Task> killedTasks,
+      int expectedNewTasks
+  )
+  {
     EasyMock.reset(taskStorage, taskQueue);
+    for (Task task : killedTasks) {
+      taskQueue.shutdown(EasyMock.eq(task.getId()), EasyMock.anyString(), EasyMock.eq(task.getId()));
+    }
     EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(toMap(runningTasks)).anyTimes();
     for (Task task : runningTasks) {
       EasyMock.expect(taskStorage.getStatus(task.getId()))

@@ -89,10 +89,12 @@ public class EmbeddedKafkaTaskRelaunchBackoffTest
       Assertions.assertTrue(gaps.get(gaps.size() - 1) >= 8_000, "gaps: " + gaps);
       Assertions.assertTrue(gaps.get(gaps.size() - 1) < 30_000, "gaps: " + gaps);
 
-      makeTaskDirectoriesWritable(true);
+      // New tasks can run only once no old task is running, so a running task after the resume is a new one
       cluster.callApi().onLeaderOverlord(o -> o.postSupervisor(spec.createSuspendedSpec()));
+      waitForRunningTask(false, 10_000);
+      makeTaskDirectoriesWritable(true);
       cluster.callApi().onLeaderOverlord(o -> o.postSupervisor(spec));
-      waitForRunningTask(10_000);
+      waitForRunningTask(true, 10_000);
     }
   }
 
@@ -208,18 +210,21 @@ public class EmbeddedKafkaTaskRelaunchBackoffTest
       return gapsMillis;
     }
 
-    void waitForRunningTask(long timeoutMillis) throws Exception
+    /**
+     * Waits until a task of the datasource is running, or until none is.
+     */
+    void waitForRunningTask(boolean running, long timeoutMillis) throws Exception
     {
       final long deadline = System.currentTimeMillis() + timeoutMillis;
       while (System.currentTimeMillis() < deadline) {
-        final boolean running = getTasksByCreatedTime().stream()
-                                                       .anyMatch(task -> task.getStatusCode() == TaskState.RUNNING);
-        if (running) {
+        final boolean anyRunning = getTasksByCreatedTime().stream()
+                                                          .anyMatch(task -> task.getStatusCode() == TaskState.RUNNING);
+        if (anyRunning == running) {
           return;
         }
         Thread.sleep(200);
       }
-      Assertions.fail("No task started within " + timeoutMillis + " ms");
+      Assertions.fail((running ? "No task started" : "Tasks still running") + " within " + timeoutMillis + " ms");
     }
 
     private KafkaSupervisorSpec createSupervisorSpec()
