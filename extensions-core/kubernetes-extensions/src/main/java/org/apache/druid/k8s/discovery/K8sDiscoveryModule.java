@@ -109,6 +109,26 @@ public class K8sDiscoveryModule implements DruidModule
         K8sDiscoveryModule.class.getPackage().getImplementationVersion(),
         "unknown"
     );
-    return StringUtils.format("druid/%s (%s; k8s-discovery; cluster=%s)", version, serviceName, clusterIdentifier);
+    return StringUtils.format(
+        "druid/%s (%s; k8s-discovery; cluster=%s)",
+        sanitizeUserAgentValue(version),
+        sanitizeUserAgentValue(serviceName),
+        sanitizeUserAgentValue(clusterIdentifier)
+    );
+  }
+
+  /**
+   * Replaces characters that cannot appear in the User-Agent comment with '_'. Header values must be printable ASCII
+   * (OkHttp rejects anything else, failing every request), and '(', ')', '\' and ';' delimit the comment's fields.
+   */
+  static String sanitizeUserAgentValue(String value)
+  {
+    final StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      final char c = value.charAt(i);
+      final boolean allowed = c >= 0x20 && c < 0x7f && c != '(' && c != ')' && c != '\\' && c != ';';
+      sb.append(allowed ? c : '_');
+    }
+    return sb.toString();
   }
 }

@@ -31,4 +31,19 @@ public class K8sDiscoveryModuleTest
     Assert.assertTrue(userAgent, userAgent.startsWith("druid/"));
     Assert.assertTrue(userAgent, userAgent.endsWith(" (druid/broker; k8s-discovery; cluster=test-cluster)"));
   }
+
+  @Test
+  public void testBuildUserAgentSanitizesNonAsciiServiceName()
+  {
+    final String userAgent = K8sDiscoveryModule.buildUserAgent("druid/東京", "test-cluster");
+    Assert.assertTrue(userAgent, userAgent.endsWith(" (druid/__; k8s-discovery; cluster=test-cluster)"));
+    Assert.assertTrue(userAgent, userAgent.chars().allMatch(c -> c >= 0x20 && c < 0x7f));
+  }
+
+  @Test
+  public void testSanitizeUserAgentValue()
+  {
+    Assert.assertEquals("druid/broker", K8sDiscoveryModule.sanitizeUserAgentValue("druid/broker"));
+    Assert.assertEquals("a__b__c_d_", K8sDiscoveryModule.sanitizeUserAgentValue("a()b\\;c\nd\u00e9"));
+  }
 }

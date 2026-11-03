@@ -230,6 +230,14 @@ public class KubernetesOverlordModuleTest
     Assert.assertTrue(userAgent, userAgent.endsWith(" (druid/overlord; k8s-taskrunner)"));
   }
 
+  @Test
+  public void test_buildUserAgent_sanitizesNonAsciiServiceName()
+  {
+    String userAgent = KubernetesOverlordModule.buildUserAgent("druid/東京", null);
+    Assert.assertTrue(userAgent, userAgent.endsWith(" (druid/__; k8s-taskrunner)"));
+    Assert.assertTrue(userAgent, userAgent.chars().allMatch(c -> c >= 0x20 && c < 0x7f));
+  }
+
   private Injector makeInjectorWithProperties(
       final Properties props,
       boolean isWorkerTypeRemote,
