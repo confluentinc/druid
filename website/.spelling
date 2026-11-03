@@ -217,6 +217,7 @@ pull-deps
 RDBMS
 RDDs
 RDS
+RoleBinding
 ROUTINE_CATALOG
 ROUTINE_NAME
 ROUTINE_SCHEMA
@@ -1113,6 +1114,7 @@ Env
 POD_NAME
 POD_NAMESPACE
 ConfigMap
+ConfigMaps
 PT17S
 GCS
 gcs-connector
