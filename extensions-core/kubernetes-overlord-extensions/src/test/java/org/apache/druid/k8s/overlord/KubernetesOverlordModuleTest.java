@@ -38,6 +38,7 @@ import org.apache.druid.indexing.overlord.hrtr.HttpRemoteTaskRunnerFactory;
 import org.apache.druid.jackson.JacksonModule;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.http.client.HttpClient;
+import org.apache.druid.k8s.overlord.common.DruidKubernetesClient;
 import org.apache.druid.k8s.overlord.taskadapter.MultiContainerTaskAdapter;
 import org.apache.druid.k8s.overlord.taskadapter.PodTemplateTaskAdapter;
 import org.apache.druid.k8s.overlord.taskadapter.SingleContainerTaskAdapter;
@@ -197,6 +198,44 @@ public class KubernetesOverlordModuleTest
 
     Assert.assertNotNull(adapter);
     Assert.assertTrue(adapter instanceof PodTemplateTaskAdapter);
+  }
+
+  @Test
+  public void test_makeKubernetesClient_setsDruidUserAgent()
+  {
+    injector = makeInjectorWithProperties(initializePropertes(false), false, true);
+    DruidKubernetesClient client = injector.getInstance(DruidKubernetesClient.class);
+
+    String userAgent = client.getClient().getConfiguration().getUserAgent();
+    Assert.assertTrue(userAgent, userAgent.startsWith("druid/"));
+    Assert.assertTrue(userAgent, userAgent.endsWith(" (test-inject; k8s-taskrunner)"));
+  }
+
+  @Test
+  public void test_buildUserAgent_withOverlordNamespace()
+  {
+    String userAgent = KubernetesOverlordModule.buildUserAgent("druid/overlord", "overlord-ns");
+    Assert.assertTrue(userAgent, userAgent.startsWith("druid/"));
+    Assert.assertTrue(userAgent, userAgent.endsWith(" (druid/overlord; k8s-taskrunner; overlordNamespace=overlord-ns)"));
+  }
+
+  @Test
+  public void test_buildUserAgent_withoutOverlordNamespace()
+  {
+    Assert.assertEquals(
+        KubernetesOverlordModule.buildUserAgent("druid/overlord", null),
+        KubernetesOverlordModule.buildUserAgent("druid/overlord", "")
+    );
+    String userAgent = KubernetesOverlordModule.buildUserAgent("druid/overlord", null);
+    Assert.assertTrue(userAgent, userAgent.endsWith(" (druid/overlord; k8s-taskrunner)"));
+  }
+
+  @Test
+  public void test_buildUserAgent_sanitizesNonAsciiServiceName()
+  {
+    String userAgent = KubernetesOverlordModule.buildUserAgent("druid/東京", null);
+    Assert.assertTrue(userAgent, userAgent.endsWith(" (druid/__; k8s-taskrunner)"));
+    Assert.assertTrue(userAgent, userAgent.chars().allMatch(c -> c >= 0x20 && c < 0x7f));
   }
 
   private Injector makeInjectorWithProperties(

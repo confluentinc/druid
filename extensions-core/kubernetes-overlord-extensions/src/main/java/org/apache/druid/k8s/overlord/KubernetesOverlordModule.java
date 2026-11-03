@@ -20,6 +20,7 @@
 package org.apache.druid.k8s.overlord;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
@@ -31,6 +32,7 @@ import com.google.inject.multibindings.MapBinder;
 import com.google.inject.name.Named;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
+import org.apache.druid.common.guava.GuavaUtils;
 import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.Binders;
 import org.apache.druid.guice.IndexingServiceModuleHelper;
@@ -73,6 +75,7 @@ import org.apache.druid.tasklogs.TaskLogKiller;
 import org.apache.druid.tasklogs.TaskLogPusher;
 import org.apache.druid.tasklogs.TaskLogs;
 
+import javax.annotation.Nullable;
 import java.util.Locale;
 import java.util.Properties;
 
@@ -130,11 +133,16 @@ public class KubernetesOverlordModule implements DruidModule
   public DruidKubernetesClient makeKubernetesClient(
       KubernetesTaskRunnerConfig kubernetesTaskRunnerConfig,
       DruidKubernetesHttpClientConfig httpClientConfig,
+      @Self DruidNode druidNode,
       Lifecycle lifecycle
   )
   {
     final DruidKubernetesClient client;
     final Config config = new ConfigBuilder().build();
+    // Identifies Druid traffic in kube-apiserver audit logs and API Priority and Fairness metrics.
+    config.setUserAgent(
+        buildUserAgent(druidNode.getServiceName(), kubernetesTaskRunnerConfig.getOverlordNamespace())
+    );
 
     if (kubernetesTaskRunnerConfig.isDisableClientProxy()) {
       config.setHttpsProxy(null);
@@ -162,6 +170,41 @@ public class KubernetesOverlordModule implements DruidModule
     );
 
     return client;
+  }
+
+  static String buildUserAgent(String serviceName, @Nullable String overlordNamespace)
+  {
+    final String version = GuavaUtils.firstNonNull(
+        KubernetesOverlordModule.class.getPackage().getImplementationVersion(),
+        "unknown"
+    );
+    return Strings.isNullOrEmpty(overlordNamespace)
+           ? StringUtils.format(
+               "druid/%s (%s; k8s-taskrunner)",
+               sanitizeUserAgentValue(version),
+               sanitizeUserAgentValue(serviceName)
+           )
+           : StringUtils.format(
+               "druid/%s (%s; k8s-taskrunner; overlordNamespace=%s)",
+               sanitizeUserAgentValue(version),
+               sanitizeUserAgentValue(serviceName),
+               sanitizeUserAgentValue(overlordNamespace)
+           );
+  }
+
+  /**
+   * Replaces characters that cannot appear in the User-Agent comment with '_'. Header values must be printable ASCII
+   * (OkHttp rejects anything else, failing every request), and '(', ')', '\' and ';' delimit the comment's fields.
+   */
+  static String sanitizeUserAgentValue(String value)
+  {
+    final StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      final char c = value.charAt(i);
+      final boolean allowed = c >= 0x20 && c < 0x7f && c != '(' && c != ')' && c != '\\' && c != ';';
+      sb.append(allowed ? c : '_');
+    }
+    return sb.toString();
   }
 
   /**
