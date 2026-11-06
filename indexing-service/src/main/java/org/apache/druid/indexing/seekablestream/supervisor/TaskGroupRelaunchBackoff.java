@@ -206,6 +206,8 @@ class TaskGroupRelaunchBackoff
     final long nowMillis = clock.getAsLong();
     final Map<Integer, Long> delaysMillis = new HashMap<>();
     groupBackoffs.forEach((groupId, backoff) -> {
+      // if the clock went back, never wait longer than the maximum delay
+      backoff.nextLaunchTimeMillis = Math.min(backoff.nextLaunchTimeMillis, nowMillis + MAX_DELAY_MILLIS);
       if (backoff.nextLaunchTimeMillis > nowMillis) {
         delaysMillis.put(groupId, backoff.nextLaunchTimeMillis - nowMillis);
       }

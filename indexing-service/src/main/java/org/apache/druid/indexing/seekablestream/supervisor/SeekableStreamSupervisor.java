@@ -3786,7 +3786,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       }
       log.debug("After pruning, taskGroup[%d] has tasks[%s].", groupId, taskGroup.taskIds());
     }
-    // Groups that were already removed in this run, for example by checkPendingCompletionTasks()
+    // Groups that are no longer actively reading
     undiscoveredTaskStates.forEach((groupId, state) -> {
       if (state == TaskState.SUCCESS) {
         taskGroupRelaunchBackoff.reset(groupId);

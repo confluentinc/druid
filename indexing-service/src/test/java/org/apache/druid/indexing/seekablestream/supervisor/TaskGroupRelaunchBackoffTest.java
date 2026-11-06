@@ -108,6 +108,20 @@ public class TaskGroupRelaunchBackoffTest
   }
 
   @Test
+  public void testRemainingDelayNeverExceedsMaxDelayWhenClockGoesBack()
+  {
+    final TaskGroupRelaunchBackoff backoff = newBackoff(NO_JITTER);
+    backoff.recordFailure(GROUP_ID);
+    backoff.recordFailure(GROUP_ID);
+
+    now.addAndGet(-3_600_000);
+    Assert.assertEquals(TaskGroupRelaunchBackoff.MAX_DELAY_MILLIS, getRemainingDelayMillis(backoff, GROUP_ID));
+
+    now.addAndGet(TaskGroupRelaunchBackoff.MAX_DELAY_MILLIS);
+    Assert.assertEquals(0, getRemainingDelayMillis(backoff, GROUP_ID));
+  }
+
+  @Test
   public void testGroupsAreIndependent()
   {
     final TaskGroupRelaunchBackoff backoff = newBackoff(NO_JITTER);
