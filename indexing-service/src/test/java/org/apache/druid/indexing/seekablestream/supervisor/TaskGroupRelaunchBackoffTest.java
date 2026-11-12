@@ -61,7 +61,7 @@ public class TaskGroupRelaunchBackoffTest
     for (int i = 0; i < 20; i++) {
       backoff.recordFailure(GROUP_ID);
     }
-    Assert.assertEquals(250_000, getRemainingDelayMillis(backoff, GROUP_ID));
+    Assert.assertEquals(50_000, getRemainingDelayMillis(backoff, GROUP_ID));
   }
 
   @Test
@@ -88,7 +88,7 @@ public class TaskGroupRelaunchBackoffTest
       highest.recordFailure(GROUP_ID);
     }
 
-    Assert.assertEquals(200_000, getRemainingDelayMillis(lowest, GROUP_ID));
+    Assert.assertEquals(40_000, getRemainingDelayMillis(lowest, GROUP_ID));
     Assert.assertEquals(TaskGroupRelaunchBackoff.MAX_DELAY_MILLIS, getRemainingDelayMillis(highest, GROUP_ID));
   }
 

@@ -47,7 +47,7 @@ class TaskGroupRelaunchBackoff
 {
   static final long INITIAL_DELAY_MILLIS = 1_000;
   static final double MULTIPLIER = 1.6;
-  static final long MAX_DELAY_MILLIS = 300_000;
+  static final long MAX_DELAY_MILLIS = 60_000;
   static final double JITTER = 0.2;
   static final long HEALTHY_RUN_MILLIS = 300_000;
   static final int MAX_STATUS_CHECKS = 3;
