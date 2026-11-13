@@ -149,6 +149,13 @@ public class K8sApiRequestTest
     assertRequest("GET", "/api", "other", "get", "unknown", "unknown", false);
   }
 
+  @Test
+  public void testWatchOnUnclassifiedPath()
+  {
+    // A proxy path prefix hides the route, but the request must still be treated as a watch.
+    assertRequest("GET", "/k8s/clusters/c1/api/v1/namespaces/druid/pods?watch=true", "other", "watch", "unknown", "unknown", true);
+  }
+
   private static void assertRequest(
       String method,
       String pathAndQuery,

@@ -63,6 +63,10 @@ public class K8sApiRequest
       size--;
     }
 
+    // Detected from the query alone, so that watches on paths that can't be classified below (for example behind a
+    // proxy path prefix) are still treated as watches.
+    final boolean watch = "true".equals(url.queryParameter("watch"));
+
     // Core API paths are /api/{version}/..., all other groups are /apis/{group}/{version}/...
     int i;
     if (size >= 2 && "api".equals(segments.get(0))) {
@@ -70,7 +74,13 @@ public class K8sApiRequest
     } else if (size >= 3 && "apis".equals(segments.get(0))) {
       i = 3;
     } else {
-      return new K8sApiRequest(CLIENT_OTHER, StringUtils.toLowerCase(request.method()), UNKNOWN, UNKNOWN, false);
+      return new K8sApiRequest(
+          CLIENT_OTHER,
+          watch ? "watch" : StringUtils.toLowerCase(request.method()),
+          UNKNOWN,
+          UNKNOWN,
+          watch
+      );
     }
 
     final StringBuilder route = new StringBuilder();
@@ -100,7 +110,6 @@ public class K8sApiRequest
       route.append("/...");
     }
 
-    final boolean watch = "true".equals(url.queryParameter("watch"));
     return new K8sApiRequest(
         clientForResource(resource),
         verb(request.method(), hasName, watch),

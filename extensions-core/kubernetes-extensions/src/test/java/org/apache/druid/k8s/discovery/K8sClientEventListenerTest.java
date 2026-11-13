@@ -213,6 +213,26 @@ public class K8sClientEventListenerTest
   }
 
   @Test
+  public void testRequestTimingOutAfterSameConnectionRedirectHasNoStatus() throws IOException
+  {
+    // The follow-up reuses the redirect's connection, so the only sign of a new attempt is its request headers.
+    server.enqueue(new MockResponse().setResponseCode(302).setHeader("Location", server.url(LIST_PODS).toString()));
+    server.enqueue(new MockResponse().setBody("{}").setHeadersDelay(1, TimeUnit.SECONDS));
+    final OkHttpClient client = buildClient(new K8sApiClientConfig(null, Duration.millis(200)));
+
+    Assert.assertThrows(IOException.class, () -> execute(client, LIST_PODS));
+
+    Assert.assertEquals(1, emitter.getMetricValues(K8sClientEventListener.CONNECTION_NEW, null).size());
+    emitter.verifyEmitted(K8sClientEventListener.REQUEST_COUNT, 1);
+    emitter.verifyEmitted(K8sClientEventListener.REQUEST_COUNT, ImmutableMap.of("statusClass", "error"), 1);
+    emitter.verifyEmitted(
+        K8sClientEventListener.ERROR_COUNT,
+        ImmutableMap.of("code", "error", "errorType", "timeout"),
+        1
+    );
+  }
+
+  @Test
   public void testConnectionRefused() throws IOException
   {
     final String url = server.url(LIST_PODS).toString();

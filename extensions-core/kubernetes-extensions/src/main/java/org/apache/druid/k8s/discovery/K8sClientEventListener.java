@@ -97,12 +97,14 @@ public class K8sClientEventListener extends EventListener
   public void requestHeadersStart(Call call)
   {
     requestAttempts++;
+    startAttempt();
   }
 
   /**
-   * Each attempt (the first request, or a redirect or retry) either reuses a pooled connection or opens a new one,
-   * which starts with a DNS lookup or a connect. Clearing the status there means only the last attempt's response is
-   * the call's result, even when that attempt fails before getting one.
+   * Clears the status at the start of each attempt (the first request, or a redirect, auth follow-up or retry), so
+   * only the last attempt's response is the call's result, even when that attempt fails before getting one. An attempt
+   * starts when it acquires or opens a connection, and again when it sends its headers, since a follow-up on the same
+   * connection does neither of the former.
    */
   private void startAttempt()
   {
