@@ -131,7 +131,7 @@ public class K8sDiscoveryModule implements DruidModule
     return httpClient.newBuilder()
                      .connectTimeout(clientConfig.getConnectTimeout().getMillis(), TimeUnit.MILLISECONDS)
                      .readTimeout(clientConfig.getReadTimeout().getMillis(), TimeUnit.MILLISECONDS)
-                     .addInterceptor(new K8sWatchReadTimeoutInterceptor())
+                     .addInterceptor(new K8sWatchInterceptor(emitter))
                      .eventListenerFactory(K8sClientEventListener.factory(emitter, inflight))
                      .build();
   }

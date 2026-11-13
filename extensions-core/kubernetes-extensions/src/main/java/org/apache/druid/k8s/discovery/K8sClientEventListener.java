@@ -21,6 +21,7 @@
 package org.apache.druid.k8s.discovery;
 
 import okhttp3.Call;
+import okhttp3.Connection;
 import okhttp3.EventListener;
 import okhttp3.Handshake;
 import okhttp3.Protocol;
@@ -41,10 +42,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Emits request, error and connection metrics for each call the Kubernetes API client makes. OkHttp creates one
- * listener per call through {@link #factory(ServiceEmitter)}, and calls it on the thread running that call.
+ * listener per call through {@link #factory(ServiceEmitter, AtomicInteger)}, and calls it on the thread running that
+ * call.
  *
- * <p>A request is counted when it completes, so its time includes reading the whole response body. A watch stays open
- * until the apiserver or Druid closes it, so it is counted once its response headers arrive, and not timed.
+ * <p>A request is counted when it completes, so its time includes reading the whole response body. Watches stay open
+ * until the apiserver or Druid closes them, so {@link K8sWatchInterceptor} counts them instead, once the final
+ * response arrives. This listener still reports their retries and connections.
  */
 public class K8sClientEventListener extends EventListener
 {
@@ -96,17 +99,38 @@ public class K8sClientEventListener extends EventListener
     requestAttempts++;
   }
 
+  /**
+   * Each attempt (the first request, or a redirect or retry) either reuses a pooled connection or opens a new one,
+   * which starts with a DNS lookup or a connect. Clearing the status there means only the last attempt's response is
+   * the call's result, even when that attempt fails before getting one.
+   */
+  private void startAttempt()
+  {
+    responseCode = -1;
+  }
+
+  @Override
+  public void dnsStart(Call call, String domainName)
+  {
+    startAttempt();
+  }
+
+  @Override
+  public void connectStart(Call call, InetSocketAddress inetSocketAddress, Proxy proxy)
+  {
+    startAttempt();
+  }
+
+  @Override
+  public void connectionAcquired(Call call, Connection connection)
+  {
+    startAttempt();
+  }
+
   @Override
   public void responseHeadersEnd(Call call, Response response)
   {
-    // Redirects and auth challenges produce several responses for one call; the last one is the call's result.
     responseCode = response.code();
-    if (responseCode == 429) {
-      emitter.emit(requestMetric().setMetric(THROTTLED_COUNT, 1));
-    }
-    if (request.isWatch()) {
-      emitRequestCount();
-    }
   }
 
   @Override
@@ -114,8 +138,7 @@ public class K8sClientEventListener extends EventListener
   {
     inflight.decrementAndGet();
     if (!request.isWatch()) {
-      emitRequestCount();
-      emitter.emit(requestMetric().setMetric(REQUEST_TIME, elapsedMillis(callStartNanos)));
+      emitRequestMetrics();
     }
     emitRetries();
   }
@@ -124,16 +147,10 @@ public class K8sClientEventListener extends EventListener
   public void callFailed(Call call, IOException ioe)
   {
     inflight.decrementAndGet();
-    // A watch that already got its response headers was counted then; ending it, by Druid or the apiserver, is not
-    // a failed request.
-    if (request.isWatch() && responseCode != -1) {
-      return;
-    }
-    emitRequestCount();
     if (!request.isWatch()) {
-      emitter.emit(requestMetric().setMetric(REQUEST_TIME, elapsedMillis(callStartNanos)));
+      emitRequestMetrics();
+      emitter.emit(requestMetric().setDimension("errorType", errorType(call, ioe)).setMetric(ERROR_COUNT, 1));
     }
-    emitter.emit(requestMetric().setDimension("errorType", errorType(call, ioe)).setMetric(ERROR_COUNT, 1));
     emitRetries();
   }
 
@@ -167,9 +184,13 @@ public class K8sClientEventListener extends EventListener
     emitter.emit(connectionMetric().setDimension("errorType", errorType(call, ioe)).setMetric(CONNECTION_FAILED, 1));
   }
 
-  private void emitRequestCount()
+  private void emitRequestMetrics()
   {
     emitter.emit(requestMetric().setMetric(REQUEST_COUNT, 1));
+    emitter.emit(requestMetric().setMetric(REQUEST_TIME, elapsedMillis(callStartNanos)));
+    if (responseCode == 429) {
+      emitter.emit(requestMetric().setMetric(THROTTLED_COUNT, 1));
+    }
   }
 
   /**
@@ -185,7 +206,20 @@ public class K8sClientEventListener extends EventListener
 
   private ServiceMetricEvent.Builder requestMetric()
   {
-    return connectionMetric()
+    return requestMetric(request, responseCode);
+  }
+
+  private ServiceMetricEvent.Builder connectionMetric()
+  {
+    return connectionMetric(request);
+  }
+
+  /**
+   * @param responseCode the HTTP status code, or -1 if the request got no response
+   */
+  static ServiceMetricEvent.Builder requestMetric(K8sApiRequest request, int responseCode)
+  {
+    return connectionMetric(request)
         .setDimension("verb", request.getVerb())
         .setDimension("resource", request.getResource())
         .setDimension("route", request.getRoute())
@@ -193,7 +227,7 @@ public class K8sClientEventListener extends EventListener
         .setDimension("code", responseCode == -1 ? STATUS_CLASS_ERROR : String.valueOf(responseCode));
   }
 
-  private ServiceMetricEvent.Builder connectionMetric()
+  static ServiceMetricEvent.Builder connectionMetric(K8sApiRequest request)
   {
     return ServiceMetricEvent.builder()
                              .setDimension("client", request.getClient())

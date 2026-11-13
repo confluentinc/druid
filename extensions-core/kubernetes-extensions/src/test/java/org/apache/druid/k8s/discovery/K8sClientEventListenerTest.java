@@ -157,6 +157,62 @@ public class K8sClientEventListenerTest
   }
 
   @Test
+  public void testRedirectedWatchIsCountedOnceWithItsRetries() throws IOException
+  {
+    // The watch is redirected, then the final stream drops midway: one count for the final 200, the redirect reported
+    // as a retry, and no error for the stream ending.
+    server.enqueue(new MockResponse().setResponseCode(302).setHeader("Location", WATCH_PODS));
+    server.enqueue(new MockResponse().setChunkedBody("{\"type\":\"ADDED\",\"object\":{}}\n", 8)
+                                     .setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY));
+    final OkHttpClient client = buildClient(new K8sApiClientConfig(null, null));
+
+    try (Response response = client.newCall(request(WATCH_PODS)).execute()) {
+      response.body().string();
+    }
+    catch (IOException e) {
+      // Expected: the server drops the watch midway through the body.
+    }
+
+    emitter.verifyEmitted(K8sClientEventListener.REQUEST_COUNT, 1);
+    emitter.verifyEmitted(K8sClientEventListener.REQUEST_COUNT, ImmutableMap.of("verb", "watch", "code", "200"), 1);
+    emitter.verifyValue(K8sClientEventListener.RETRY_COUNT, ImmutableMap.of("verb", "watch"), 1);
+    emitter.verifyNotEmitted(K8sClientEventListener.ERROR_COUNT);
+  }
+
+  @Test
+  public void testWatchFailingAfterRedirectIsAnError() throws IOException
+  {
+    server.enqueue(new MockResponse().setResponseCode(302).setHeader("Location", closedServerUrl(WATCH_PODS)));
+    final OkHttpClient client = buildClient(new K8sApiClientConfig(null, null));
+
+    Assert.assertThrows(IOException.class, () -> execute(client, WATCH_PODS));
+
+    emitter.verifyEmitted(K8sClientEventListener.REQUEST_COUNT, 1);
+    emitter.verifyEmitted(K8sClientEventListener.REQUEST_COUNT, ImmutableMap.of("verb", "watch", "code", "error"), 1);
+    emitter.verifyEmitted(
+        K8sClientEventListener.ERROR_COUNT,
+        ImmutableMap.of("verb", "watch", "errorType", "connectionRefused"),
+        1
+    );
+    // The redirect target refused the connection, so the request was never sent again.
+    emitter.verifyNotEmitted(K8sClientEventListener.RETRY_COUNT);
+  }
+
+  @Test
+  public void testRequestFailingAfterRedirectHasNoStatus() throws IOException
+  {
+    server.enqueue(new MockResponse().setResponseCode(302).setHeader("Location", closedServerUrl(LIST_PODS)));
+    final OkHttpClient client = buildClient(new K8sApiClientConfig(null, null));
+
+    Assert.assertThrows(IOException.class, () -> execute(client, LIST_PODS));
+
+    // The redirect's 302 is not the call's result.
+    emitter.verifyEmitted(K8sClientEventListener.REQUEST_COUNT, 1);
+    emitter.verifyEmitted(K8sClientEventListener.REQUEST_COUNT, ImmutableMap.of("statusClass", "error"), 1);
+    emitter.verifyEmitted(K8sClientEventListener.ERROR_COUNT, ImmutableMap.of("code", "error"), 1);
+  }
+
+  @Test
   public void testConnectionRefused() throws IOException
   {
     final String url = server.url(LIST_PODS).toString();
@@ -209,6 +265,15 @@ public class K8sClientEventListenerTest
     final OkHttpClient defaultClient = buildClient(new K8sApiClientConfig(null, null));
     Assert.assertEquals(10_000, defaultClient.connectTimeoutMillis());
     Assert.assertEquals(0, defaultClient.readTimeoutMillis());
+  }
+
+  private static String closedServerUrl(String pathAndQuery) throws IOException
+  {
+    final MockWebServer closed = new MockWebServer();
+    closed.start();
+    final String url = closed.url(pathAndQuery).toString();
+    closed.shutdown();
+    return url;
   }
 
   private OkHttpClient buildClient(K8sApiClientConfig config)
