@@ -105,9 +105,10 @@ public class DruidStripUnionArmCastRule extends RelOptRule implements Substituti
    */
   private static boolean armHasStrippableCast(final RelNode arm)
   {
-    if (!(arm instanceof Project project)) {
+    if (!(arm instanceof Project)) {
       return false;
     }
+    final Project project = (Project) arm;
     if (!(project.getInput().stripped() instanceof TableScan)) {
       return false;
     }
