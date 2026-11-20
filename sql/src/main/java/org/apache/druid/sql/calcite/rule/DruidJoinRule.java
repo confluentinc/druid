@@ -646,17 +646,51 @@ public class DruidJoinRule extends RelOptRule
 
   /**
    * Return value from {@link #planRightHoist(Join, Project, ConditionAnalysis)}.
-   *
-   * @param pushedAnalysis modified condition analysis for the hoisted plan
-   * @param matchIndicator indicator field that can be used to determine if a join happened
-   * @param isConstant whether each field (by index) is a constant
    */
-  private record RightHoistPlan(
-      ConditionAnalysis pushedAnalysis,
-      @Nullable RexNode matchIndicator,
-      boolean[] isConstant
-  )
+  private static final class RightHoistPlan
   {
+    /**
+     * Modified condition analysis for the hoisted plan.
+     */
+    private final ConditionAnalysis pushedAnalysis;
+
+    /**
+     * Indicator field that can be used to determine if a join happened.
+     */
+    @Nullable
+    private final RexNode matchIndicator;
+
+    /**
+     * Whether each field (by index) is a constant.
+     */
+    private final boolean[] isConstant;
+
+    private RightHoistPlan(
+        final ConditionAnalysis pushedAnalysis,
+        @Nullable final RexNode matchIndicator,
+        final boolean[] isConstant
+    )
+    {
+      this.pushedAnalysis = pushedAnalysis;
+      this.matchIndicator = matchIndicator;
+      this.isConstant = isConstant;
+    }
+
+    ConditionAnalysis pushedAnalysis()
+    {
+      return pushedAnalysis;
+    }
+
+    @Nullable
+    RexNode matchIndicator()
+    {
+      return matchIndicator;
+    }
+
+    boolean[] isConstant()
+    {
+      return isConstant;
+    }
   }
 
   /**
