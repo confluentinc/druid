@@ -185,14 +185,14 @@ public class InlineValuesSubQueryRule implements Program
       }
 
       final RelDataType targetType =
-          projExpr != null ? projExpr.getType() : valuesRel.getRowType().getFieldList().getFirst().getType();
+          projExpr != null ? projExpr.getType() : valuesRel.getRowType().getFieldList().get(0).getType();
 
       final List<RexLiteral> literals = new ArrayList<>(tuples.size());
       for (final ImmutableList<RexLiteral> tuple : tuples) {
         if (tuple.size() != 1) {
           return null;
         }
-        final RexLiteral raw = tuple.getFirst();
+        final RexLiteral raw = tuple.get(0);
         final RexLiteral literal;
         if (projExpr == null) {
           literal = raw;
