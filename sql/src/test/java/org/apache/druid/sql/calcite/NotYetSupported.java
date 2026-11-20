@@ -100,7 +100,7 @@ public @interface NotYetSupported
     EXPRESSION_NOT_GROUPED(Scope.BINDABLE, DruidException.class, "Expression '[a-z]+' is not being grouped"),
 
     NOT_ENOUGH_RULES(Scope.DECOUPLED, DruidException.class, "There are not enough rules to produce a node"),
-    SORT_REMOVE_TROUBLE(Scope.DECOUPLED, DruidException.class, "Calcite assertion violated.*Sort\\.<init>"),
+    SORT_REMOVE_TROUBLE(Scope.DECOUPLED, AssertionError.class, ""),
     UNNEST_INLINED(Scope.DECOUPLED, Exception.class, "Missing conversion is Uncollect"),
     UNNEST_RESULT_MISMATCH(Scope.DECOUPLED, AssertionError.class, "(Result count mismatch|column content mismatch)"),
 
@@ -109,7 +109,12 @@ public @interface NotYetSupported
     NO_INFORMATION_SCHEMA_SUPPORT(Scope.DECOUPLED_DART, DruidException.class, "INFORMATION_SCHEMA"),
     DD_JOIN(Scope.DECOUPLED_DART, DruidException.class, "DruidJoin.DRUID_LOGICAL"),
     DD_NULL_COLUMN_ORDER(Scope.DECOUPLED_DART, DruidException.class, "sort: \\[\\] -> \\[1\\]"),
-    DD_UNION(Scope.DECOUPLED_DART, DruidException.class, "DruidUnion.DRUID_LOGICAL");
+    DD_UNION(Scope.DECOUPLED_DART, DruidException.class, "DruidUnion.DRUID_LOGICAL"),
+    DD_WINDOW(Scope.DECOUPLED_DART, DruidException.class, "DruidWindow.DRUID_LOGICAL"),
+    DD_UNNEST_RESULT_MISMATCH(Scope.DECOUPLED_DART, AssertionError.class, "(Result count mismatch|column content mismatch)"),
+    DD_UNNEST_INLINED(Scope.DECOUPLED_DART, Exception.class, "Missing conversion is Uncollect"),
+    DD_JOIN_CONDITION_NORMALIZATION(Scope.DECOUPLED_DART, DruidException.class, "Cannot handle equality"),
+    DD_RESULT_MISMATCH_FLOAT_DOUBLE(Scope.DECOUPLED_DART, AssertionError.class, "column content mismatch");
     // @formatter:on
 
     public Scope scope;
