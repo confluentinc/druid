@@ -651,12 +651,39 @@ public class DruidJoinRule extends RelOptRule
    * @param matchIndicator indicator field that can be used to determine if a join happened
    * @param isConstant whether each field (by index) is a constant
    */
-  private record RightHoistPlan(
-      ConditionAnalysis pushedAnalysis,
-      @Nullable RexNode matchIndicator,
-      boolean[] isConstant
-  )
+  private static final class RightHoistPlan
   {
+    private final ConditionAnalysis pushedAnalysis;
+    @Nullable
+    private final RexNode matchIndicator;
+    private final boolean[] isConstant;
+
+    RightHoistPlan(
+        ConditionAnalysis pushedAnalysis,
+        @Nullable RexNode matchIndicator,
+        boolean[] isConstant
+    )
+    {
+      this.pushedAnalysis = pushedAnalysis;
+      this.matchIndicator = matchIndicator;
+      this.isConstant = isConstant;
+    }
+
+    ConditionAnalysis pushedAnalysis()
+    {
+      return pushedAnalysis;
+    }
+
+    @Nullable
+    RexNode matchIndicator()
+    {
+      return matchIndicator;
+    }
+
+    boolean[] isConstant()
+    {
+      return isConstant;
+    }
   }
 
   /**
