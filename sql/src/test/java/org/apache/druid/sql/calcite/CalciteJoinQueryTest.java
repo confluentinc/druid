@@ -3464,15 +3464,10 @@ public class CalciteJoinQueryTest extends BaseCalciteQueryTest
                                             JoinType.INNER
                                         ))
                                     .setInterval(querySegmentSpec(Filtration.eternity()))
-                                    .setVirtualColumns(expressionVirtualColumn("_v0", "\'10.1\'", ColumnType.STRING))
                                     .setGranularity(Granularities.ALL)
                                     .setDimensions(new DefaultDimensionSpec(
-                                        "_v0",
-                                        "d0",
-                                        ColumnType.STRING
-                                    ), new DefaultDimensionSpec(
                                         "__time",
-                                        "d1",
+                                        "d0",
                                         ColumnType.LONG
                                     ))
                                     .setContext(queryContext)

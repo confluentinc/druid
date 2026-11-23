@@ -109,12 +109,7 @@ public @interface NotYetSupported
     NO_INFORMATION_SCHEMA_SUPPORT(Scope.DECOUPLED_DART, DruidException.class, "INFORMATION_SCHEMA"),
     DD_JOIN(Scope.DECOUPLED_DART, DruidException.class, "DruidJoin.DRUID_LOGICAL"),
     DD_NULL_COLUMN_ORDER(Scope.DECOUPLED_DART, DruidException.class, "sort: \\[\\] -> \\[1\\]"),
-    DD_UNION(Scope.DECOUPLED_DART, DruidException.class, "DruidUnion.DRUID_LOGICAL"),
-    DD_WINDOW(Scope.DECOUPLED_DART, DruidException.class, "DruidWindow.DRUID_LOGICAL"),
-    DD_UNNEST_RESULT_MISMATCH(Scope.DECOUPLED_DART, AssertionError.class, "(Result count mismatch|column content mismatch)"),
-    DD_UNNEST_INLINED(Scope.DECOUPLED_DART, Exception.class, "Missing conversion is Uncollect"),
-    DD_JOIN_CONDITION_NORMALIZATION(Scope.DECOUPLED_DART, DruidException.class, "Cannot handle equality"),
-    DD_RESULT_MISMATCH_FLOAT_DOUBLE(Scope.DECOUPLED_DART, AssertionError.class, "column content mismatch");
+    DD_UNION(Scope.DECOUPLED_DART, DruidException.class, "DruidUnion.DRUID_LOGICAL");
     // @formatter:on
 
     public Scope scope;
