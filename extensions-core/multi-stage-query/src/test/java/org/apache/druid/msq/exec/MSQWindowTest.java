@@ -1000,7 +1000,7 @@ public class MSQWindowTest extends MSQTestBase
                     .putAll(DEFAULT_MSQ_CONTEXT)
                     .put(
                         DruidQuery.CTX_SCAN_SIGNATURE,
-                        "[{\"name\":\"m2\",\"type\":\"DOUBLE\"},{\"name\":\"v0\",\"type\":\"FLOAT\"}]"
+                        "[{\"name\":\"m2\",\"type\":\"DOUBLE\"}]"
                     )
                     .build();
 
@@ -1026,9 +1026,8 @@ public class MSQWindowTest extends MSQTestBase
                             newScanQueryBuilder()
                                 .dataSource(CalciteTests.DATASOURCE1)
                                 .intervals(querySegmentSpec(Filtration.eternity()))
-                                .virtualColumns(expressionVirtualColumn("v0", "\"m2\"", ColumnType.FLOAT))
-                                .columns("m2", "v0")
-                                .columnTypes(ColumnType.DOUBLE, ColumnType.FLOAT)
+                                .columns("m2")
+                                .columnTypes(ColumnType.DOUBLE)
                                 .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                 .context(contextWithRowSignature1)
                                 .build()
@@ -1036,7 +1035,7 @@ public class MSQWindowTest extends MSQTestBase
                         "j0.",
                         equalsCondition(
                             DruidExpression.ofColumn(ColumnType.FLOAT, "m1"),
-                            DruidExpression.ofColumn(ColumnType.FLOAT, "j0.v0")
+                            DruidExpression.ofColumn(ColumnType.DOUBLE, "j0.m2")
                         ),
                         JoinType.INNER
                     )
@@ -1105,7 +1104,7 @@ public class MSQWindowTest extends MSQTestBase
                     .putAll(DEFAULT_MSQ_CONTEXT)
                     .put(
                         DruidQuery.CTX_SCAN_SIGNATURE,
-                        "[{\"name\":\"m2\",\"type\":\"DOUBLE\"},{\"name\":\"v0\",\"type\":\"FLOAT\"}]"
+                        "[{\"name\":\"m2\",\"type\":\"DOUBLE\"}]"
                     )
                     .build();
 
@@ -1131,9 +1130,8 @@ public class MSQWindowTest extends MSQTestBase
                             newScanQueryBuilder()
                                 .dataSource(CalciteTests.DATASOURCE1)
                                 .intervals(querySegmentSpec(Filtration.eternity()))
-                                .virtualColumns(expressionVirtualColumn("v0", "\"m2\"", ColumnType.FLOAT))
-                                .columns("m2", "v0")
-                                .columnTypes(ColumnType.DOUBLE, ColumnType.FLOAT)
+                                .columns("m2")
+                                .columnTypes(ColumnType.DOUBLE)
                                 .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                                 .context(contextWithRowSignature1)
                                 .build()
@@ -1141,7 +1139,7 @@ public class MSQWindowTest extends MSQTestBase
                         "j0.",
                         equalsCondition(
                             DruidExpression.ofColumn(ColumnType.FLOAT, "m1"),
-                            DruidExpression.ofColumn(ColumnType.FLOAT, "j0.v0")
+                            DruidExpression.ofColumn(ColumnType.DOUBLE, "j0.m2")
                         ),
                         JoinType.INNER
                     )
