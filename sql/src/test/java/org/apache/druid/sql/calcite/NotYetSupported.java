@@ -100,7 +100,7 @@ public @interface NotYetSupported
     EXPRESSION_NOT_GROUPED(Scope.BINDABLE, DruidException.class, "Expression '[a-z]+' is not being grouped"),
 
     NOT_ENOUGH_RULES(Scope.DECOUPLED, DruidException.class, "There are not enough rules to produce a node"),
-    SORT_REMOVE_TROUBLE(Scope.DECOUPLED, DruidException.class, "Calcite assertion violated.*Sort\\.<init>"),
+    SORT_REMOVE_TROUBLE(Scope.DECOUPLED, AssertionError.class, ""),
     UNNEST_INLINED(Scope.DECOUPLED, Exception.class, "Missing conversion is Uncollect"),
     UNNEST_RESULT_MISMATCH(Scope.DECOUPLED, AssertionError.class, "(Result count mismatch|column content mismatch)"),
 
