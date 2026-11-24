@@ -92,6 +92,10 @@ readinessProbe:
 
 With this configuration, a pod must fail its readiness check 3 times in a row (30 seconds) before it is marked as not ready. Adjust these values based on your workload and tolerance for routing to temporarily unhealthy pods.
 
+### Kubernetes API client identity
+
+Requests sent by this extension to the Kubernetes API server use the User-Agent `druid/<version> (<service name>; k8s-discovery; cluster=<clusterIdentifier>)`, for example `druid/33.0.0 (druid/broker; k8s-discovery; cluster=us-west-prod-druid)`. Use it to identify Druid traffic in API server audit logs.
+
 ### Gotchas
 
 - The label/annotation path in each pod spec must exist, which is easily satisfied if there is at least one label or annotation in the pod spec already.

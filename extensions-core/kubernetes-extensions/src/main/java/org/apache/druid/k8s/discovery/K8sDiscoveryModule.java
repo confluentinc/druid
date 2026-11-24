@@ -22,17 +22,22 @@ package org.apache.druid.k8s.discovery;
 import com.fasterxml.jackson.databind.Module;
 import com.google.inject.Binder;
 import com.google.inject.Key;
+import com.google.inject.Provides;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
 import org.apache.druid.client.coordinator.Coordinator;
 import org.apache.druid.client.indexing.IndexingService;
+import org.apache.druid.common.guava.GuavaUtils;
 import org.apache.druid.discovery.DruidLeaderSelector;
 import org.apache.druid.discovery.DruidNodeAnnouncer;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
+import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.initialization.DruidModule;
+import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.server.DruidNode;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -52,21 +57,6 @@ public class K8sDiscoveryModule implements DruidModule
   public void configure(Binder binder)
   {
     JsonConfigProvider.bind(binder, "druid.discovery.k8s", K8sDiscoveryConfig.class);
-
-    binder.bind(ApiClient.class)
-          .toProvider(
-              () -> {
-                try {
-                  // Note: we can probably improve things here about figuring out how to find the K8S API server,
-                  // HTTP client timeouts etc.
-                  return Config.defaultClient();
-                }
-                catch (IOException ex) {
-                  throw new RuntimeException("Failed to create K8s ApiClient instance", ex);
-                }
-              }
-          )
-          .in(LazySingleton.class);
 
     binder.bind(K8sApiClient.class).to(DefaultK8sApiClient.class).in(LazySingleton.class);
     binder.bind(K8sLeaderElectorFactory.class).to(DefaultK8sLeaderElectorFactory.class).in(LazySingleton.class);
@@ -94,5 +84,51 @@ public class K8sDiscoveryModule implements DruidModule
                 K8sDruidLeaderSelectorProvider.K8sIndexingServiceDruidLeaderSelectorProvider.class
             )
             .in(LazySingleton.class);
+  }
+
+  @Provides
+  @LazySingleton
+  public ApiClient makeApiClient(@Self DruidNode druidNode, K8sDiscoveryConfig discoveryConfig)
+  {
+    try {
+      // Note: we can probably improve things here about figuring out how to find the K8S API server,
+      // HTTP client timeouts etc.
+      final ApiClient client = Config.defaultClient();
+      // Identifies Druid traffic in kube-apiserver audit logs and API Priority and Fairness metrics.
+      client.setUserAgent(buildUserAgent(druidNode.getServiceName(), discoveryConfig.getClusterIdentifier()));
+      return client;
+    }
+    catch (IOException ex) {
+      throw new RuntimeException("Failed to create K8s ApiClient instance", ex);
+    }
+  }
+
+  static String buildUserAgent(String serviceName, String clusterIdentifier)
+  {
+    final String version = GuavaUtils.firstNonNull(
+        K8sDiscoveryModule.class.getPackage().getImplementationVersion(),
+        "unknown"
+    );
+    return StringUtils.format(
+        "druid/%s (%s; k8s-discovery; cluster=%s)",
+        sanitizeUserAgentValue(version),
+        sanitizeUserAgentValue(serviceName),
+        sanitizeUserAgentValue(clusterIdentifier)
+    );
+  }
+
+  /**
+   * Replaces characters that cannot appear in the User-Agent comment with '_'. Header values must be printable ASCII
+   * (OkHttp rejects anything else, failing every request), and '(', ')', '\' and ';' delimit the comment's fields.
+   */
+  static String sanitizeUserAgentValue(String value)
+  {
+    final StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      final char c = value.charAt(i);
+      final boolean allowed = c >= 0x20 && c < 0x7f && c != '(' && c != ')' && c != '\\' && c != ';';
+      sb.append(allowed ? c : '_');
+    }
+    return sb.toString();
   }
 }
