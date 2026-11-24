@@ -204,16 +204,15 @@ public class TaskGroupRelaunchBackoffTest
   }
 
   @Test
-  public void testResetAndClearForgetLaunchedTasks()
+  public void testResetKeepsLaunchedTasksAndClearForgetsThem()
   {
     final TaskGroupRelaunchBackoff backoff = newBackoff(NO_JITTER);
     backoff.recordLaunch(GROUP_ID, List.of("task-a"));
     backoff.recordLaunch(GROUP_ID + 1, List.of("task-b"));
 
     backoff.reset(GROUP_ID);
-    Assert.assertEquals(Map.of("task-b", GROUP_ID + 1), backoff.pollLaunchedTasks());
+    Assert.assertEquals(Map.of("task-a", GROUP_ID, "task-b", GROUP_ID + 1), backoff.pollLaunchedTasks());
 
-    backoff.recordLaunch(GROUP_ID, List.of("task-c"));
     backoff.clear();
     Assert.assertEquals(Map.of(), backoff.pollLaunchedTasks());
   }

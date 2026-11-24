@@ -1938,6 +1938,8 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
                          );
                          activelyReadingTaskGroups.remove(groupId);
                          taskGroupRelaunchBackoff.reset(groupId);
+                         // tasks launched with the old offsets must not count against the new ones
+                         taskGroupRelaunchBackoff.forgetLaunchedTasks(groupId);
                          // killTaskGroupForPartitions() cleans up partitionGroups.
                          // Add the removed groups back.
                          partitionGroups.computeIfAbsent(groupId, k -> new HashSet<>());
@@ -2012,6 +2014,8 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
                    );
                    activelyReadingTaskGroups.remove(groupId);
                    taskGroupRelaunchBackoff.reset(groupId);
+                   // tasks launched with the old offsets must not count against the new ones
+                   taskGroupRelaunchBackoff.forgetLaunchedTasks(groupId);
                    // killTaskGroupForPartitions() cleans up partitionGroups.
                    // Add the removed groups back.
                    partitionGroups.computeIfAbsent(groupId, k -> new HashSet<>());
@@ -3444,6 +3448,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
             // metadata store (which will have advanced if we succeeded in publishing and will remain the same if
             // publishing failed and we need to re-ingest)
             stateManager.recordCompletedTaskState(TaskState.SUCCESS);
+            taskGroupRelaunchBackoff.reset(taskGroup.groupId);
             return Futures.transform(
                 stopTasksInGroup(taskGroup, "task[%s] succeeded in the taskGroup", task.status.getId()),
                 new Function<Object, Map<PartitionIdType, SequenceOffsetType>>()

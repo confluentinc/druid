@@ -150,10 +150,13 @@ class TaskGroupRelaunchBackoff
     launchedTasks.values().removeIf(task -> task.groupId == groupId);
   }
 
+  /**
+   * Clears the failures of the group. Its launched tasks stay tracked, since tasks launched for the group before the
+   * reset can still fail before the supervisor discovers them.
+   */
   void reset(int groupId)
   {
     groupBackoffs.remove(groupId);
-    forgetLaunchedTasks(groupId);
   }
 
   void clear()

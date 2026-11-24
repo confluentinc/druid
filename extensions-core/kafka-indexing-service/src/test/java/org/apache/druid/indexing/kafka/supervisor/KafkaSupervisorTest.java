@@ -1746,6 +1746,28 @@ public class KafkaSupervisorTest extends EasyMockSupport
   }
 
   @Test
+  public void testTaskRelaunchBackoffResetsWhenTaskSucceedsAtEndOfTaskDuration() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final Map<String, DateTime> taskStartTimes = new HashMap<>();
+    final List<Task> tasks = startSupervisor(2, taskStartTimes::get);
+    final Task succeedingReplica = tasks.get(0);
+
+    final Task replacement = runSupervisor(List.of(succeedingReplica), tasks.get(1), true);
+    runSupervisor(List.of(succeedingReplica), replacement, false);
+
+    // The healthy replica succeeds in the run that finds it at the end of its task duration. The success resets the
+    // backoff, so the next task group gets both its replicas at once.
+    taskStartTimes.put(succeedingReplica.getId(), DateTimes.nowUtc().minusHours(2));
+    runSupervisorExpectingTasks(
+        List.of(),
+        Map.of(succeedingReplica, TaskState.SUCCESS),
+        List.of(succeedingReplica),
+        2
+    );
+  }
+
+  @Test
   public void testTaskRelaunchBackoffIgnoresTaskKilledBySupervisor() throws Exception
   {
     enableTaskRelaunchBackoff();
@@ -1920,6 +1942,41 @@ public class KafkaSupervisorTest extends EasyMockSupport
   public void testTaskRelaunchBackoffCountsFailedPublishOnce() throws Exception
   {
     enableTaskRelaunchBackoff();
+    final List<Task> tasks = startSupervisorWithPublishingTask();
+
+    // Both tasks fail. A failed publish kills the readers of the task group, so this is one failure and the task
+    // group is relaunched at once.
+    runSupervisorWithCompletedTasks(
+        List.of(),
+        Map.of(tasks.get(0), TaskState.FAILED, tasks.get(1), TaskState.FAILED),
+        true
+    );
+  }
+
+  @Test
+  public void testTaskRelaunchBackoffCountsReaderThatFailsWhenPublishSucceeds() throws Exception
+  {
+    enableTaskRelaunchBackoff();
+    final List<Task> tasks = startSupervisorWithPublishingTask();
+
+    // The publish succeeds and resets the backoff. The reader fails before the supervisor discovers it, which is the
+    // first failure after the success.
+    final Task replacement = runSupervisorWithCompletedTasks(
+        List.of(),
+        Map.of(tasks.get(0), TaskState.SUCCESS, tasks.get(1), TaskState.FAILED),
+        true
+    );
+
+    // So this failure is the second one, and it is delayed
+    runSupervisor(List.of(), replacement, false);
+  }
+
+  /**
+   * Starts a supervisor whose first run discovers a publishing task and launches a reader for the offsets that follow.
+   * Returns the publishing task and the reader.
+   */
+  private List<Task> startSupervisorWithPublishingTask() throws Exception
+  {
     supervisor = getTestableSupervisor(1, 1, true, "PT1H", null, null);
     addSomeEvents(1);
     final Task publishingTask = createKafkaIndexTask(
@@ -1954,18 +2011,11 @@ public class KafkaSupervisorTest extends EasyMockSupport
     EasyMock.expect(taskQueue.add(EasyMock.capture(reader))).andReturn(true);
     replayAll();
 
-    // The first run discovers the publishing task and launches a reader for the offsets that follow
     supervisor.start();
     supervisor.runInternal();
     verifyAll();
 
-    // Both tasks fail. A failed publish kills the readers of the task group, so this is one failure and the task
-    // group is relaunched at once.
-    runSupervisorWithCompletedTasks(
-        List.of(),
-        Map.of(publishingTask, TaskState.FAILED, reader.getValue(), TaskState.FAILED),
-        true
-    );
+    return List.of(publishingTask, reader.getValue());
   }
 
   @Test
@@ -2184,7 +2234,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
   {
     EasyMock.reset(taskStorage, taskQueue);
     for (Task task : killedTasks) {
-      taskQueue.shutdown(EasyMock.eq(task.getId()), EasyMock.anyString(), EasyMock.eq(task.getId()));
+      taskQueue.shutdown(EasyMock.eq(task.getId()), EasyMock.anyString(), EasyMock.anyObject());
     }
     EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(toMap(runningTasks)).anyTimes();
     for (Task task : runningTasks) {
