@@ -274,7 +274,8 @@ public class KafkaInputReader implements InputEntityReader
 
   /**
    * Builds a map that blends two {@link Map}, presenting the combined keyset of both maps, and preferring to read
-   * from the first map and falling back to the second map if the value is not present.
+   * from the header/key map ({@code fallback}) and falling back to the row map if the value is not present, so that
+   * Kafka header/key values win over payload values of the same name.
    * <p>
    * This strategy is used rather than just copying the values of the keyset into a new map so that any 'flattening'
    * machinery (such as {@link Map} created by {@link org.apache.druid.java.util.common.parsers.ObjectFlatteners}) is
@@ -295,9 +296,9 @@ public class KafkaInputReader implements InputEntityReader
       public Object get(Object key)
       {
         final String skey = (String) key;
-        final Object val = getRowValue.apply(skey);
+        final Object val = fallback.get(skey);
         if (val == null) {
-          return fallback.get(skey);
+          return getRowValue.apply(skey);
         }
         return val;
       }
