@@ -1109,6 +1109,69 @@ public class KinesisSupervisorTest extends EasyMockSupport
   }
 
   @Test
+  public void testTaskRelaunchBackoffDelaysTaskGroupWhoseTasksKeepFailing() throws Exception
+  {
+    supervisorConfig = OBJECT_MAPPER.convertValue(
+        ImmutableMap.of("taskRelaunchBackoff.enabled", "true"),
+        SupervisorStateManagerConfig.class
+    );
+    supervisor = getTestableSupervisor(1, 1, true, "PT1H", null, null);
+    supervisorRecordSupplier.assign(EasyMock.anyObject());
+    EasyMock.expectLastCall().anyTimes();
+    EasyMock.expect(supervisorRecordSupplier.getPartitionIds(STREAM))
+            .andReturn(ImmutableSet.of(SHARD_ID1, SHARD_ID0))
+            .anyTimes();
+    EasyMock.expect(supervisorRecordSupplier.getAssignment())
+            .andReturn(ImmutableSet.of(SHARD1_PARTITION, SHARD0_PARTITION))
+            .anyTimes();
+    supervisorRecordSupplier.seekToLatest(EasyMock.anyObject());
+    EasyMock.expectLastCall().anyTimes();
+    EasyMock.expect(supervisorRecordSupplier.getEarliestSequenceNumber(EasyMock.anyObject())).andReturn("0").anyTimes();
+    EasyMock.expect(supervisorRecordSupplier.getLatestSequenceNumber(EasyMock.anyObject())).andReturn("100").anyTimes();
+    supervisorRecordSupplier.seek(EasyMock.anyObject(), EasyMock.anyString());
+    EasyMock.expectLastCall().anyTimes();
+    EasyMock.expect(taskMaster.getTaskQueue()).andReturn(Optional.of(taskQueue)).anyTimes();
+    EasyMock.expect(taskMaster.getTaskRunner()).andReturn(Optional.of(taskRunner)).anyTimes();
+    EasyMock.expect(taskRunner.getRunningTasks()).andReturn(Collections.emptyList()).anyTimes();
+    EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(Map.of()).anyTimes();
+    EasyMock.expect(indexerMetadataStorageCoordinator.retrieveDataSourceMetadata(DATASOURCE))
+            .andReturn(new KinesisDataSourceMetadata(null))
+            .anyTimes();
+    final Capture<Task> task = Capture.newInstance();
+    EasyMock.expect(taskQueue.add(EasyMock.capture(task))).andReturn(true);
+    taskRunner.registerListener(EasyMock.anyObject(TaskRunnerListener.class), EasyMock.anyObject(Executor.class));
+    replayAll();
+
+    supervisor.start();
+    supervisor.runInternal();
+    verifyAll();
+
+    // The first failure is relaunched at once, the second one waits
+    final Task replacement = runSupervisorWithTaskThatFailedBeforeDiscovery(task.getValue(), true);
+    runSupervisorWithTaskThatFailedBeforeDiscovery(replacement, false);
+  }
+
+  @Nullable
+  private Task runSupervisorWithTaskThatFailedBeforeDiscovery(Task failedTask, boolean expectNewTask)
+  {
+    EasyMock.reset(taskStorage, taskQueue);
+    EasyMock.expect(taskQueue.getActiveTasksForDatasource(DATASOURCE)).andReturn(Map.of()).anyTimes();
+    EasyMock.expect(taskStorage.getStatus(failedTask.getId()))
+            .andReturn(Optional.of(TaskStatus.failure(failedTask.getId(), "Failed at startup")))
+            .anyTimes();
+    final Capture<Task> newTask = Capture.newInstance();
+    if (expectNewTask) {
+      EasyMock.expect(taskQueue.add(EasyMock.capture(newTask))).andReturn(true);
+    }
+    EasyMock.replay(taskStorage, taskQueue);
+
+    supervisor.runInternal();
+    verifyAll();
+
+    return expectNewTask ? newTask.getValue() : null;
+  }
+
+  @Test
   public void testRequeueTaskWhenFailed() throws Exception
   {
     supervisor = getTestableSupervisor(2, 2, true, "PT1H", null, null);
