@@ -135,6 +135,18 @@
 
   "ingest/events/buffered" : { "dimensions" : ["serviceName", "bufferCapacity"], "type" : "gauge"},
 
+  "k8s/client/request/count" : { "dimensions" : ["client", "peer", "verb", "resource", "route", "statusClass", "code"], "type" : "count"},
+  "k8s/client/request/time" : { "dimensions" : ["client", "peer", "verb", "resource", "route", "statusClass", "code"], "type" : "timer"},
+  "k8s/client/throttled/count" : { "dimensions" : ["client", "peer", "verb", "resource", "route", "statusClass", "code"], "type" : "count"},
+  "k8s/client/error/count" : { "dimensions" : ["client", "peer", "verb", "resource", "route", "statusClass", "code", "errorType"], "type" : "count"},
+  "k8s/client/retry/count" : { "dimensions" : ["client", "peer", "verb", "resource", "route", "statusClass", "code"], "type" : "count"},
+  "k8s/client/connection/new" : { "dimensions" : ["client", "peer"], "type" : "count"},
+  "k8s/client/connection/failed" : { "dimensions" : ["client", "peer", "errorType"], "type" : "count"},
+  "k8s/client/tlsHandshake/time" : { "dimensions" : ["client", "peer"], "type" : "timer"},
+  "k8s/client/connection/open" : { "dimensions" : ["peer"], "type" : "gauge"},
+  "k8s/client/connection/idle" : { "dimensions" : ["peer"], "type" : "gauge"},
+  "k8s/client/inflight" : { "dimensions" : ["peer"], "type" : "gauge"},
+
   "sys/swap/free" : { "dimensions" : [], "type" : "gauge"},
   "sys/swap/max" : { "dimensions" : [], "type" : "gauge"},
   "sys/swap/pageIn" : { "dimensions" : [], "type" : "gauge"},

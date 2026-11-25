@@ -602,6 +602,34 @@ These metrics are only available if the `druid-s3-extensions` module is included
 |`s3/upload/total/time`|Milliseconds taken for uploading all parts of a multi-part upload to S3.|`uploadId`|Varies|
 |`s3/upload/total/bytes`|Total bytes uploaded to S3 during a multi-part upload.|`uploadId`|Varies|
 
+## Kubernetes API client
+
+These metrics are only available if the `druid-kubernetes-extensions` module is included and Druid uses Kubernetes for node discovery or leader election. They cover the requests that discovery and leader election send to the Kubernetes API server.
+
+The request metrics have these dimensions:
+
+* `client`: `discovery` for pod requests, `leaderElection` for ConfigMap and Lease requests.
+* `peer`: always `kube-apiserver`.
+* `verb`: the verb as the API server's audit log names it, such as `get`, `list`, `watch`, `create`, `update` or `patch`.
+* `resource`: the Kubernetes resource, such as `pods` or `configmaps`.
+* `route`: the request path with names and namespaces replaced, such as `/api/v1/namespaces/{namespace}/pods/{name}`.
+* `statusClass`: `2xx`, `4xx`, `5xx` and so on, or `error` if the request got no response.
+* `code`: the HTTP status code, or `error` if the request got no response.
+
+|Metric|Description|Dimensions|Normal value|
+|------|-----------|----------|------------|
+|`k8s/client/request/count`|Number of requests sent to the API server. A watch is counted when it starts.|`client`, `peer`, `verb`, `resource`, `route`, `statusClass`, `code`|Varies|
+|`k8s/client/request/time`|Milliseconds taken by a request, including reading the whole response. Not emitted for watches.|`client`, `peer`, `verb`, `resource`, `route`, `statusClass`, `code`|Varies|
+|`k8s/client/throttled/count`|Number of requests the API server rejected with HTTP 429 (Too Many Requests).|`client`, `peer`, `verb`, `resource`, `route`, `statusClass`, `code`|0|
+|`k8s/client/error/count`|Number of requests that failed without a complete response. `errorType` is one of `timeout`, `connectionRefused`, `unknownHost`, `tls`, `canceled` or `io`.|`client`, `peer`, `verb`, `resource`, `route`, `statusClass`, `code`, `errorType`|0|
+|`k8s/client/retry/count`|Number of times the HTTP client sent a request again: after a connection failure, a redirect or an authentication challenge.|`client`, `peer`, `verb`, `resource`, `route`, `statusClass`, `code`|0|
+|`k8s/client/connection/new`|Number of new connections opened to the API server.|`client`, `peer`|Close to 0 once connections are pooled|
+|`k8s/client/connection/failed`|Number of failed attempts to open a connection.|`client`, `peer`, `errorType`|0|
+|`k8s/client/tlsHandshake/time`|Milliseconds taken by the TLS handshake of a new connection.|`client`, `peer`|Varies|
+|`k8s/client/connection/open`|Number of connections in the client's pool, both in use and idle. Emitted by a monitor every `druid.monitoring.emissionPeriod`.|`peer`|Varies|
+|`k8s/client/connection/idle`|Number of idle connections in the client's pool.|`peer`|Varies|
+|`k8s/client/inflight`|Number of requests in progress, including open watches.|`peer`|Varies|
+
 ## Cgroup
 
 These metrics are available on operating systems with the cgroup kernel feature. All the values are derived by reading from `/sys/fs/cgroup`.

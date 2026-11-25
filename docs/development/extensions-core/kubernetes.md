@@ -54,6 +54,8 @@ Additionally, this extension has the following configuration.
 |`druid.discovery.k8s.renewDeadline`|`Duration`|Lease renewal period used by Leader.|PT17S|No|
 |`druid.discovery.k8s.retryPeriod`|`Duration`|Retry wait used by Leader Election algorithm on failed operations.|PT5S|No|
 |`druid.discovery.k8s.periodicListInterval`|`Duration`|Interval between periodic pod listings for node discovery.|PT1M|No|
+|`druid.discovery.k8s.client.connectTimeout`|`Duration`|Timeout for opening a connection to the Kubernetes API server. `PT0S` means no timeout.|PT10S|No|
+|`druid.discovery.k8s.client.readTimeout`|`Duration`|Timeout between bytes read from the Kubernetes API server, for every request except watches. Watches have no read timeout, since they can stay quiet for minutes. `PT0S` means no timeout.|PT0S|No|
 
 ### Readiness Probes
 
@@ -95,6 +97,10 @@ With this configuration, a pod must fail its readiness check 3 times in a row (3
 ### Kubernetes API client identity
 
 Requests sent by this extension to the Kubernetes API server use the User-Agent `druid/<version> (<service name>; k8s-discovery; cluster=<clusterIdentifier>)`, for example `druid/33.0.0 (druid/broker; k8s-discovery; cluster=us-west-prod-druid)`. Use it to identify Druid traffic in API server audit logs.
+
+### Kubernetes API client metrics
+
+This extension emits metrics for the requests it sends to the Kubernetes API server, for both node discovery and leader election. See [Kubernetes API client](../../operations/metrics.md#kubernetes-api-client) for the list.
 
 ### Gotchas
 

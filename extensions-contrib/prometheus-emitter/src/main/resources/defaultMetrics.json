@@ -209,6 +209,18 @@
   "zk/connected" : { "dimensions" : [], "type" : "gauge", "help":  "Indicator of connection status to zookeeper."},
   "zk/reconnect/time" : { "dimensions" : [], "type" : "timer", "conversionFactor": 1000.0, "help": "Amount of time, in seconds, that a server was disconnected from ZooKeeper before reconnecting." },
 
+  "k8s/client/request/count" : { "dimensions" : ["client", "peer", "verb", "resource", "route", "statusClass", "code"], "type" : "count", "help": "Number of requests sent to the Kubernetes API server."},
+  "k8s/client/request/time" : { "dimensions" : ["client", "peer", "verb", "resource", "route", "statusClass", "code"], "type" : "timer", "conversionFactor": 1000.0, "help": "Seconds taken by a request to the Kubernetes API server, excluding watches."},
+  "k8s/client/throttled/count" : { "dimensions" : ["client", "peer", "verb", "resource", "route", "statusClass", "code"], "type" : "count", "help": "Number of requests the Kubernetes API server rejected with HTTP 429."},
+  "k8s/client/error/count" : { "dimensions" : ["client", "peer", "verb", "resource", "route", "statusClass", "code", "errorType"], "type" : "count", "help": "Number of requests to the Kubernetes API server that failed without a complete response."},
+  "k8s/client/retry/count" : { "dimensions" : ["client", "peer", "verb", "resource", "route", "statusClass", "code"], "type" : "count", "help": "Number of times the Kubernetes API client sent a request again."},
+  "k8s/client/connection/new" : { "dimensions" : ["client", "peer"], "type" : "count", "help": "Number of new connections opened to the Kubernetes API server."},
+  "k8s/client/connection/failed" : { "dimensions" : ["client", "peer", "errorType"], "type" : "count", "help": "Number of failed attempts to open a connection to the Kubernetes API server."},
+  "k8s/client/tlsHandshake/time" : { "dimensions" : ["client", "peer"], "type" : "timer", "conversionFactor": 1000.0, "help": "Seconds taken by the TLS handshake of a new connection to the Kubernetes API server."},
+  "k8s/client/connection/open" : { "dimensions" : ["peer"], "type" : "gauge", "help": "Number of connections in the Kubernetes API client's pool."},
+  "k8s/client/connection/idle" : { "dimensions" : ["peer"], "type" : "gauge", "help": "Number of idle connections in the Kubernetes API client's pool."},
+  "k8s/client/inflight" : { "dimensions" : ["peer"], "type" : "gauge", "help": "Number of requests to the Kubernetes API server in progress, including open watches."},
+
   "sys/swap/free" : { "dimensions" : [], "type" : "gauge", "help": "Free swap"},
   "sys/swap/max" : { "dimensions" : [], "type" : "gauge", "help": "Max swap"},
   "sys/swap/pageIn" : { "dimensions" : [], "type" : "gauge", "help": "Paged in swap"},
